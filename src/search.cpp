@@ -1128,6 +1128,22 @@ moves_loop: // When in check, search starts here
 
       Depth r = reduction(improving, depth, moveCount, delta, thisThread->rootDelta);
 
+      if (PvNode)
+      {
+          // Decrease reduction for PV nodes based on depth
+          r -= 1 + 11 / (3 + depth);
+
+          // Increase reduction if TT is hit but move is not equal to ttMove.
+          if (!rootNode /* && ss->ttHit << bug */ && move != ttMove && ttMove != MOVE_NONE)
+              r += 1;
+
+          // Polarize reduction effect based on move == ttMove.
+          //
+          // bench 1024 1 18 default depth mixed, r before PvNode reduction
+          // move != ttMove && ttMove != MOVE_NONE --> avg(r) = 2.66145
+          // move == ttMove                        --> avg(r) = -1.7435
+      }
+
       // Decrease reduction if position is or has been on the PV
       // and node is not likely to fail low. (~3 Elo)
       if (   ss->ttPv
@@ -1145,10 +1161,6 @@ moves_loop: // When in check, search starts here
       // Increase reduction if ttMove is a capture (~3 Elo)
       if (ttCapture)
           r++;
-
-      // Decrease reduction for PvNodes based on depth
-      if (PvNode)
-          r -= 1 + 11 / (3 + depth);
 
       // Decrease reduction if ttMove has been singularly extended (~1 Elo)
       if (singularQuietLMR)
