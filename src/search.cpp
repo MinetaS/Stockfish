@@ -1071,10 +1071,11 @@ moves_loop: // When in check, search starts here
                   // Avoid search explosion by limiting the number of double extensions
                   if (  !PvNode
                       && value < singularBeta - 25
-                      && ss->doubleExtensions <= 10)
+                      && ss->doubleExtensions <= 9)
                   {
                       extension = 2;
                       depth += depth < 12;
+                      ss->doubleExtensions = (ss-1)->doubleExtensions + 1;
                   }
               }
 
@@ -1111,7 +1112,6 @@ moves_loop: // When in check, search starts here
 
       // Add extension to new depth
       newDepth += extension;
-      ss->doubleExtensions = (ss-1)->doubleExtensions + (extension == 2);
 
       // Speculative prefetch as early as possible
       prefetch(TT.first_entry(pos.key_after(move)));
@@ -1195,10 +1195,8 @@ moves_loop: // When in check, search starts here
               // Adjust full depth search based on LMR results - if result
               // was good enough search deeper, if it was bad enough search shallower
               const bool doDeeperSearch = value > (alpha + 66 + 11 * (newDepth - d));
-              const bool doEvenDeeperSearch = value > alpha + 582 && ss->doubleExtensions <= 5;
+              const bool doEvenDeeperSearch = value > alpha + 582 && ss->ply < thisThread->rootDepth * 2;
               const bool doShallowerSearch = value < bestValue + newDepth;
-
-              ss->doubleExtensions = ss->doubleExtensions + doEvenDeeperSearch;
 
               newDepth += doDeeperSearch - doShallowerSearch + doEvenDeeperSearch;
 
