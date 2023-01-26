@@ -50,10 +50,21 @@ struct Stack {
   int cutoffCnt;
   bool inCheck;
 
-  bool ttHit;
-  bool ttPv;
-  Move ttMove;
-  Value ttValue;
+  struct TTState {
+    bool hit;
+    bool pv;
+    Move move;
+    Depth depth;
+    Value value;
+
+    inline void copy_to(TTState& tts) const {
+      memcpy(&tts, this, sizeof(*this));
+    }
+
+    inline void copy_from(TTState& tts) {
+      memcpy(this, &tts, sizeof(*this));
+    }
+  } tt;
 };
 
 
