@@ -518,6 +518,24 @@ void Thread::search() {
 
 namespace {
 
+int v0 = 637; // doEvenDeeperSearch alpha upper bound, main variable
+TUNE(SetRange(0, 1296), v0);
+
+int v1 = 66; // doDeeperSearch alpha offset
+TUNE(SetDefaultRange, v1);
+
+int v2 = 11; // doDeeperSearch newDepth - d scale
+TUNE(SetRange(1, 22), v2);
+
+int v3 = 582; // doEvenDeeperSearch alpha offset
+TUNE(SetDefaultRange, v3);
+
+int v4 = VALUE_KNOWN_WIN; // doEvenDeeperSearch value limit
+TUNE(SetRange(1, 15754), v4);
+
+int v5 = 6; // doEvenDeeperSearch doubleExtensions limit
+TUNE(SetRange(1, 10), v5);
+
   // search<>() is the main search function for both PV and non-PV nodes
 
   template <NodeType nodeType>
@@ -1200,10 +1218,11 @@ moves_loop: // When in check, search starts here
               // Adjust full depth search based on LMR results - if result
               // was good enough search deeper, if it was bad enough search shallower
               const bool doShallowerSearch = value < bestValue + newDepth;
-              const bool doDeeperSearch = value > (alpha + 66 + 11 * (newDepth - d));
-              const bool doEvenDeeperSearch =    value > alpha + 582
-                                              && alpha < 637
-                                              && ss->doubleExtensions <= 6;
+              const bool doDeeperSearch = value > (alpha + v1 + v2 * (newDepth - d));
+              const bool doEvenDeeperSearch =    value > alpha + v3
+                                              && alpha < v0
+                                              && value < v4
+                                              && ss->doubleExtensions <= v5;
 
               ss->doubleExtensions = ss->doubleExtensions + doEvenDeeperSearch;
 
