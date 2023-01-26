@@ -557,8 +557,8 @@ namespace {
     Move ttMove, move, excludedMove, bestMove;
     Depth extension, newDepth;
     Value bestValue, value, ttValue, eval, maxValue, probCutBeta;
-    bool givesCheck, improving, priorCapture, singularQuietLMR;
-    bool ttHit, capture, moveCountPruning, ttCapture;
+    bool capture, priorCapture, givesCheck, improving, moveCountPruning;
+    bool ttHit, ttCapture, isNormalExcludedMove, singularQuietLMR;
     Piece movedPiece;
     int moveCount, captureCount, quietCount, improvement, complexity;
 
@@ -623,14 +623,15 @@ namespace {
     // search to overwrite a previous full search TT value, so we use a different
     // position key in case of an excluded move.
     excludedMove = ss->excludedMove;
-    posKey = excludedMove == MOVE_NONE ? pos.key() : pos.key() ^ make_key(excludedMove);
+    isNormalExcludedMove = excludedMove == MOVE_NONE || excludedMove == MOVE_NULL;
+    posKey = isNormalExcludedMove ? pos.key() : pos.key() ^ make_key(excludedMove);
     tte = TT.probe(posKey, ttHit);
     ttValue = ttHit ? value_from_tt(tte->value(), ss->ply, pos.rule50_count()) : VALUE_NONE;
     ttMove =  rootNode ? thisThread->rootMoves[thisThread->pvIdx].pv[0]
             : ttHit    ? tte->move() : MOVE_NONE;
     ttCapture = ttMove && pos.capture(ttMove);
 
-    if (!excludedMove)
+    if (excludedMove == MOVE_NONE)
     {
         ss->ttHit = ttHit;
         ss->ttPv = PvNode || (ttHit && tte->is_pv());
@@ -754,7 +755,7 @@ namespace {
         ss->staticEval = eval = evaluate(pos, &complexity);
 
         // Save static evaluation into transposition table
-        if (!excludedMove)
+        if (isNormalExcludedMove)
             tte->save(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE, DEPTH_NONE, MOVE_NONE, eval);
     }
 
@@ -802,7 +803,7 @@ namespace {
         &&  eval >= beta
         &&  eval >= ss->staticEval
         &&  ss->staticEval >= beta - 20 * depth - improvement / 14 + 235 + complexity / 24
-        && !excludedMove
+        &&  isNormalExcludedMove
         &&  pos.non_pawn_material(us)
         && (ss->ply >= thisThread->nmpMinPly || us != thisThread->nmpColor))
     {
@@ -836,7 +837,9 @@ namespace {
             thisThread->nmpMinPly = ss->ply + 3 * (depth-R) / 4;
             thisThread->nmpColor = us;
 
+            ss->excludedMove = MOVE_NULL;
             Value v = search<NonPV>(pos, ss, beta-1, beta, depth-R, false);
+            ss->excludedMove = MOVE_NONE;
 
             thisThread->nmpMinPly = 0;
 
@@ -1059,7 +1062,7 @@ moves_loop: // When in check, search starts here
           if (   !rootNode
               &&  depth >= 4 - (thisThread->previousDepth > 24) + 2 * (PvNode && tte->is_pv())
               &&  move == ttMove
-              && !excludedMove // Avoid recursive singular search
+              &&  isNormalExcludedMove // Avoid recursive singular search
            /* &&  ttValue != VALUE_NONE Already implicit in the next condition */
               &&  abs(ttValue) < VALUE_KNOWN_WIN
               && (tte->bound() & BOUND_LOWER)
@@ -1359,12 +1362,12 @@ moves_loop: // When in check, search starts here
     // must be a mate or a stalemate. If we are in a singular extension search then
     // return a fail low score.
 
-    assert(moveCount || !ss->inCheck || excludedMove || !MoveList<LEGAL>(pos).size());
+    assert(moveCount || !ss->inCheck || !isNormalExcludedMove || !MoveList<LEGAL>(pos).size());
 
     if (!moveCount)
-        bestValue = excludedMove ? alpha :
-                    ss->inCheck  ? mated_in(ss->ply)
-                                 : VALUE_DRAW;
+        bestValue =  !isNormalExcludedMove ? alpha
+                   : ss->inCheck           ? mated_in(ss->ply)
+                                           : VALUE_DRAW;
 
     // If there is a move which produces search value greater than alpha we update stats of searched moves
     else if (bestMove)
@@ -1389,7 +1392,7 @@ moves_loop: // When in check, search starts here
         ss->ttPv = ss->ttPv || ((ss-1)->ttPv && depth > 3);
 
     // Write gathered information in transposition table
-    if (!excludedMove && !(rootNode && thisThread->pvIdx))
+    if (isNormalExcludedMove && !(rootNode && thisThread->pvIdx))
         tte->save(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv,
                   bestValue >= beta ? BOUND_LOWER :
                   PvNode && bestMove ? BOUND_EXACT : BOUND_UPPER,
