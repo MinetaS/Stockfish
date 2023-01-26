@@ -49,9 +49,11 @@ struct Stack {
   int doubleExtensions;
   int cutoffCnt;
   bool inCheck;
+
   bool ttHit;
   bool ttPv;
-  bool noStackUpdate;
+  Move ttMove;
+  Value ttValue;
 };
 
 

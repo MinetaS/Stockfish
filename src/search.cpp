@@ -603,8 +603,8 @@ namespace {
         thisThread->rootDelta = beta - alpha;
 
     assert(0 <= ss->ply && ss->ply < MAX_PLY);
-    assert(!(ss->excludedMove && !ss->noStackUpdate));
 
+    (ss+1)->ttPv         = false;
     (ss+1)->excludedMove = bestMove = MOVE_NONE;
     (ss+2)->killers[0]   = (ss+2)->killers[1] = MOVE_NONE;
     (ss+2)->cutoffCnt    = 0;
@@ -625,17 +625,17 @@ namespace {
     excludedMove = ss->excludedMove;
     posKey = excludedMove == MOVE_NONE ? pos.key() : pos.key() ^ make_key(excludedMove);
     tte = TT.probe(posKey, ttHit);
-    ttPv = excludedMove == MOVE_NONE ? (PvNode || (ttHit && tte->is_pv())) : ss->ttPv;
+    ttPv = ss->ttPv;
     ttMove =  rootNode ? thisThread->rootMoves[thisThread->pvIdx].pv[0]
-            : ttHit    ? tte->move()
-            :            MOVE_NONE;
-    ttValue = ttHit ? value_from_tt(tte->value(), ss->ply, pos.rule50_count()) : VALUE_NONE;
+            : ttHit    ? tte->move() : MOVE_NONE;
+    ttValue = ttHit ? value_from_tt(tte->value(), ss->ply, pos.rule50_count())
+                    : VALUE_NONE;
     ttCapture = ttMove && pos.capture(ttMove);
 
-    if (!ss->noStackUpdate)
+    if (!excludedMove)
     {
         ss->ttHit = ttHit;
-        ss->ttPv = ttPv;
+        ss->ttPv = ttPv = PvNode || (ttHit && tte->is_pv());
     }
 
     // At non-PV nodes we check for an early TT cutoff
@@ -786,6 +786,13 @@ namespace {
         value = qsearch<NonPV>(pos, ss, alpha - 1, alpha);
         if (value < alpha)
             return value;
+
+        if (!ttHit && ss->ttHit)
+        {
+            ttHit = true;
+            ttMove = ss->ttMove;
+            ttValue = ss->ttValue;
+        }
     }
 
     // Step 8. Futility pruning: child node (~40 Elo).
@@ -838,14 +845,20 @@ namespace {
             thisThread->nmpMinPly = ss->ply + 3 * (depth-R) / 4;
             thisThread->nmpColor = us;
 
-            ss->noStackUpdate = true;
             Value v = search<NonPV>(pos, ss, beta-1, beta, depth-R, false);
-            ss->noStackUpdate = false;
 
             thisThread->nmpMinPly = 0;
 
             if (v >= beta)
                 return nullValue;
+
+            if (!ttHit && ss->ttHit)
+            {
+                ttHit = true;
+                ttPv = ss->ttPv;
+                ttMove = ss->ttMove;
+                ttValue = ss->ttValue;
+            }
         }
     }
 
@@ -1073,10 +1086,8 @@ moves_loop: // When in check, search starts here
               Depth singularDepth = (depth - 1) / 2;
 
               ss->excludedMove = move;
-              ss->noStackUpdate = true;
               value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, singularDepth, cutNode);
               ss->excludedMove = MOVE_NONE;
-              ss->noStackUpdate = false;
 
               if (value < singularBeta)
               {
@@ -1391,11 +1402,7 @@ moves_loop: // When in check, search starts here
     // If no good move is found and the previous position was ttPv, then the previous
     // opponent move is probably good and the new position is added to the search tree.
     if (bestValue <= alpha)
-    {
-        ttPv = ttPv || ((ss-1)->ttPv && depth > 3);
-        if (!ss->noStackUpdate)
-            ss->ttPv = ttPv;
-    }
+        ss->ttPv = ttPv = ttPv || ((ss-1)->ttPv && depth > 3);
 
     // Write gathered information in transposition table
     if (!excludedMove && !(rootNode && thisThread->pvIdx))
@@ -1461,9 +1468,12 @@ moves_loop: // When in check, search starts here
     // Transposition table lookup
     posKey = pos.key();
     tte = TT.probe(posKey, ttHit);
-    ttValue = ttHit ? value_from_tt(tte->value(), ss->ply, pos.rule50_count()) : VALUE_NONE;
-    ttMove = ttHit ? tte->move() : MOVE_NONE;
+    ttMove = ttHit ? (ss->ttMove = tte->move()) : MOVE_NONE;
+    ttValue = ttHit ? (ss->ttValue = value_from_tt(tte->value(), ss->ply, pos.rule50_count()))
+                      : VALUE_NONE;
     pvHit = ttHit && tte->is_pv();
+
+    ss->ttHit = ttHit;
 
     if (  !PvNode
         && ttHit
