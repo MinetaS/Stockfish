@@ -625,7 +625,7 @@ namespace {
     excludedMove = ss->excludedMove;
     posKey = excludedMove == MOVE_NONE ? pos.key() : pos.key() ^ make_key(excludedMove);
     tte = TT.probe(posKey, ttHit);
-    ttPv = PvNode || (ttHit && tte->is_pv());
+    ttPv = excludedMove == MOVE_NONE ? (PvNode || (ttHit && tte->is_pv())) : ss->ttPv;
     ttMove =  rootNode ? thisThread->rootMoves[thisThread->pvIdx].pv[0]
             : ttHit    ? tte->move()
             :            MOVE_NONE;
@@ -1392,7 +1392,7 @@ moves_loop: // When in check, search starts here
     // opponent move is probably good and the new position is added to the search tree.
     if (bestValue <= alpha)
     {
-        ttPv |= ((ss-1)->ttPv && depth > 3);
+        ttPv = ttPv || ((ss-1)->ttPv && depth > 3);
         if (!ss->noStackUpdate)
             ss->ttPv = ttPv;
     }
