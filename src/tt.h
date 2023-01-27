@@ -50,7 +50,7 @@ private:
 
   uint16_t key16;
   uint8_t  depth8;
-  uint8_t genBound8;
+  uint8_t  genBound8;
   uint16_t move16;
   int16_t  value16;
   int16_t  eval16;
