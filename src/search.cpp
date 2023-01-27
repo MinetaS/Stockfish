@@ -552,13 +552,11 @@ namespace {
     StateInfo st;
     ASSERT_ALIGNED(&st, Eval::NNUE::CacheLineSize);
 
-    TTEntry* tte;
-    Key posKey;
-    Move ttMove, move, excludedMove, bestMove;
+    Move move, bestMove;
     Depth extension, newDepth;
-    Value bestValue, value, ttValue, eval, maxValue, probCutBeta;
+    Value bestValue, value, eval, maxValue, probCutBeta;
     bool givesCheck, improving, priorCapture, singularQuietLMR;
-    bool capture, moveCountPruning, ttCapture;
+    bool capture, moveCountPruning;
     Piece movedPiece;
     int moveCount, captureCount, quietCount, improvement, complexity;
 
@@ -620,24 +618,33 @@ namespace {
         (ss+2)->statScore = 0;
 
     // Step 4. Transposition table lookup. We don't want the score of a partial
-    // search to overwrite a previous full search TT value, so we use a different
-    // position key in case of an excluded move.
-    excludedMove = ss->excludedMove;
-    posKey = excludedMove == MOVE_NONE ? pos.key() : pos.key() ^ make_key(excludedMove);
-    tte = TT.probe(posKey, ss->ttHit);
-    ttValue = ss->ttHit ? value_from_tt(tte->value(), ss->ply, pos.rule50_count()) : VALUE_NONE;
-    ttMove =  rootNode ? thisThread->rootMoves[thisThread->pvIdx].pv[0]
-            : ss->ttHit    ? tte->move() : MOVE_NONE;
-    ttCapture = ttMove && pos.capture(ttMove);
+    // search to overwrite a previous full search TT value, so we use a
+    // different position key in case of an excluded move.
+    Move excludedMove = ss->excludedMove;
+    Key posKey = excludedMove == MOVE_NONE ? pos.key()
+                                       : pos.key() ^ make_key(excludedMove);
+    TTEntry* tteGlobal = TT.probe(posKey, ss->ttHit);
+    TTEntry  tte;
+
+    if (ss->ttHit)
+        memcpy(&tte, tteGlobal, sizeof(TTEntry));
+
+    Move ttMove =  rootNode  ? thisThread->rootMoves[thisThread->pvIdx].pv[0]
+                 : ss->ttHit ? tte.move()
+                             : MOVE_NONE;
+    Value ttValue = ss->ttHit ? value_from_tt(tte.value(), ss->ply, pos.rule50_count())
+                              : VALUE_NONE;
+    bool ttCapture = ttMove && pos.capture(ttMove);
+
     if (!excludedMove)
-        ss->ttPv = PvNode || (ss->ttHit && tte->is_pv());
+        ss->ttPv = PvNode || (ss->ttHit && tte.is_pv());
 
     // At non-PV nodes we check for an early TT cutoff
     if (  !PvNode
         && ss->ttHit
-        && tte->depth() > depth - (tte->bound() == BOUND_EXACT)
+        && tte.depth() > depth - (tte.bound() == BOUND_EXACT)
         && ttValue != VALUE_NONE // Possible in case of TT access race
-        && (tte->bound() & (ttValue >= beta ? BOUND_LOWER : BOUND_UPPER)))
+        && (tte.bound() & (ttValue >= beta ? BOUND_LOWER : BOUND_UPPER)))
     {
         // If ttMove is quiet, update move sorting heuristics on TT hit (~2 Elo)
         if (ttMove)
@@ -701,7 +708,7 @@ namespace {
                 if (    b == BOUND_EXACT
                     || (b == BOUND_LOWER ? value >= beta : value <= alpha))
                 {
-                    tte->save(posKey, value_to_tt(value, ss->ply), ss->ttPv, b,
+                    tteGlobal->save(posKey, value_to_tt(value, ss->ply), ss->ttPv, b,
                               std::min(MAX_PLY - 1, depth + 6),
                               MOVE_NONE, VALUE_NONE);
 
@@ -734,7 +741,7 @@ namespace {
     else if (ss->ttHit)
     {
         // Never assume anything about values stored in TT
-        ss->staticEval = eval = tte->eval();
+        ss->staticEval = eval = tte.eval();
         if (eval == VALUE_NONE)
             ss->staticEval = eval = evaluate(pos, &complexity);
         else // Fall back to (semi)classical complexity for TT hits, the NNUE complexity is lost
@@ -742,7 +749,7 @@ namespace {
 
         // ttValue can be used as a better position evaluation (~7 Elo)
         if (    ttValue != VALUE_NONE
-            && (tte->bound() & (ttValue > eval ? BOUND_LOWER : BOUND_UPPER)))
+            && (tte.bound() & (ttValue > eval ? BOUND_LOWER : BOUND_UPPER)))
             eval = ttValue;
     }
     else
@@ -751,7 +758,7 @@ namespace {
 
         // Save static evaluation into transposition table
         if (!excludedMove)
-            tte->save(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE, DEPTH_NONE, MOVE_NONE, eval);
+            tteGlobal->save(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE, DEPTH_NONE, MOVE_NONE, eval);
     }
 
     thisThread->complexityAverage.update(complexity);
@@ -854,7 +861,7 @@ namespace {
         // because probCut search has depth set to depth - 4 but we also do a move before it
         // so effective depth is equal to depth - 3
         && !(   ss->ttHit
-             && tte->depth() >= depth - 3
+             && tte.depth() >= depth - 3
              && ttValue != VALUE_NONE
              && ttValue < probCutBeta))
     {
@@ -887,7 +894,7 @@ namespace {
                 if (value >= probCutBeta)
                 {
                     // Save ProbCut data into transposition table
-                    tte->save(posKey, value_to_tt(value, ss->ply), ss->ttPv, BOUND_LOWER, depth - 3, move, ss->staticEval);
+                    tteGlobal->save(posKey, value_to_tt(value, ss->ply), ss->ttPv, BOUND_LOWER, depth - 3, move, ss->staticEval);
                     return value;
                 }
             }
@@ -915,8 +922,8 @@ moves_loop: // When in check, search starts here
         && !PvNode
         && depth >= 2
         && ttCapture
-        && (tte->bound() & BOUND_LOWER)
-        && tte->depth() >= depth - 3
+        && (tte.bound() & BOUND_LOWER)
+        && tte.depth() >= depth - 3
         && ttValue >= probCutBeta
         && abs(ttValue) <= VALUE_KNOWN_WIN
         && abs(beta) <= VALUE_KNOWN_WIN
@@ -943,8 +950,8 @@ moves_loop: // When in check, search starts here
     // at a depth equal or greater than the current depth, and the result of this search was a fail low.
     bool likelyFailLow =    PvNode
                          && ttMove
-                         && (tte->bound() & BOUND_UPPER)
-                         && tte->depth() >= depth;
+                         && (tte.bound() & BOUND_UPPER)
+                         && tte.depth() >= depth;
 
     // Step 13. Loop through all pseudo-legal moves until no moves remain
     // or a beta cutoff occurs.
@@ -1053,13 +1060,13 @@ moves_loop: // When in check, search starts here
           // a reduced search on all the other moves but the ttMove and if the
           // result is lower than ttValue minus a margin, then we will extend the ttMove.
           if (   !rootNode
-              &&  depth >= 4 - (thisThread->previousDepth > 24) + 2 * (PvNode && tte->is_pv())
+              &&  depth >= 4 - (thisThread->previousDepth > 24) + 2 * (PvNode && tte.is_pv())
               &&  move == ttMove
               && !excludedMove // Avoid recursive singular search
            /* &&  ttValue != VALUE_NONE Already implicit in the next condition */
               &&  abs(ttValue) < VALUE_KNOWN_WIN
-              && (tte->bound() & BOUND_LOWER)
-              &&  tte->depth() >= depth - 3)
+              && (tte.bound() & BOUND_LOWER)
+              &&  tte.depth() >= depth - 3)
           {
               Value singularBeta = ttValue - (3 + (ss->ttPv && !PvNode)) * depth;
               Depth singularDepth = (depth - 1) / 2;
@@ -1386,7 +1393,7 @@ moves_loop: // When in check, search starts here
 
     // Write gathered information in transposition table
     if (!excludedMove && !(rootNode && thisThread->pvIdx))
-        tte->save(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv,
+        tteGlobal->save(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv,
                   bestValue >= beta ? BOUND_LOWER :
                   PvNode && bestMove ? BOUND_EXACT : BOUND_UPPER,
                   depth, bestMove, ss->staticEval);
@@ -1414,12 +1421,10 @@ moves_loop: // When in check, search starts here
     StateInfo st;
     ASSERT_ALIGNED(&st, Eval::NNUE::CacheLineSize);
 
-    TTEntry* tte;
-    Key posKey;
-    Move ttMove, move, bestMove;
+    Move move, bestMove;
     Depth ttDepth;
-    Value bestValue, value, ttValue, futilityValue, futilityBase;
-    bool pvHit, givesCheck, capture;
+    Value bestValue, value, futilityValue, futilityBase;
+    bool givesCheck, capture;
     int moveCount;
 
     if (PvNode)
@@ -1445,18 +1450,25 @@ moves_loop: // When in check, search starts here
     // only two types of depth in TT: DEPTH_QS_CHECKS or DEPTH_QS_NO_CHECKS.
     ttDepth = ss->inCheck || depth >= DEPTH_QS_CHECKS ? DEPTH_QS_CHECKS
                                                   : DEPTH_QS_NO_CHECKS;
-    // Transposition table lookup
-    posKey = pos.key();
-    tte = TT.probe(posKey, ss->ttHit);
-    ttValue = ss->ttHit ? value_from_tt(tte->value(), ss->ply, pos.rule50_count()) : VALUE_NONE;
-    ttMove = ss->ttHit ? tte->move() : MOVE_NONE;
-    pvHit = ss->ttHit && tte->is_pv();
+
+    // Transposition table lookup.
+    Key posKey = pos.key();
+    TTEntry* tteGlobal = TT.probe(posKey, ss->ttHit);
+    TTEntry  tte;
+
+    if (ss->ttHit)
+        memcpy(&tte, tteGlobal, sizeof(TTEntry));
+
+    Value ttValue = ss->ttHit ? value_from_tt(tte.value(), ss->ply, pos.rule50_count())
+                              : VALUE_NONE;
+    Move ttMove = ss->ttHit ? tte.move() : MOVE_NONE;
+    bool pvHit = ss->ttHit && tte.is_pv();
 
     if (  !PvNode
         && ss->ttHit
-        && tte->depth() >= ttDepth
+        && tte.depth() >= ttDepth
         && ttValue != VALUE_NONE // Only in case of TT access race
-        && (tte->bound() & (ttValue >= beta ? BOUND_LOWER : BOUND_UPPER)))
+        && (tte.bound() & (ttValue >= beta ? BOUND_LOWER : BOUND_UPPER)))
         return ttValue;
 
     // Evaluate the position statically
@@ -1470,12 +1482,12 @@ moves_loop: // When in check, search starts here
         if (ss->ttHit)
         {
             // Never assume anything about values stored in TT
-            if ((ss->staticEval = bestValue = tte->eval()) == VALUE_NONE)
+            if ((ss->staticEval = bestValue = tte.eval()) == VALUE_NONE)
                 ss->staticEval = bestValue = evaluate(pos);
 
             // ttValue can be used as a better position evaluation (~13 Elo)
             if (    ttValue != VALUE_NONE
-                && (tte->bound() & (ttValue > bestValue ? BOUND_LOWER : BOUND_UPPER)))
+                && (tte.bound() & (ttValue > bestValue ? BOUND_LOWER : BOUND_UPPER)))
                 bestValue = ttValue;
         }
         else
@@ -1489,7 +1501,7 @@ moves_loop: // When in check, search starts here
         {
             // Save gathered info in transposition table
             if (!ss->ttHit)
-                tte->save(posKey, value_to_tt(bestValue, ss->ply), false, BOUND_LOWER,
+                tteGlobal->save(posKey, value_to_tt(bestValue, ss->ply), false, BOUND_LOWER,
                           DEPTH_NONE, MOVE_NONE, ss->staticEval);
 
             return bestValue;
@@ -1622,7 +1634,7 @@ moves_loop: // When in check, search starts here
     }
 
     // Save gathered info in transposition table
-    tte->save(posKey, value_to_tt(bestValue, ss->ply), pvHit,
+    tteGlobal->save(posKey, value_to_tt(bestValue, ss->ply), pvHit,
               bestValue >= beta ? BOUND_LOWER : BOUND_UPPER,
               ttDepth, bestMove, ss->staticEval);
 
