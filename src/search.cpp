@@ -553,8 +553,8 @@ namespace {
     Move ttMove, move, excludedMove, bestMove;
     Depth extension, newDepth;
     Value bestValue, value, ttValue, eval, maxValue, probCutBeta;
-    bool givesCheck, improving, priorCapture, singularQuietLMR;
-    bool ttHit, capture, moveCountPruning, ttCapture;
+    bool capture, priorCapture, givesCheck, improving, moveCountPruning;
+    bool ttHit, ttCapture, singularQuietLMR, hasExcludedMove;
     Piece movedPiece;
     int moveCount, captureCount, quietCount, improvement, complexity;
 
@@ -616,7 +616,6 @@ namespace {
         (ss+2)->statScore = 0;
 
     // Step 4. Transposition table lookup.
-    excludedMove = ss->excludedMove;
     posKey = pos.key();
     tte = TT.probe(posKey, ttHit);
     ttValue = ttHit ? value_from_tt(tte->value(), ss->ply, pos.rule50_count()) : VALUE_NONE;
@@ -624,9 +623,12 @@ namespace {
             : ttHit    ? tte->move() : MOVE_NONE;
     ttCapture = ttMove && pos.capture(ttMove);
 
-    // At this point, if excluded, skip straight to step 6, static eval. However,
-    // to save indentation, we list the condition in all code between here and there.
-    if (!excludedMove)
+    // At this point, skip straight to staticEval calculation (Step 6) if
+    // hasExcludedMove is true.
+    excludedMove = ss->excludedMove;
+    hasExcludedMove = is_ok(excludedMove);
+
+    if (!hasExcludedMove)
     {
         ss->ttHit = ttHit;
         ss->ttPv = PvNode || (ttHit && tte->is_pv());
@@ -635,7 +637,7 @@ namespace {
     // At non-PV nodes we check for an early TT cutoff
     if (  !PvNode
         && ttHit
-        && !excludedMove
+        && !hasExcludedMove
         && tte->depth() > depth - (tte->bound() == BOUND_EXACT)
         && ttValue != VALUE_NONE // Possible in case of TT access race
         && (tte->bound() & (ttValue >= beta ? BOUND_LOWER : BOUND_UPPER)))
@@ -669,7 +671,7 @@ namespace {
     }
 
     // Step 5. Tablebases probe
-    if (!rootNode && !excludedMove && TB::Cardinality)
+    if (!rootNode && !hasExcludedMove && TB::Cardinality)
     {
         int piecesCount = pos.count<ALL_PIECES>();
 
@@ -732,10 +734,16 @@ namespace {
         complexity = 0;
         goto moves_loop;
     }
-    else if (excludedMove) {
-        // excludeMove implies that we had a ttHit on the containing non-excluded search with ss->staticEval filled from TT
-        // However static evals from the TT aren't good enough (-13 elo), presumably due to changing optimism context
-        // Recalculate value with current optimism (without updating thread avgComplexity)
+    else if (hasExcludedMove) {
+        // excludedMove != MOVE_NONE implies that we had a TT hit on the
+        // containing non-excluded search with ss->staticEval filled from TT.
+        // However staticEval from the TT is very bad (-13 Elo), presumably
+        // due to changing optimism context. Thus we recalculate eval with
+        // current optimism, but without updating thread avgComplexity.
+        //
+        // On verification searches, TT hit is not guaranteed but it has high
+        // chance to be. This means we can introduce the same logic where
+        // excludedMove == MOVE_NULL.
         ss->staticEval = eval = evaluate(pos, &complexity);
     }
     else if (ttHit)
@@ -804,7 +812,7 @@ namespace {
         &&  eval >= beta
         &&  eval >= ss->staticEval
         &&  ss->staticEval >= beta - 20 * depth - improvement / 14 + 235 + complexity / 24
-        && !excludedMove
+        && !hasExcludedMove
         &&  pos.non_pawn_material(us)
         && (ss->ply >= thisThread->nmpMinPly || us != thisThread->nmpColor))
     {
@@ -837,10 +845,12 @@ namespace {
             // for us, until ply exceeds nmpMinPly.
             thisThread->nmpMinPly = ss->ply + 3 * (depth-R) / 4;
             thisThread->nmpColor = us;
+            ss->excludedMove = MOVE_NULL;
 
             Value v = search<NonPV>(pos, ss, beta-1, beta, depth-R, false);
 
             thisThread->nmpMinPly = 0;
+            ss->excludedMove = MOVE_NONE;
 
             if (v >= beta)
                 return nullValue;
@@ -1061,7 +1071,7 @@ moves_loop: // When in check, search starts here
           if (   !rootNode
               &&  depth >= 4 - (thisThread->completedDepth > 22) + 2 * (PvNode && tte->is_pv())
               &&  move == ttMove
-              && !excludedMove // Avoid recursive singular search
+              && !hasExcludedMove  // Avoid recursive or repetitive singular search
            /* &&  ttValue != VALUE_NONE Already implicit in the next condition */
               &&  abs(ttValue) < VALUE_KNOWN_WIN
               && (tte->bound() & BOUND_LOWER)
@@ -1070,8 +1080,8 @@ moves_loop: // When in check, search starts here
               Value singularBeta = ttValue - (3 + (ss->ttPv && !PvNode)) * depth;
               Depth singularDepth = (depth - 1) / 2;
 
+              // The search with excludedMove will update ss->staticEval.
               ss->excludedMove = move;
-              // the search with excludedMove will update ss->staticEval
               value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, singularDepth, cutNode);
               ss->excludedMove = MOVE_NONE;
 
@@ -1393,7 +1403,7 @@ moves_loop: // When in check, search starts here
         ss->ttPv = ss->ttPv || ((ss-1)->ttPv && depth > 3);
 
     // Write gathered information in transposition table
-    if (!excludedMove && !(rootNode && thisThread->pvIdx))
+    if (!hasExcludedMove && !(rootNode && thisThread->pvIdx))
         tte->save(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv,
                   bestValue >= beta ? BOUND_LOWER :
                   PvNode && bestMove ? BOUND_EXACT : BOUND_UPPER,
