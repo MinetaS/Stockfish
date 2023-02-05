@@ -28,10 +28,16 @@ namespace Stockfish {
 
 class Position;
 
+namespace Trace {
+
+  enum Tracing { NO_TRACE, TRACE };
+
+}
 namespace Eval {
 
   std::string trace(Position& pos);
-  Value evaluate(const Position& pos, Value* fixedEval = nullptr, int* complexity = nullptr);
+  Value evaluate(const Position& pos, Value* fixedEval = nullptr,
+                 int* pureComplexity = nullptr, int* complexity = nullptr);
 
   extern bool useNNUE;
   extern std::string currentEvalFileName;

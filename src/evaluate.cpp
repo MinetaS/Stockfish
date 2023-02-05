@@ -151,8 +151,6 @@ namespace Eval {
 
 namespace Trace {
 
-  enum Tracing { NO_TRACE, TRACE };
-
   enum Term { // The first 8 entries are reserved for PieceType
     MATERIAL = 8, IMBALANCE, MOBILITY, THREAT, PASSED, SPACE, WINNABLE, TOTAL, TERM_NB
   };
@@ -1048,25 +1046,25 @@ make_v:
 /// evaluate() is the evaluator for the outer world. It returns a static
 /// evaluation of the position from the point of view of the side to move.
 
-Value Eval::evaluate(const Position& pos, Value* fixedEval, int* complexity) {
+Value Eval::evaluate(const Position& pos, Value *fixedEval, int *pureComplexity, int* complexity) {
 
   Value v;
-  Value psq = pos.psq_eg_stm();
 
   // We use the much less accurate but faster Classical eval when the NNUE
   // option is set to false. Otherwise we use the NNUE eval unless the
   // PSQ advantage is decisive and several pieces remain. (~3 Elo)
+  Value psq = pos.psq_eg_stm();
   bool useClassical = !useNNUE || (pos.count<ALL_PIECES>() > 7 && abs(psq) > 1781);
 
   if (useClassical)
   {
-      if (fixedEval)
-      {
+      if  (fixedEval)
           if (*fixedEval != VALUE_NONE)
               v = *fixedEval;
-          else
+          else {
               *fixedEval = v = Evaluation<NO_TRACE>(pos).value();
-      }
+              *pureComplexity = 0;
+          }
       else
           v = Evaluation<NO_TRACE>(pos).value();
   }
@@ -1081,12 +1079,13 @@ Value Eval::evaluate(const Position& pos, Value* fixedEval, int* complexity) {
       Value nnue;
 
       if (fixedEval)
-      {
-          if (*fixedEval != VALUE_NONE)
+          if (*fixedEval != VALUE_NONE) {
               nnue = *fixedEval;
-          else
+              nnueComplexity = *pureComplexity;
+          } else {
               *fixedEval = nnue = NNUE::evaluate(pos, true, &nnueComplexity);
-      }
+              *pureComplexity = nnueComplexity;
+          }
       else
           nnue = NNUE::evaluate(pos, true, &nnueComplexity);
 

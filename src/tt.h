@@ -45,15 +45,10 @@ struct TTEntry {
   Depth depth()      const { return Depth(depth8) + DEPTH_OFFSET; }
   bool  is_pv()      const { return bool(pv8); }
   Bound bound()      const { return Bound(genBound8); }
+  int   complexity() const { return complexity32; }
 
-  // Save full information.
-  void save(Key k, Move m, Value v, Depth d, bool pv, Bound b, Depth rd, Value ev, Value fev);
-
-  // Save value only.
-  void save(Key k, Move m, Value v, Depth d, bool pv, Bound b);
-
-  // Save evaluation only.
-  void save(Key k, bool pv, Depth rd, Value ev, Value fev);
+  void save(Key k, Move m, Value v, Depth d, bool pv, Bound b,
+            Depth rd, Value ev, Value fev, int c);
 
 private:
   friend class TranspositionTable;
@@ -67,8 +62,9 @@ private:
   uint8_t  genBound8;
   int16_t  eval16;
   int16_t  fixedEval16;
+  int32_t  complexity32;
 };
-static_assert(sizeof(TTEntry) == 16, "Unexpected TTEntry size");
+static_assert(sizeof(TTEntry) == 20, "Unexpected TTEntry size");
 
 /// A TranspositionTable is an array of Cluster, of size clusterCount. Each
 /// cluster consists of ClusterSize number of TTEntry. Each non-empty TTEntry
@@ -78,12 +74,12 @@ static_assert(sizeof(TTEntry) == 16, "Unexpected TTEntry size");
 
 class TranspositionTable {
 
-  static constexpr int ClusterSize = 4;
+  static constexpr int ClusterSize = 3;
 
   struct Cluster {
     TTEntry entry[ClusterSize];
+    uint8_t padding[4];  // unused
   };
-
   static_assert(sizeof(Cluster) == 64, "Unexpected Cluster size");
 
   // Constants used to refresh the hash table periodically
