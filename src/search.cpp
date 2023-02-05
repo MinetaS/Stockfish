@@ -1267,7 +1267,7 @@ moves_loop: // When in check, search starts here
           if (rm.averageScore != -VALUE_INFINITE)
           {
               // Trust value more if depth is high.
-              int t = 341 + 24 * std::clamp(thisThread->rootDepth - 16, 0, 24);
+              int t = 682 + 19 * std::clamp(thisThread->rootDepth - 18, 0, 18);
               rm.averageScore =  (t * value + (1024 - t) * rm.averageScore)
                                / 1024;
           }
