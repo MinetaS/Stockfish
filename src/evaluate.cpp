@@ -1048,7 +1048,7 @@ make_v:
 /// evaluate() is the evaluator for the outer world. It returns a static
 /// evaluation of the position from the point of view of the side to move.
 
-Value Eval::evaluate(const Position& pos, int* complexity) {
+Value Eval::evaluate(const Position& pos, Value* fixedEval, int* complexity) {
 
   Value v;
   Value psq = pos.psq_eg_stm();
@@ -1059,7 +1059,17 @@ Value Eval::evaluate(const Position& pos, int* complexity) {
   bool useClassical = !useNNUE || (pos.count<ALL_PIECES>() > 7 && abs(psq) > 1781);
 
   if (useClassical)
-      v = Evaluation<NO_TRACE>(pos).value();
+  {
+      if (fixedEval)
+      {
+          if (*fixedEval != VALUE_NONE)
+              v = *fixedEval;
+          else
+              *fixedEval = v = Evaluation<NO_TRACE>(pos).value();
+      }
+      else
+          v = Evaluation<NO_TRACE>(pos).value();
+  }
   else
   {
       int nnueComplexity;
@@ -1068,7 +1078,17 @@ Value Eval::evaluate(const Position& pos, int* complexity) {
       Color stm = pos.side_to_move();
       Value optimism = pos.this_thread()->optimism[stm];
 
-      Value nnue = NNUE::evaluate(pos, true, &nnueComplexity);
+      Value nnue;
+
+      if (fixedEval)
+      {
+          if (*fixedEval != VALUE_NONE)
+              nnue = *fixedEval;
+          else
+              *fixedEval = nnue = NNUE::evaluate(pos, true, &nnueComplexity);
+      }
+      else
+          nnue = NNUE::evaluate(pos, true, &nnueComplexity);
 
       // Blend nnue complexity with (semi)classical complexity
       nnueComplexity = (  406 * nnueComplexity
