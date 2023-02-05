@@ -28,11 +28,6 @@ namespace Stockfish {
 
 class Position;
 
-namespace Trace {
-
-  enum Tracing { NO_TRACE, TRACE };
-
-}
 namespace Eval {
 
   std::string trace(Position& pos);

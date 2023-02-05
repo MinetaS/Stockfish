@@ -151,6 +151,8 @@ namespace Eval {
 
 namespace Trace {
 
+  enum Tracing { NO_TRACE, TRACE };
+
   enum Term { // The first 8 entries are reserved for PieceType
     MATERIAL = 8, IMBALANCE, MOBILITY, THREAT, PASSED, SPACE, WINNABLE, TOTAL, TERM_NB
   };

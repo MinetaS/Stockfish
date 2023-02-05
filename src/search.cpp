@@ -558,9 +558,6 @@ namespace {
     int ttComplexity;
     bool ttCapture;
 
-    ttFixedEval = VALUE_NONE;
-    ttComplexity = 0;
-
     Move move, excludedMove, bestMove;
     Depth extension, newDepth;
     Value bestValue, maxValue, value, eval, probCutBeta;
@@ -1457,9 +1454,6 @@ moves_loop: // When in check, search starts here
     Bound ttBound;
     bool ttPv;
     int ttComplexity;
-
-    ttFixedEval = VALUE_NONE;
-    ttComplexity = 0;
 
     Move move, bestMove;
     Value bestValue, value, futilityValue, futilityBase;

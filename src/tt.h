@@ -45,7 +45,7 @@ struct TTEntry {
   Depth depth()      const { return Depth(depth8) + DEPTH_OFFSET; }
   bool  is_pv()      const { return bool(pv8); }
   Bound bound()      const { return Bound(genBound8); }
-  int   complexity() const { return complexity32; }
+  int   complexity() const { return int(complexity16); }
 
   void save(Key k, Move m, Value v, Depth d, bool pv, Bound b,
             Depth rd, Value ev, Value fev, int c);
@@ -53,7 +53,7 @@ struct TTEntry {
 private:
   friend class TranspositionTable;
 
-  uint32_t key32;
+  uint16_t key16;
   uint16_t move16;
   int16_t  value16;
   uint8_t  rootDepth8;
@@ -62,9 +62,9 @@ private:
   uint8_t  genBound8;
   int16_t  eval16;
   int16_t  fixedEval16;
-  int32_t  complexity32;
+  int16_t  complexity16;
 };
-static_assert(sizeof(TTEntry) == 20, "Unexpected TTEntry size");
+static_assert(sizeof(TTEntry) == 16, "Unexpected TTEntry size");
 
 /// A TranspositionTable is an array of Cluster, of size clusterCount. Each
 /// cluster consists of ClusterSize number of TTEntry. Each non-empty TTEntry
@@ -74,11 +74,10 @@ static_assert(sizeof(TTEntry) == 20, "Unexpected TTEntry size");
 
 class TranspositionTable {
 
-  static constexpr int ClusterSize = 3;
+  static constexpr int ClusterSize = 4;
 
   struct Cluster {
     TTEntry entry[ClusterSize];
-    uint8_t padding[4];  // unused
   };
   static_assert(sizeof(Cluster) == 64, "Unexpected Cluster size");
 
