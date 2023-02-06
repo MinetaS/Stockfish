@@ -26,45 +26,38 @@ namespace Stockfish {
 
 /// TTEntry struct is the 10 bytes transposition table entry, defined as below:
 ///
-/// key        16 bit
-/// depth       8 bit
-/// generation  5 bit
-/// pv node     1 bit
-/// bound type  2 bit
-/// move       16 bit
-/// value      16 bit
-/// eval value 16 bit
+/// key             16 bit
+/// depth           8 bit
+/// generation      4 bit
+/// eval generation 1 bit
+/// pv node         1 bit
+/// bound type      2 bit
+/// move            16 bit
+/// value           16 bit
+/// eval value      16 bit
 
 struct TTEntry {
 
-  Move  move()       const { return Move(move16); }
-  Value value()      const { return Value(value16); }
-  Value eval()       const { return Value(eval16); }
-  Value eval_fixed() const { return Value(fixedEval16); }
-  Depth rootdepth()  const { return Depth(rootDepth8); }
-  Depth depth()      const { return Depth(depth8) + DEPTH_OFFSET; }
-  bool  is_pv()      const { return bool(pv8); }
-  Bound bound()      const { return Bound(genBound8); }
-  int   complexity() const { return int(complexity16); }
-
-  void save(Key k, Move m, Value v, Depth d, bool pv, Bound b,
-            Depth rd, Value ev, Value fev, int c);
+  Move  move()  const { return (Move )move16; }
+  Value value() const { return (Value)value16; }
+  Value eval()  const { return (Value)eval16; }
+  Depth depth() const { return (Depth)depth8 + DEPTH_OFFSET; }
+  bool  is_pv() const { return (bool)(genBound8 & 0x4); }
+  Bound bound() const { return (Bound)(genBound8 & 0x3); }
+  bool  eval_gen() const { return bool(genBound8 & 0x8); }
+  void save(Key k, Value v, bool pv, Bound b, Depth d, Move m, Depth rd, Value ev);
 
 private:
   friend class TranspositionTable;
 
   uint16_t key16;
+  uint8_t  depth8;
+  uint8_t  genBound8;
   uint16_t move16;
   int16_t  value16;
-  uint8_t  rootDepth8;
-  uint8_t  depth8;
-  uint8_t  pv8;
-  uint8_t  genBound8;
   int16_t  eval16;
-  int16_t  fixedEval16;
-  int16_t  complexity16;
 };
-static_assert(sizeof(TTEntry) == 16, "Unexpected TTEntry size");
+
 
 /// A TranspositionTable is an array of Cluster, of size clusterCount. Each
 /// cluster consists of ClusterSize number of TTEntry. Each non-empty TTEntry
@@ -74,15 +67,17 @@ static_assert(sizeof(TTEntry) == 16, "Unexpected TTEntry size");
 
 class TranspositionTable {
 
-  static constexpr int ClusterSize = 4;
+  static constexpr int ClusterSize = 3;
 
   struct Cluster {
     TTEntry entry[ClusterSize];
+    char padding[2]; // Pad to 32 bytes
   };
-  static_assert(sizeof(Cluster) == 64, "Unexpected Cluster size");
+
+  static_assert(sizeof(Cluster) == 32, "Unexpected Cluster size");
 
   // Constants used to refresh the hash table periodically
-  static constexpr unsigned GENERATION_BITS  = 3;                                // nb of bits reserved for other things
+  static constexpr unsigned GENERATION_BITS  = 4;                                // nb of bits reserved for other things
   static constexpr int      GENERATION_DELTA = (1 << GENERATION_BITS);           // increment for generation field
   static constexpr int      GENERATION_CYCLE = 255 + (1 << GENERATION_BITS);     // cycle length
   static constexpr int      GENERATION_MASK  = (0xFF << GENERATION_BITS) & 0xFF; // mask to pull out generation number
