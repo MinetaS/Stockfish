@@ -1044,6 +1044,36 @@ make_v:
 
 } // namespace Eval
 
+namespace {
+
+int ev1 = 1781; // useClassical PSQ bound
+TUNE(SetRange(1400, 2100), ev1);
+
+int ev2 = 1076; // NNUE evaluation scale base
+TUNE(SetRange(800, 1250), ev2);
+
+int ev3 = 96; // NNUE evaluation scale non-pawn materials bonus
+TUNE(SetRange(40, 160), ev3);
+
+int ev4 = 406; // NNUE complexity weight
+TUNE(SetRange(250, 750), ev4);
+
+int ev5 = 424; // semi-classical complexity weight
+TUNE(SetRange(250, 750), ev5);
+
+int ev6 = 272; // optimism scale base
+TUNE(SetRange(120, 480), ev6);
+
+int ev7 = 748; // optimism scale adjustment
+TUNE(SetRange(500, 1000), ev7);
+
+int ev8 = 200; // 50 move rule scale base
+TUNE(SetRange(50, 400), ev8);
+
+int ev9 = 214; // 50 move rule down scale
+TUNE(SetRange(100, 300), ev9);
+
+} // namespace
 
 /// evaluate() is the evaluator for the outer world. It returns a static
 /// evaluation of the position from the point of view of the side to move.
@@ -1056,14 +1086,14 @@ Value Eval::evaluate(const Position& pos, int* complexity) {
   // We use the much less accurate but faster Classical eval when the NNUE
   // option is set to false. Otherwise we use the NNUE eval unless the
   // PSQ advantage is decisive and several pieces remain. (~3 Elo)
-  bool useClassical = !useNNUE || (pos.count<ALL_PIECES>() > 7 && abs(psq) > 1781);
+  bool useClassical = !useNNUE || (pos.count<ALL_PIECES>() > 7 && abs(psq) > ev1);
 
   if (useClassical)
       v = Evaluation<NO_TRACE>(pos).value();
   else
   {
       int nnueComplexity;
-      int scale = 1076 + 96 * pos.non_pawn_material() / 5120;
+      int scale = ev2 + ev3 * pos.non_pawn_material() / 5120;
 
       Color stm = pos.side_to_move();
       Value optimism = pos.this_thread()->optimism[stm];
@@ -1071,8 +1101,8 @@ Value Eval::evaluate(const Position& pos, int* complexity) {
       Value nnue = NNUE::evaluate(pos, true, &nnueComplexity);
 
       // Blend nnue complexity with (semi)classical complexity
-      nnueComplexity = (  406 * nnueComplexity
-                        + 424 * abs(psq - nnue)
+      nnueComplexity = (  ev4 * nnueComplexity
+                        + ev5 * abs(psq - nnue)
                         + int(optimism) * int(psq - nnue)
                         ) / 1024;
 
@@ -1080,12 +1110,12 @@ Value Eval::evaluate(const Position& pos, int* complexity) {
       if (complexity)
           *complexity = nnueComplexity;
 
-      optimism = optimism * (272 + nnueComplexity) / 256;
-      v = (nnue * scale + optimism * (scale - 748)) / 1024;
+      optimism = optimism * (ev6 + nnueComplexity) / 256;
+      v = (nnue * scale + optimism * (scale - ev7)) / 1024;
   }
 
   // Damp down the evaluation linearly when shuffling
-  v = v * (200 - pos.rule50_count()) / 214;
+  v = v * (ev8 - pos.rule50_count()) / ev9;
 
   // Guarantee evaluation does not hit the tablebase range
   v = std::clamp(v, VALUE_TB_LOSS_IN_MAX_PLY + 1, VALUE_TB_WIN_IN_MAX_PLY - 1);
