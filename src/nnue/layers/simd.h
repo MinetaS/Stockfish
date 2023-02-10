@@ -261,8 +261,9 @@ namespace Stockfish::Simd {
       __m256i tmp0 = _mm256_maddubs_epi16(a0, b0);
       __m256i tmp1 = _mm256_maddubs_epi16(a1, b1);
       asm(
-          "vpaddsw     %[tmp0], %[tmp1], %[tmp0]\n\t"
           "vpmaddwd    %[tmp0], %[ones], %[tmp0]\n\t"
+          "vpmaddwd    %[tmp1], %[ones], %[tmp1]\n\t"
+          "vpaddd      %[tmp0], %[tmp1], %[tmp0]\n\t"
           "vpaddd      %[acc], %[tmp0], %[acc]\n\t"
           : [acc]"+v"(acc), [tmp0]"+&v"(tmp0)
           : [tmp1]"v"(tmp1), [ones]"v"(_mm256_set1_epi16(1))
@@ -270,9 +271,9 @@ namespace Stockfish::Simd {
 #   else
       __m256i product0 = _mm256_maddubs_epi16(a0, b0);
       __m256i product1 = _mm256_maddubs_epi16(a1, b1);
-      product0 = _mm256_adds_epi16(product0, product1);
       product0 = _mm256_madd_epi16(product0, _mm256_set1_epi16(1));
-      acc = _mm256_add_epi32(acc, product0);
+      product1 = _mm256_madd_epi16(product1, _mm256_set1_epi16(1));
+      acc = _mm256_add_epi32(acc, _mm256_add_epi32(product0, product1));
 #   endif
 # endif
     }
