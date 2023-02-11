@@ -1059,8 +1059,14 @@ Value Eval::evaluate(const Position& pos, int* complexity) {
   bool useClassical = !useNNUE || (pos.count<ALL_PIECES>() > 7 && abs(psq) > 1781);
 
   if (useClassical)
+  {
       v = Evaluation<NO_TRACE>(pos).value();
-  else
+
+      if ((psq > 0 && v < 195) || (psq < 0 && v > -195))
+          useClassical = !useNNUE;
+  }
+
+  if (!useClassical)
   {
       int nnueComplexity;
       int scale = 1076 + 96 * pos.non_pawn_material() / 5120;
