@@ -1061,8 +1061,7 @@ Value Eval::evaluate(const Position& pos, int* complexity) {
   if (useClassical)
   {
       v = Evaluation<NO_TRACE>(pos).value();
-
-      if ((psq > 0 && v < 195) || (psq < 0 && v > -195))
+      if (psq > 0 && v < 502)
           useClassical = !useNNUE;
   }
 
