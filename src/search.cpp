@@ -62,19 +62,19 @@ namespace {
   enum NodeType { NonPV, PV, Root };
 
   // Futility margin
-  Value futility_margin(Depth d, bool improving) {
+  Value futility_margin(Depth d, int improving) {
     return Value(158 * (d - improving));
   }
 
   // Reductions lookup table, initialized at startup
   int Reductions[MAX_MOVES]; // [depth or moveNumber]
 
-  Depth reduction(bool i, Depth d, int mn, Value delta, Value rootDelta) {
+  Depth reduction(int i, Depth d, int mn, Value delta, Value rootDelta) {
     int r = Reductions[d] * Reductions[mn];
-    return (r + 1460 - int(delta) * 1024 / int(rootDelta)) / 1024 + (!i && r > 937);
+    return (r + 1460 - int(delta) * 1024 / int(rootDelta)) / 1024 + (i == 0 && r > 937);
   }
 
-  constexpr int futility_move_count(bool improving, Depth depth) {
+  constexpr int futility_move_count(int improving, Depth depth) {
     return improving ? (3 + depth * depth)
                      : (3 + depth * depth) / 2;
   }
@@ -553,10 +553,10 @@ namespace {
     Move ttMove, move, excludedMove, bestMove;
     Depth extension, newDepth;
     Value bestValue, value, ttValue, eval, maxValue, probCutBeta;
-    bool givesCheck, improving, priorCapture, singularQuietLMR;
+    bool givesCheck, priorCapture, singularQuietLMR;
     bool capture, moveCountPruning, ttCapture;
     Piece movedPiece;
-    int moveCount, captureCount, quietCount, improvement, complexity;
+    int moveCount, captureCount, quietCount, improvement, improving, complexity;
 
     // Step 1. Initialize node
     Thread* thisThread = pos.this_thread();
@@ -724,7 +724,7 @@ namespace {
     {
         // Skip early pruning when in check
         ss->staticEval = eval = VALUE_NONE;
-        improving = false;
+        improving = 0;
         improvement = 0;
         complexity = 0;
         goto moves_loop;
@@ -768,10 +768,21 @@ namespace {
     // static evaluation and the previous static evaluation at our turn (if we were
     // in check at our previous move we look at the move prior to it). The improvement
     // margin and the improving flag are used in various pruning heuristics.
-    improvement =   (ss-2)->staticEval != VALUE_NONE ? ss->staticEval - (ss-2)->staticEval
-                  : (ss-4)->staticEval != VALUE_NONE ? ss->staticEval - (ss-4)->staticEval
-                  :                                    ss->staticEval / 2;
-    improving = improvement > 0;
+    if ((ss-2)->staticEval != VALUE_NONE)
+    {
+        improvement = ss->staticEval - (ss-2)->staticEval;
+        improving = (improvement > 0) + ((ss-2)->staticEval > (ss-4)->staticEval);
+    }
+    else if ((ss-4)->staticEval != VALUE_NONE)
+    {
+        improvement = ss->staticEval - (ss-4)->staticEval;
+        improving = improvement > 0;
+    }
+    else
+    {
+        improvement = 172;
+        improving = 1;
+    }
 
     // Step 7. Razoring (~1 Elo).
     // If eval is really low check with qsearch if it can exceed alpha, if it can't,
@@ -842,7 +853,7 @@ namespace {
         }
     }
 
-    probCutBeta = beta + 180 - 54 * improving;
+    probCutBeta = beta + 180 - 36 * improving;
 
     // Step 10. ProbCut (~10 Elo)
     // If we have a good enough capture and a reduced search returns a value
