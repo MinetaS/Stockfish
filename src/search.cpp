@@ -649,7 +649,7 @@ namespace {
                 // Extra penalty for early quiet moves of the previous ply (~0 Elo on STC, ~2 Elo on LTC)
                 if ((ss-1)->moveCount <= 2 && !priorCapture)
                     update_continuation_histories(ss-1, pos.piece_on(prevSq), prevSq,
-                                                  -stat_bonus(depth + (ss-1)->moveCount == 1));
+                                                  -stat_bonus(depth + 1 + (ss-1)->moveCount == 1));
             }
             // Penalty for a quiet ttMove that fails low (~1 Elo)
             else if (!ttCapture)
