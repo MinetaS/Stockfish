@@ -1143,7 +1143,7 @@ moves_loop: // When in check, search starts here
 
       // Decrease reduction if opponent's move count is high (~1 Elo)
       if ((ss-1)->moveCount > 7)
-          r--;
+          r -= 1 + ((ss-1)->moveCount > 19);
 
       // Increase reduction for cut nodes (~3 Elo)
       if (cutNode)
@@ -1167,7 +1167,8 @@ moves_loop: // When in check, search starts here
           r--;
 
       // Increase reduction if next ply has a lot of fail high
-      r += ((ss+1)->cutoffCnt + 2) / 6;
+      if ((ss+1)->cutoffCnt > 3)
+          r++;
 
       // Decrease reduction if move is a killer and we have a good history
       if (move == ss->killers[0]
