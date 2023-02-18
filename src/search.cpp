@@ -121,23 +121,23 @@ TUNE(SetRange(1000, 6000), v20);
 int v21 = 1088;
 TUNE(SetRange(512, 2048), v21);
 
-int rv1 = 2048;
-int rv2 = 1024;
-int rv3 = 2048;
-int rv4 = 1024;
-int rv5 = 1024;
-int rv6 = 11264;
-int rv7 = 1024;
-int rv8 = 1024;
-int rv9 = 1024;
-int rv10 = 1024;
-int rv11 = 12; // c = 1.0
-int rv12 = 5; // c = 1.0
-int rv13 = 2048;
-int rv14 = 4096;
+int rv1 = 1920;
+int rv2 = 904;
+int rv3 = 2267;
+int rv4 = 1058;
+int rv5 = 1032;
+int rv6 = 12379;
+int rv7 = 1012;
+int rv8 = 895;
+int rv9 = 1088;
+int rv10 = 996;
+int rv11 = 50;
+int rv12 = 17;
+int rv13 = 2077;
+int rv14 = 4504;
 TUNE(SetDefaultRange, rv1, rv2, rv3, rv4, rv5, rv6, rv7, rv8, rv9, rv10, rv13, rv14);
-TUNE(SetRange(9, 15), rv11);
-TUNE(SetRange(2, 8), rv12);
+TUNE(SetRange(35, 70), rv11);
+TUNE(SetRange(8, 35), rv12);
 
 }
 
@@ -1074,7 +1074,7 @@ moves_loop: // When in check, search starts here
 
       Value delta = beta - alpha;
 
-      Depth r = reduction(improving, depth, moveCount, delta, thisThread->rootDelta);
+      int r = reduction(improving, depth, moveCount, delta, thisThread->rootDelta);
 
       // Step 14. Pruning at shallow depth (~120 Elo). Depth conditions are important for mate finding.
       if (  !rootNode
@@ -1085,7 +1085,6 @@ moves_loop: // When in check, search starts here
           moveCountPruning = moveCount >= futility_move_count(improving, depth);
 
           // Reduced depth of the next LMR search
-          int r = reduction(improving, depth, moveCount, delta, thisThread->rootDelta);
           int lmrDepth = std::max(newDepth - r / v5, 0);
 
           if (   capture
@@ -1223,8 +1222,6 @@ moves_loop: // When in check, search starts here
       // Step 16. Make the move
       pos.do_move(move, st, givesCheck);
 
-      int r = reduction(improving, depth, moveCount, delta, thisThread->rootDelta);
-
       // Decrease reduction if position is or has been on the PV
       // and node is not likely to fail low. (~3 Elo)
       if (ss->ttPv && !likelyFailLow)
@@ -1271,7 +1268,7 @@ moves_loop: // When in check, search starts here
                      - 4467;
 
       // Decrease/increase reduction for moves with a good/bad history (~30 Elo)
-      r -= ss->statScore / (rv11 + rv12 * (depth > 7 && depth < 19));
+      r -= ss->statScore * 4 / (rv11 + rv12 * (depth > 7 && depth < 19));
 
       // Step 17. Late moves reduction / extension (LMR, ~117 Elo)
       // We use various heuristics for the sons of a node after the first son has
