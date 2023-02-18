@@ -59,19 +59,19 @@ using namespace Search;
 namespace {
 
 int v1 = 1024;
-TUNE(SetRange(0, 2048), v1);
+TUNE(SetRange(512, 2048), v1);
 
 int v2 = 780;
 TUNE(SetRange(0, 2048), v2);
 
 int v3 = 1082;
-TUNE(SetRange(0, 2048), v3);
+TUNE(SetRange(500, 2000), v3);
 
 int v4 = 1277;
-TUNE(SetRange(500, 2000), v4);
+TUNE(SetRange(0, 2500), v4);
 
 int v5 = 1185;
-TUNE(SetRange(500, 2000), v5);
+TUNE(SetRange(800, 2000), v5);
 
 int v6 = 7; // c = 1.0
 TUNE(SetRange(4, 10), v6);
@@ -80,119 +80,64 @@ int v7 = 209;
 TUNE(SetDefaultRange, v7);
 
 int v8 = 187;
-TUNE(SetRange(10, 300), v8);
+TUNE(SetRange(50, 400), v8);
 
 int v9 = 5; // c = 1.0
 TUNE(SetRange(2, 10), v9);
 
-int v10 = 7042;
-TUNE(SetRange(1000, 18000), v10);
+int v10 = 4180;
+TUNE(SetRange(2000, 8000), v10);
 
-int v11 = -2; // c = 1.0
-TUNE(SetRange(-5, 1), v11);
+int v11 = 7042;
+TUNE(SetRange(4000, 15000), v11);
 
-int v12 = 12; // c = 1.0
-TUNE(SetRange(6, 18), v12);
+int v12 = -2; // c = 1.0
+TUNE(SetRange(-5, 0), v12);
 
-int v13 = 103;
-TUNE(SetRange(0, 400), v13);
+int v13 = 12; // c = 1.0
+TUNE(SetRange(6, 18), v13);
 
-int v14 = 135;
-TUNE(SetRange(-200, 400), v14);
+int v14 = 103;
+TUNE(SetRange(-100, 300), v14);
 
-int v15 = 0; // c = 1.0
-TUNE(SetRange(-5, 1), v15);
+int v15 = 135;
+TUNE(SetRange(0, 300), v15);
 
-int v16 = 27;
-TUNE(SetRange(1, 40), v16);
+int v16 = 0; // c = 1.0
+TUNE(SetRange(-5, 1), v16);
 
-int v17 = 17;
-TUNE(SetRange(-10, 40), v17);
+int v17 = 27;
+TUNE(SetRange(1, 40), v17);
 
-int rbv1 = 1920;
-int rdv1 = 0;
-int rdsqv1 = 0;
-TUNE(SetRange(1024, 3072), rbv1);
-TUNE(SetRange(-100, 100), rdv1);
-TUNE(SetRange(-20, 20), rdsqv1);
+int v18 = 17;
+TUNE(SetRange(0, 40), v18);
 
-int rbv2 = 904;
-int rdv2 = 0;
-int rdsqv2 = 0;
-TUNE(SetRange(0, 2048), rbv2);
-TUNE(SetRange(-100, 100), rdv2);
-TUNE(SetRange(-20, 20), rdsqv2);
+int v19 = 9; // c = 1.0
+TUNE(SetRange(5, 13), v19);
 
-int rbv3 = 2267;
-int rdv3 = 0;
-int rdsqv3 = 0;
-TUNE(SetRange(1024, 3072), rbv3);
-TUNE(SetRange(-100, 100), rdv3);
-TUNE(SetRange(-20, 20), rdsqv3);
+int v20 = 3635;
+TUNE(SetRange(1000, 6000), v20);
 
-int rbv4 = 1058;
-int rdv4 = 0;
-int rdsqv4 = 0;
-TUNE(SetRange(0, 2048), rbv4);
-TUNE(SetRange(-100, 100), rdv4);
-TUNE(SetRange(-20, 20), rdsqv4);
+int v21 = 1088;
+TUNE(SetRange(512, 2048), v21);
 
-int rbv5 = 1032;
-int rbv6 = 12379;
-TUNE(SetRange(0, 2048), rbv5);
-TUNE(SetRange(4000, 20000), rbv6);
-
-int rbv7 = 1012;
-int rdv7 = 0;
-int rdsqv7 = 0;
-TUNE(SetRange(0, 2048), rbv7);
-TUNE(SetRange(-100, 100), rdv7);
-TUNE(SetRange(-20, 20), rdsqv7);
-
-int rtv1 = 9; // c = 1.0
-TUNE(SetRange(6, 12), rtv1);
-
-int rbv8 = 895;
-int rdv8 = 0;
-int rdsqv8 = 0;
-TUNE(SetRange(0, 2048), rbv8);
-TUNE(SetRange(-100, 100), rdv8);
-TUNE(SetRange(-20, 20), rdsqv8);
-
-int rbv9 = 1088;
-int rdv9 = 0;
-int rdsqv9 = 0;
-TUNE(SetRange(0, 2048), rbv9);
-TUNE(SetRange(-100, 100), rdv9);
-TUNE(SetRange(-20, 20), rdsqv9);
-
-int rtv2 = 3635;
-TUNE(SetDefaultRange, rtv2);
-
-int rbv10 = 996;
-int rdv10 = 0;
-int rdsqv10 = 0;
-TUNE(SetRange(0, 2048), rbv10);
-TUNE(SetRange(-100, 100), rdv10);
-TUNE(SetRange(-20, 20), rdsqv10);
-
-int rbv11 = 49;
-int rbv12 = 22;
-TUNE(SetRange(32, 60), rbv11);
-TUNE(SetRange(12, 32), rbv12);
-
-int v18 = 1088;
-TUNE(SetRange(512, 2048), v18);
-
-int rbv13 = 2077;
-int rdv13 = 0;
-int rdsqv13 = 0;
-TUNE(SetRange(1024, 3072), rbv13);
-TUNE(SetRange(-100, 100), rdv13);
-TUNE(SetRange(-20, 20), rdsqv13);
-
-int rbv14 = 4504;
-TUNE(SetRange(2048, 6144), rbv14);
+int rv1 = 2048;
+int rv2 = 1024;
+int rv3 = 2048;
+int rv4 = 1024;
+int rv5 = 1024;
+int rv6 = 11264;
+int rv7 = 1024;
+int rv8 = 1024;
+int rv9 = 1024;
+int rv10 = 1024;
+int rv11 = 12; // c = 1.0
+int rv12 = 5; // c = 1.0
+int rv13 = 2048;
+int rv14 = 4096;
+TUNE(SetDefaultRange, rv1, rv2, rv3, rv4, rv5, rv6, rv7, rv8, rv9, rv10, rv13, rv14);
+TUNE(SetRange(9, 15), rv11);
+TUNE(SetRange(2, 8), rv12);
 
 }
 
@@ -1165,24 +1110,24 @@ moves_loop: // When in check, search starts here
 
               // Continuation history based pruning (~2 Elo)
               if (   lmrDepth < v9
-                  && history < -4180 * (depth - 1))
+                  && history < -v10 * (depth - 1))
                   continue;
 
               history += 2 * thisThread->mainHistory[us][from_to(move)];
 
-              lmrDepth += history / v10;
-              lmrDepth = std::max(lmrDepth, v11);
+              lmrDepth += history / v11;
+              lmrDepth = std::max(lmrDepth, v12);
 
               // Futility pruning: parent node (~13 Elo)
               if (   !ss->inCheck
-                  && lmrDepth < v12
-                  && ss->staticEval + v13 + v14 * lmrDepth <= alpha)
+                  && lmrDepth < v13
+                  && ss->staticEval + v14 + v15 * lmrDepth <= alpha)
                   continue;
 
-              lmrDepth = std::max(lmrDepth, v15);
+              lmrDepth = std::max(lmrDepth, v16);
 
               // Prune moves with negative SEE (~4 Elo)
-              if (!pos.see_ge(move, Value(-v16 * lmrDepth * lmrDepth - v17 * lmrDepth)))
+              if (!pos.see_ge(move, Value(-v17 * lmrDepth * lmrDepth - v18 * lmrDepth)))
                   continue;
           }
       }
@@ -1281,41 +1226,41 @@ moves_loop: // When in check, search starts here
       // Decrease reduction if position is or has been on the PV
       // and node is not likely to fail low. (~3 Elo)
       if (ss->ttPv && !likelyFailLow)
-          r -= rbv1 + rdv1 * depth + rdsqv1 * depth * depth;
+          r -= rv1;
 
       // Decrease reduction if opponent's move count is high (~1 Elo)
       if ((ss-1)->moveCount > 7)
-          r -= rbv2 + rdv2 * depth + rdsqv2 * depth * depth;
+          r -= rv2;
 
       // Increase reduction for cut nodes (~3 Elo)
       if (cutNode)
-          r += rbv3 + rdv3 * depth + rdsqv3 * depth * depth;
+          r += rv3;
 
       // Increase reduction if ttMove is a capture (~3 Elo)
       if (ttCapture)
-          r += rbv4 + rdv4 * depth + rdsqv4 * depth * depth;
+          r += rv4;
 
       // Decrease reduction for PvNodes based on depth
       if (PvNode)
-          r -= rbv5 + rbv6 / (depth + 3);
+          r -= rv5 + rv6 / (depth + 3);
 
       // Decrease reduction if ttMove has been singularly extended (~1 Elo)
       if (singularQuietLMR)
-          r -= rbv7 + rdv7 * depth + rdsqv7 * depth * depth;
+          r -= rv7;
 
       // Decrease reduction if we move a threatened piece (~1 Elo)
-      if (   depth > rtv1
+      if (   depth > v19
           && mp.threatenedPieces & from_sq(move))
-          r -= rbv8 + rdv8 * depth + rdsqv8 * depth * depth;
+          r -= rv8;
 
       // Increase reduction if next ply has a lot of fail high
       if ((ss+1)->cutoffCnt > 3)
-          r += rbv9 + rdv9 * depth + rdsqv9 * depth * depth;
+          r += rv9;
 
       // Decrease reduction if move is a killer and we have a good history
       if (move == ss->killers[0]
-          && (*contHist[0])[movedPiece][to_sq(move)] >= rtv2)
-          r -= rbv10 + rdv10 * depth + rdsqv10 * depth * depth;
+          && (*contHist[0])[movedPiece][to_sq(move)] >= v20)
+          r -= rv10;
 
       ss->statScore =  2 * thisThread->mainHistory[us][from_to(move)]
                      + (*contHist[0])[movedPiece][to_sq(move)]
@@ -1324,7 +1269,7 @@ moves_loop: // When in check, search starts here
                      - 4467;
 
       // Decrease/increase reduction for moves with a good/bad history (~30 Elo)
-      r -= 4 * ss->statScore / (rbv11 + rbv12 * (depth > 7 && depth < 19));
+      r -= ss->statScore / (rv11 + rv12 * (depth > 7 && depth < 19));
 
       // Step 17. Late moves reduction / extension (LMR, ~117 Elo)
       // We use various heuristics for the sons of a node after the first son has
@@ -1339,7 +1284,7 @@ moves_loop: // When in check, search starts here
           // In general we want to cap the LMR depth search at newDepth, but when
           // reduction is negative, we allow this move a limited search extension
           // beyond the first move depth. This may lead to hidden double extensions.
-          Depth d = std::clamp(newDepth - r / v18, 1, newDepth + 1);
+          Depth d = std::clamp(newDepth - r / v21, 1, newDepth + 1);
 
           value = -search<NonPV>(pos, ss+1, -(alpha+1), -alpha, d, true);
 
@@ -1371,9 +1316,9 @@ moves_loop: // When in check, search starts here
       {
           // Increase reduction for cut nodes and not ttMove (~1 Elo)
           if (!ttMove && cutNode)
-              r += rbv13 + rdv13 * depth + rdsqv13 * depth * depth;
+              r += rv13;
 
-          value = -search<NonPV>(pos, ss+1, -(alpha+1), -alpha, newDepth - (r > rbv14), !cutNode);
+          value = -search<NonPV>(pos, ss+1, -(alpha+1), -alpha, newDepth - (r > rv14), !cutNode);
       }
 
       // For PV nodes only, do a full PV search on the first move or after a fail
