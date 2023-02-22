@@ -659,9 +659,11 @@ namespace {
             }
         }
 
+        bool interesting = tte->depth() == depth && ss->ttPv;
+
         // Partial workaround for the graph history interaction problem
         // For high rule50 counts don't produce transposition table cutoffs.
-        if (pos.rule50_count() < 90)
+        if (!interesting && pos.rule50_count() < 90)
             return ttValue;
     }
 
