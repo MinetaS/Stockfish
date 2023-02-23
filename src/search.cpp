@@ -117,6 +117,9 @@ namespace {
   template <NodeType nodeType>
   Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth = 0);
 
+  Value exsearch(Position &pos, const Stack *ss, Move excludedMove,
+                 Value threshold, Depth depth, bool cutNode);
+
   Value value_to_tt(Value v, int ply);
   Value value_from_tt(Value v, int ply, int r50c);
   void update_pv(Move* pv, Move move, const Move* childPv);
@@ -1056,20 +1059,20 @@ moves_loop: // When in check, search starts here
           // a reduced search on all the other moves but the ttMove and if the
           // result is lower than ttValue minus a margin, then we will extend the ttMove.
           if (   !rootNode
-              &&  depth >= 4 - (thisThread->completedDepth > 22) + 2 * (PvNode && tte->is_pv())
-              &&  move == ttMove
-              && !excludedMove // Avoid recursive singular search
-           /* &&  ttValue != VALUE_NONE Already implicit in the next condition */
-              &&  abs(ttValue) < VALUE_KNOWN_WIN
+              && move == ttMove
+              && depth >= 4 - (thisThread->completedDepth > 22) + 2 * (PvNode && tte->is_pv())
+           /* && ttValue != VALUE_NONE Already implicit in the next condition */
+              && abs(ttValue) < VALUE_KNOWN_WIN
               && (tte->bound() & BOUND_LOWER)
-              &&  tte->depth() >= depth - 3)
+              && tte->depth() >= depth - 3
+              && !excludedMove)
           {
               Value singularBeta = ttValue - (3 + (ss->ttPv && !PvNode)) * depth;
               Depth singularDepth = (depth - 1) / 2;
 
               ss->excludedMove = move;
               // the search with excludedMove will update ss->staticEval
-              value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, singularDepth, cutNode);
+              value = exsearch(pos, ss, move, singularBeta, singularDepth, cutNode);
               ss->excludedMove = MOVE_NONE;
 
               if (value < singularBeta)
@@ -1639,6 +1642,115 @@ moves_loop: // When in check, search starts here
     return bestValue;
   }
 
+Value exsearch(Position &pos, const Stack *ss, Move excludedMove,
+               Value threshold, Depth depth, bool cutNode) {
+    assert(-VALUE_INFINITE < threshold && threshold <= VALUE_INFINITE);
+    assert(0 < depth && depth < MAX_PLY);
+    assert(0 <= ss->ply && ss->ply < MAX_PLY);
+
+    Thread *const thread = pos.this_thread();
+
+    if (thread == Threads.main())
+        static_cast<MainThread *>(thread)->check_time();
+
+    if (Threads.stop.load(std::memory_order_relaxed))
+        return value_draw(thread);
+
+    int complexity = 0;
+
+    // Step 1. Transposition table lookup.
+    Move ttMove;
+    Value ttValue;
+    Depth ttDepth;
+    Bound ttBound;
+    bool ttHit, ttPv;
+
+    TTEntry *tte = TT.probe(pos.key(), ttHit);
+
+    if (ttHit) {
+        ttMove = tte->move();
+        ttDepth = tte->depth();
+        ttBound = tte->bound();
+        ttPv = tte->is_pv();
+        ttValue = value_from_tt(tte->value(), ss->ply, pos.rule50_count());
+    }
+    else {
+        ttMove = MOVE_NONE;
+        ttDepth = DEPTH_NONE;
+        ttBound = BOUND_NONE;
+        ttPv = false;
+        ttValue = VALUE_NONE;
+    }
+
+    // Step 2. Update NNUE accumulator and complexity.
+    if (!ss->inCheck) {
+        Eval::NNUE::hint_common_parent_position(pos);
+        complexity = abs(ss->staticEval - pos.psq_eg_stm());
+        thread->complexityAverage.update(complexity);
+    }
+
+    // Step 3. Futility pruning.
+    if (!ttPv &&
+        depth < 4 &&
+        ss->staticEval - futility_margin(depth, false) >= threshold &&
+        ss->staticEval < 28580)
+        return ss->staticEval;
+
+    // Do not perform any pruning before move loop, because we want to see
+    // if the position is bad without the singular move.
+
+    const PieceToHistory *contHistory[] = {
+        (ss-1)->continuationHistory, (ss-2)->continuationHistory,
+        nullptr                    , (ss-4)->continuationHistory,
+        nullptr                    , (ss-6)->continuationHistory
+    };
+
+    const Square prevSq = to_sq((ss-1)->currentMove);
+    const Move counterMove = thread->counterMoves[pos.piece_on(prevSq)][prevSq];
+
+    MovePicker mp(pos, ttMove, depth,
+                  &thread->mainHistory,
+                  &thread->captureHistory,
+                  contHistory,
+                  counterMove, ss->killers);
+
+    StateInfo st;
+    ASSERT_ALIGNED(&st, Eval::NNUE::CacheLineSize);
+
+    Move move;
+    Value value, bestValue;
+    int moveCount = 0;
+
+    bestValue = -VALUE_INFINITE;
+
+    while ((move = mp.next_move()) != MOVE_NONE) {
+        assert(is_ok(move));
+
+        if (move == excludedMove || !pos.legal(move))
+            continue;
+
+        ++moveCount;
+
+        Piece movedPiece = pos.moved_piece(move);
+        bool capture = pos.capture(move);
+        bool check = pos.gives_check(move);
+
+        Depth newDepth = depth - 1;
+
+        pos.do_move(move, st, check);
+
+        value = -search<NonPV>(pos, const_cast<Stack *>(ss+1),
+                               -threshold, -threshold + 1, newDepth, !cutNode);
+
+        pos.undo_move(move);
+
+        if (value > bestValue) {
+            bestValue = value;
+        }
+    }
+
+    return bestValue;
+}
 
   // value_to_tt() adjusts a mate or TB score from "plies to mate from the root" to
   // "plies to mate from the current position". Standard scores are unchanged.
