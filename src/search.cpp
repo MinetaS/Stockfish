@@ -719,6 +719,8 @@ namespace {
 
     CapturePieceToHistory& captureHistory = thisThread->captureHistory;
 
+    complexity = 0;
+
     // Step 6. Static evaluation of the position
     if (ss->inCheck)
     {
@@ -726,16 +728,27 @@ namespace {
         ss->staticEval = eval = VALUE_NONE;
         improving = false;
         improvement = 0;
-        complexity = 0;
         goto moves_loop;
     }
-    else if (excludedMove) {
-        // Providing the hint that this node's accumulator will be used often brings significant Elo gain (13 elo)
+
+    // Set up the improvement variable, which is the difference between the current
+    // static evaluation and the previous static evaluation at our turn (if we were
+    // in check at our previous move we look at the move prior to it). The improvement
+    // margin and the improving flag are used in various pruning heuristics.
+    improvement =   (ss-2)->staticEval != VALUE_NONE ? ss->staticEval - (ss-2)->staticEval
+                  : (ss-4)->staticEval != VALUE_NONE ? ss->staticEval - (ss-4)->staticEval
+                  :                                    172;
+    improving = improvement > 0;
+
+    if (excludedMove)
+    {
+        // Providing the hint that this node's accumulator will be used often
+        // brings significant Elo gain. (~13 Elo)
         Eval::NNUE::hint_common_parent_position(pos);
-        eval = ss->staticEval;
-        complexity = abs(ss->staticEval - pos.psq_eg_stm());
+        goto moves_loop;
     }
-    else if (ss->ttHit)
+
+    if (ss->ttHit)
     {
         // Never assume anything about values stored in TT
         ss->staticEval = eval = tte->eval();
@@ -755,6 +768,7 @@ namespace {
         // Save static evaluation into transposition table
         tte->save(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE, DEPTH_NONE, MOVE_NONE, eval);
     }
+
     thisThread->complexityAverage.update(complexity);
 
     // Use static evaluation difference to improve quiet move ordering (~4 Elo)
@@ -763,15 +777,6 @@ namespace {
         int bonus = std::clamp(-19 * int((ss-1)->staticEval + ss->staticEval), -1940, 1940);
         thisThread->mainHistory[~us][from_to((ss-1)->currentMove)] << bonus;
     }
-
-    // Set up the improvement variable, which is the difference between the current
-    // static evaluation and the previous static evaluation at our turn (if we were
-    // in check at our previous move we look at the move prior to it). The improvement
-    // margin and the improving flag are used in various pruning heuristics.
-    improvement =   (ss-2)->staticEval != VALUE_NONE ? ss->staticEval - (ss-2)->staticEval
-                  : (ss-4)->staticEval != VALUE_NONE ? ss->staticEval - (ss-4)->staticEval
-                  :                                    172;
-    improving = improvement > 0;
 
     // Step 7. Razoring (~1 Elo).
     // If eval is really low check with qsearch if it can exceed alpha, if it can't,
@@ -908,7 +913,7 @@ namespace {
         && !ttMove)
         depth -= 2;
 
-moves_loop: // When in check, search starts here
+moves_loop: // When in check or a move is excluded, search starts here
 
     // Step 12. A small Probcut idea, when we are in check (~4 Elo)
     probCutBeta = beta + 402;
