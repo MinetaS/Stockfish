@@ -768,7 +768,8 @@ namespace {
     if (is_ok((ss-1)->currentMove) && !(ss-1)->inCheck && !priorCapture)
     {
         int bonus = std::clamp(-19 * int((ss-1)->staticEval + ss->staticEval), -1920, 1920);
-        thisThread->mainHistory[~us][from_to((ss-1)->currentMove)] << bonus;
+        thisThread->mainHistory[~us][from_to((ss-1)->currentMove)] << (excludedMove ? bonus / 2
+                                                                                    : bonus);
     }
 
     // Set up the improvement variable, which is the difference between the current
