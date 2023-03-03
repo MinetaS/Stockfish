@@ -1071,21 +1071,36 @@ moves_loop: // When in check, search starts here
               && (tte->bound() & BOUND_LOWER)
               &&  tte->depth() >= depth - 3)
           {
-              const Depth maxSingularDepth = (depth - 1) / 2;
-              Value singularBeta = -VALUE_INFINITE;
+              Value singularBeta = ttValue - (2 + (ss->ttPv && !PvNode)) * depth;
+              Depth singularDepth = (depth - 1) / 2;
 
-              for (Depth singularDepth = 1; singularDepth <= maxSingularDepth; ++singularDepth)
+              // Try qsearch first with weaker bounds if the position is not
+              // in check. Depth 0 search is used to detect game cycle early.
+              if (!ss->inCheck)
               {
-                singularBeta = ttValue -  (2 + (ss->ttPv && !PvNode))
-                                        * (2 * singularDepth + 1);
+                const Value threshold = ttValue - depth;
 
-                ss->excludedMove = move;
-                value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, singularDepth, cutNode);
-                ss->excludedMove = MOVE_NONE;
+                pos.do_move(move, st, givesCheck);
 
-                if (value >= singularBeta)
-                    break;
+                value = -search<NonPV>(pos, ss+1, -threshold, -threshold + 1, 0, !cutNode);
+
+                pos.undo_move(move);
+
+                if (value < threshold)
+                {
+                    // Weirdly, qsearch didn't fail low with the move included.
+                    // This implies that we may have less interest in this move
+                    // and not want to spend too much time exploring this move
+                    // further. Use more lenient bounds to check if the move
+                    // really is singular as well.
+                    singularBeta = ttValue - (1 + (ss->ttPv && !PvNode)) * depth;
+                    singularDepth = depth / 3;
+                }
               }
+
+              ss->excludedMove = move;
+              value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, singularDepth, cutNode);
+              ss->excludedMove = MOVE_NONE;
 
               if (value < singularBeta)
               {
