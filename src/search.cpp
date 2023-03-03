@@ -1071,71 +1071,74 @@ moves_loop: // When in check, search starts here
               && (tte->bound() & BOUND_LOWER)
               &&  tte->depth() >= depth - 3)
           {
-              // Try qsearch first with weaker bounds. Depth 0 search is
-              // equivalent to qsearch, but qsearch is prohibited here due to
-              // the lack of cycle detetion.
+              // Try depth 1 search first with weaker bounds.
               Value singularBeta = ttValue - depth;
               Depth singularDepth;
 
               pos.do_move(move, st, givesCheck);
 
-              value = -search<NonPV>(pos, ss+1, -singularBeta, -singularBeta + 1, 0, !cutNode);
+              value = -search<NonPV>(pos, ss+1, -singularBeta, -singularBeta + 1, 1, !cutNode);
 
               pos.undo_move(move);
 
               if (value >= singularBeta)
               {
-                // This is the most usual case where qsearch returns a value
-                // that failed low with the move included.
+                // This is the most usual case where low depth search returns
+                // a value that failed low with the move included.
                 singularBeta = ttValue - (2 + (ss->ttPv && !PvNode)) * depth;
                 singularDepth = (depth - 1) / 2;
               }
               else
               {
-                // Weirdly, qsearch didn't fail low with the move included. This
-                // implies that we may have less interest in this move and
-                // not want to allocate too much resources exploring this move
-                // further. Use more lenient bounds to check if the
-                // move really is singular as well.
+                // Weirdly, the search didn't fail low with the move included.
+                // This implies that the move may not be looking interesting
+                // we probably don't want to spend too much time exploring this
+                // move further. Use more lenient bounds to check if the move
+                // really is singular as well.
                 singularBeta = ttValue - (1 + (ss->ttPv && !PvNode)) * depth;
                 singularDepth = depth / 3;
               }
 
-              // the search with excludedMove will update ss->staticEval.
-              ss->excludedMove = move;
-              value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, singularDepth, cutNode);
-              ss->excludedMove = MOVE_NONE;
-
-              if (value < singularBeta)
+              // We already did depth 1 search with the next move. Do not
+              // perform excluded move search if singularDepth is low.
+              if (singularDepth > 2)
               {
-                  extension = 1;
-                  singularQuietLMR = !ttCapture;
+                // the search with excludedMove will update ss->staticEval.
+                ss->excludedMove = move;
+                value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, singularDepth, cutNode);
+                ss->excludedMove = MOVE_NONE;
 
-                  // Avoid search explosion by limiting the number of double extensions
-                  if (  !PvNode
-                      && value < singularBeta - 25
-                      && ss->doubleExtensions <= 10)
-                  {
-                      extension = 2;
-                      depth += depth < 13;
-                  }
+                if (value < singularBeta)
+                {
+                    extension = 1;
+                    singularQuietLMR = !ttCapture;
+
+                    // Avoid search explosion by limiting the number of double extensions
+                    if (  !PvNode
+                        && value < singularBeta - 25
+                        && ss->doubleExtensions <= 10)
+                    {
+                        extension = 2;
+                        depth += depth < 13;
+                    }
+                }
+
+                // Multi-cut pruning
+                // Our ttMove is assumed to fail high, and now we failed high also on a reduced
+                // search without the ttMove. So we assume this expected Cut-node is not singular,
+                // that multiple moves fail high, and we can prune the whole subtree by returning
+                // a soft bound.
+                else if (singularBeta >= beta)
+                    return singularBeta;
+
+                // If the eval of ttMove is greater than beta, we reduce it (negative extension)
+                else if (ttValue >= beta)
+                    extension = -2;
+
+                // If the eval of ttMove is less than value, we reduce it (negative extension)
+                else if (ttValue <= value)
+                    extension = -1;
               }
-
-              // Multi-cut pruning
-              // Our ttMove is assumed to fail high, and now we failed high also on a reduced
-              // search without the ttMove. So we assume this expected Cut-node is not singular,
-              // that multiple moves fail high, and we can prune the whole subtree by returning
-              // a soft bound.
-              else if (singularBeta >= beta)
-                  return singularBeta;
-
-              // If the eval of ttMove is greater than beta, we reduce it (negative extension)
-              else if (ttValue >= beta)
-                  extension = -2;
-
-              // If the eval of ttMove is less than value, we reduce it (negative extension)
-              else if (ttValue <= value)
-                  extension = -1;
           }
 
           // Check extensions (~1 Elo)
