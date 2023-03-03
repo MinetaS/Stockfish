@@ -1071,26 +1071,28 @@ moves_loop: // When in check, search starts here
               && (tte->bound() & BOUND_LOWER)
               &&  tte->depth() >= depth - 3)
           {
-              // Try qsearch first with weaker bounds.
+              // Try qsearch first with weaker bounds. Depth 0 search is
+              // equivalent to qsearch, but qsearch is prohibited here due to
+              // the lack of cycle detetion.
               Value singularBeta = ttValue - depth;
               Depth singularDepth;
 
               pos.do_move(move, st, givesCheck);
 
-              value = -qsearch<NonPV>(pos, ss+1, -singularBeta, -singularBeta + 1);
+              value = -search<NonPV>(pos, ss+1, -singularBeta, -singularBeta + 1, 0, !cutNode);
 
               pos.undo_move(move);
 
               if (value >= singularBeta)
               {
                 // This is the most usual case where qsearch returns a value
-                // that didn't fail low with the move included.
+                // that failed low with the move included.
                 singularBeta = ttValue - (2 + (ss->ttPv && !PvNode)) * depth;
                 singularDepth = (depth - 1) / 2;
               }
               else
               {
-                // Weirdly, qsearch failed low with the move included. This
+                // Weirdly, qsearch didn't fail low with the move included. This
                 // implies that we may have less interest in this move and
                 // not want to allocate too much resources exploring this move
                 // further. Use more lenient bounds to check if the
