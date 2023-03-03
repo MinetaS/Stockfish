@@ -1071,11 +1071,36 @@ moves_loop: // When in check, search starts here
               && (tte->bound() & BOUND_LOWER)
               &&  tte->depth() >= depth - 3)
           {
-              Value singularBeta = ttValue - (2 + (ss->ttPv && !PvNode)) * depth;
-              Depth singularDepth = (depth - 1) / 2;
+              // Try qsearch first with weaker bounds.
+              Value singularBeta = ttValue - depth;
+              Depth singularDepth;
 
+              pos.do_move(move, st, givesCheck);
+
+              value = -qsearch<NonPV>(pos, ss+1, -singularBeta, -singularBeta + 1);
+
+              pos.undo_move(move);
+
+              if (value >= singularBeta)
+              {
+                // This is the most usual case where qsearch returns a value
+                // that didn't fail low with the move included.
+                singularBeta = ttValue - (2 + (ss->ttPv && !PvNode)) * depth;
+                singularDepth = (depth - 1) / 2;
+              }
+              else
+              {
+                // Weirdly, qsearch failed low with the move included. This
+                // implies that we may have less interest in this move and
+                // not want to allocate too much resources exploring this move
+                // further. Use more lenient bounds to check if the
+                // move really is singular as well.
+                singularBeta = ttValue - (1 + (ss->ttPv && !PvNode)) * depth;
+                singularDepth = depth / 3;
+              }
+
+              // the search with excludedMove will update ss->staticEval.
               ss->excludedMove = move;
-              // the search with excludedMove will update ss->staticEval
               value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, singularDepth, cutNode);
               ss->excludedMove = MOVE_NONE;
 
