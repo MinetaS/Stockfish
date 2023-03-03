@@ -1075,10 +1075,14 @@ moves_loop: // When in check, search starts here
               Depth singularDepth = (depth - 1) / 2;
 
               // Try qsearch first with weaker bounds if the position is not
-              // in check. Depth 0 search is used to detect game cycle early.
+              // in check. Depth 0 search is used to detect a game cycle early.
               if (!ss->inCheck)
               {
                 const Value threshold = ttValue - depth;
+
+                ss->currentMove = move;
+                ss->continuationHistory = &thisThread->continuationHistory
+                                            [false][capture][movedPiece][to_sq(move)];
 
                 pos.do_move(move, st, givesCheck);
 
