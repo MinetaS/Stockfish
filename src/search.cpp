@@ -1095,9 +1095,7 @@ moves_loop: // When in check, search starts here
                     // Weirdly, qsearch didn't fail low with the move included.
                     // This implies that we may have less interest in this move
                     // and not want to spend too much time exploring this move
-                    // further. Use more lenient bounds to check if the move
-                    // really is singular as well.
-                    singularBeta = ttValue - (1 + (ss->ttPv && !PvNode)) * depth;
+                    // further.
                     singularDepth = depth / 3;
                 }
               }
