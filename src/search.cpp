@@ -1071,37 +1071,20 @@ moves_loop: // When in check, search starts here
               && (tte->bound() & BOUND_LOWER)
               &&  tte->depth() >= depth - 3)
           {
-              Value singularBeta = ttValue - (2 + (ss->ttPv && !PvNode)) * depth;
-              Depth singularDepth = (depth - 1) / 2;
-
-              // Try qsearch first with weaker bounds if the position is not
-              // in check. Depth 0 search is used to detect a game cycle early.
-              if (!ss->inCheck)
-              {
-                const Value threshold = ttValue - depth;
-
-                ss->currentMove = move;
-                ss->continuationHistory = &thisThread->continuationHistory
-                                            [false][capture][movedPiece][to_sq(move)];
-
-                pos.do_move(move, st, givesCheck);
-
-                value = -search<NonPV>(pos, ss+1, -threshold, -threshold + 1, 0, !cutNode);
-
-                pos.undo_move(move);
-
-                if (value < threshold)
-                {
-                    // Weirdly, qsearch didn't fail low with the move included.
-                    // This implies that we may have less interest in this move
-                    // and not want to spend too much time exploring this move
-                    // further.
-                    singularDepth = depth / 3;
-                }
-              }
+              const Value singularBeta = ttValue - (2 + (!PvNode && ss->ttPv)) * depth;
+              const Depth singularDepthEnd = (depth - 1) / 2;
+              const Depth singularDepthBegin = singularDepthEnd - singularDepthEnd / 4;
 
               ss->excludedMove = move;
-              value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, singularDepth, cutNode);
+
+              for (Depth d = singularDepthBegin; d <= singularDepthEnd; ++d)
+              {
+                value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, d, cutNode);
+
+                if (value >= singularBeta)
+                    break;
+              }
+
               ss->excludedMove = MOVE_NONE;
 
               if (value < singularBeta)
