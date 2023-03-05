@@ -1072,16 +1072,14 @@ moves_loop: // When in check, search starts here
               &&  tte->depth() >= depth - 3)
           {
               const Value singularBeta = ttValue - (2 + (!PvNode && ss->ttPv)) * depth;
-              const Depth singularDepthEnd = (depth - 1) / 2;
-              const Depth singularDepthBegin = singularDepthEnd - singularDepthEnd / 4;
+              const Depth singularDepth = (depth - 1) / 2;
 
               ss->excludedMove = move;
 
-              for (Depth d = singularDepthBegin; d <= singularDepthEnd; ++d)
+              for (int i = 0; i <= 2 && singularDepth + i < depth; ++i)
               {
-                value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, d, cutNode);
-
-                if (value >= singularBeta)
+                value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, singularDepth + i, cutNode);
+                if (value < singularBeta || value >= ttValue)
                     break;
               }
 
