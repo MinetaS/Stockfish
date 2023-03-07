@@ -58,6 +58,23 @@ using namespace Search;
 
 namespace {
 
+int v1 = 11;
+TUNE(SetRange(1, 24), v1);
+
+int v2 = 88;
+TUNE(SetRange(0, 400), v2);
+
+int cext[24] = {
+    88, 88, 88, 88, 88, 88, 88, 88,
+    88, 88, 88, 88, 88, 88, 88, 88,
+    88, 88, 88, 88, 88, 88, 88, 88
+};
+TUNE(SetRange(0, 400), cext);
+
+inline Value check_extension_bound(Depth d) {
+    return Value(d <= 24 ? cext[d-1] : v2);
+}
+
   // Different node types, used as a template parameter
   enum NodeType { NonPV, PV, Root };
 
@@ -1111,10 +1128,11 @@ moves_loop: // When in check, search starts here
                   extension = -1;
           }
 
-          // Check extensions (~1 Elo)
+          // Check extensions
+          // This includes positions in check where static eval is VALUE_NONE.
           else if (   givesCheck
-                   && depth > 10
-                   && abs(ss->staticEval) > 88)
+                   && depth >= v1
+                   && abs(ss->staticEval) > check_extension_bound(depth))
               extension = 1;
 
           // Quiet ttMove extensions (~1 Elo)
