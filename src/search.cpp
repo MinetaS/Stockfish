@@ -1074,8 +1074,10 @@ moves_loop: // When in check, search starts here
               Value singularBeta = ttValue - (2 + (ss->ttPv && !PvNode)) * depth;
               Depth singularDepth = (depth - 1) / 2;
 
+              if (ttValue <= alpha)
+                singularDepth = std::max(singularDepth - 1, 1);
+
               ss->excludedMove = move;
-              // the search with excludedMove will update ss->staticEval
               value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, singularDepth, cutNode);
               ss->excludedMove = MOVE_NONE;
 
@@ -1107,8 +1109,12 @@ moves_loop: // When in check, search starts here
                   extension = -2;
 
               // If the eval of ttMove is less than value, we reduce it (negative extension)
-              else
-                  extension = -((ttValue <= value) + (ttValue <= alpha));
+              else if (ttValue <= value)
+                  extension = -1;
+
+              // If the eval of ttMove is less than alpha, we reduce it (negative extension)
+              else if (ttValue <= alpha)
+                  extension = -1;
           }
 
           // Check extensions (~1 Elo)
