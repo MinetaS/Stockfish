@@ -1073,7 +1073,7 @@ moves_loop: // When in check, search starts here
           {
               const bool likelySingular = !improving && move == ss->killers[0];
               const Value singularBeta = ttValue - (2 + (ss->ttPv && !PvNode)) * depth;
-              const Depth singularDepth = likelySingular ? (depth - 1) / 2 : depth / 3;
+              const Depth singularDepth = likelySingular ? depth / 3 : (depth - 1) / 2;
 
               ss->excludedMove = move;
               value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, singularDepth, cutNode);
