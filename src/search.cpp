@@ -1071,9 +1071,11 @@ moves_loop: // When in check, search starts here
               && (tte->bound() & BOUND_LOWER)
               &&  tte->depth() >= depth - 3)
           {
-              const bool likelySingular = !improving && move == ss->killers[0];
-              const Value singularBeta = ttValue - (2 + (ss->ttPv && !PvNode)) * depth;
-              const Depth singularDepth = likelySingular ? depth / 3 : (depth - 1) / 2;
+              Value singularBeta = ttValue - (2 + (ss->ttPv && !PvNode)) * depth;
+              Depth singularDepth = (depth - 1) / 2;
+
+              if (!improving && move == ss->killers[0])
+                  singularDepth = std::max(1, singularDepth - 1);
 
               ss->excludedMove = move;
               value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, singularDepth, cutNode);
