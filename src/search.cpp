@@ -604,6 +604,7 @@ namespace {
     (ss+1)->excludedMove = bestMove = MOVE_NONE;
     (ss+2)->killers[0]   = (ss+2)->killers[1] = MOVE_NONE;
     (ss+2)->cutoffCnt    = 0;
+    ss->extensionScore = (ss-1)->extensionScore;
     ss->doubleExtensions = (ss-1)->doubleExtensions;
     Square prevSq        = to_sq((ss-1)->currentMove);
 
@@ -1054,43 +1055,46 @@ moves_loop: // When in check, search starts here
 
       // Step 15. Extensions (~100 Elo)
       // We take care to not overdo to avoid search getting stuck.
-      if (ss->ply < thisThread->rootDepth * 2)
-      {
-          // Singular extension search (~94 Elo). If all moves but one fail low on a
-          // search of (alpha-s, beta-s), and just one fails high on (alpha, beta),
-          // then that move is singular and should be extended. To verify this we do
-          // a reduced search on all the other moves but the ttMove and if the
-          // result is lower than ttValue minus a margin, then we will extend the ttMove.
-          if (   !rootNode
-              &&  depth >= 4 - (thisThread->completedDepth > 21) + 2 * (PvNode && tte->is_pv())
-              &&  move == ttMove
-              && !excludedMove // Avoid recursive singular search
-           /* &&  ttValue != VALUE_NONE Already implicit in the next condition */
-              &&  abs(ttValue) < VALUE_KNOWN_WIN
-              && (tte->bound() & BOUND_LOWER)
-              &&  tte->depth() >= depth - 3)
-          {
-              Value singularBeta = ttValue - (3 + 2 * (ss->ttPv && !PvNode)) * depth / 2;
-              Depth singularDepth = (depth - 1) / 2;
 
-              ss->excludedMove = move;
-              value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, singularDepth, cutNode);
-              ss->excludedMove = MOVE_NONE;
+        // Singular extension search (~94 Elo)
+        // If all moves but one fail low on a search of (alpha-s, beta-s),
+        // and just one fails high on (alpha, beta), then that move is
+        // singular and should be extended. To verify this, we do a reduced
+        // search on all the other moves but TT move and if the result is lower
+        // than ttValue minus a margin, then we will extend the TT move.
+        const int singularESThreshold = thisThread->rootDepth;
 
-              if (value < singularBeta)
-              {
-                  extension = 1;
-                  singularQuietLMR = !ttCapture;
+        if (   !rootNode
+            && move == ttMove
+            && ss->extensionScore <= singularESThreshold
+            && depth >= 4 + ss->extensionScore / 8 + 2 * (PvNode && tte->is_pv())
+        /* && ttValue != VALUE_NONE */  // Already implicit in the next condition
+            && abs(ttValue) < VALUE_KNOWN_WIN
+            && (tte->bound() & BOUND_LOWER) 
+            && tte->depth() >= depth - 3
+            && !excludedMove) // Avoid recursive singular search
+        {
+            Value singularBeta = ttValue - (3 + 2 * (ss->ttPv && !PvNode)) * depth / 2;
+            Depth singularDepth = (depth - 1) / 2;
 
-                  // Avoid search explosion by limiting the number of double extensions
-                  if (  !PvNode
-                      && value < singularBeta - 25
-                      && ss->doubleExtensions <= 10)
-                  {
-                      extension = 2;
-                      depth += depth < 13;
-                  }
-              }
+            ss->excludedMove = move;
+            value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, singularDepth, cutNode);
+            ss->excludedMove = MOVE_NONE;
+
+            if (value < singularBeta)
+            {
+                extension = 1;
+                singularQuietLMR = !ttCapture;
+
+                // Avoid search explosion by limiting the number of double extensions
+                if (  !PvNode
+                    && value < singularBeta - 25
+                    && ss->doubleExtensions <= 10)
+                {
+                    extension = 2;
+                    depth += depth < 13;
+                }
+            }
 
               // Multi-cut pruning
               // Our ttMove is assumed to fail high, and now we failed high also on a reduced
@@ -1111,24 +1115,21 @@ moves_loop: // When in check, search starts here
               // If the eval of ttMove is less than alpha, we reduce it (negative extension)
               else if (ttValue <= alpha)
                   extension = -1;
-          }
+        }
 
-          // Check extensions (~1 Elo)
-          else if (   givesCheck
-                   && depth > 10
-                   && abs(ss->staticEval) > 88)
-              extension = 1;
+        // Check extensions
+        else if (givesCheck && depth > 10 && abs(ss->staticEval) > 88)
+            extension = 1;
 
-          // Quiet ttMove extensions (~1 Elo)
-          else if (   PvNode
-                   && move == ttMove
-                   && move == ss->killers[0]
-                   && (*contHist[0])[movedPiece][to_sq(move)] >= 5705)
-              extension = 1;
-      }
+        // Quiet ttMove extensions
+        else if (PvNode && move == ttMove && move == ss->killers[0] &&
+                 (*contHist[0])[movedPiece][to_sq(move)] >= 5705)
+            extension = 1;
 
       // Add extension to new depth
       newDepth += extension;
+
+      ss->extensionScore = (ss-1)->extensionScore + extension;
       ss->doubleExtensions = (ss-1)->doubleExtensions + (extension == 2);
 
       // Speculative prefetch as early as possible
