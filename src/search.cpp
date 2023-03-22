@@ -602,6 +602,7 @@ namespace {
 
     assert(0 <= ss->ply && ss->ply < MAX_PLY);
 
+    ss->complexity = complexity = 0;
     (ss+1)->excludedMove = bestMove = MOVE_NONE;
     (ss+2)->killers[0]   = (ss+2)->killers[1] = MOVE_NONE;
     (ss+2)->cutoffCnt    = 0;
@@ -727,7 +728,6 @@ namespace {
         ss->staticEval = eval = VALUE_NONE;
         improving = false;
         improvement = 0;
-        complexity = 0;
         goto moves_loop;
     }
     else if (excludedMove)
@@ -735,7 +735,7 @@ namespace {
         // Providing the hint that this node's accumulator will be used often brings significant Elo gain (13 elo)
         Eval::NNUE::hint_common_parent_position(pos);
         eval = ss->staticEval;
-        complexity = abs(ss->staticEval - pos.psq_eg_stm());
+        complexity = ss->complexity;
     }
     else if (ss->ttHit)
     {
@@ -762,6 +762,7 @@ namespace {
         tte->save(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE, DEPTH_NONE, MOVE_NONE, eval);
     }
 
+    ss->complexity = complexity;
     thisThread->complexityAverage.update(complexity);
 
     // Use static evaluation difference to improve quiet move ordering (~4 Elo)
