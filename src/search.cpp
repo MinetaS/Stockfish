@@ -767,7 +767,7 @@ namespace {
     else
     {
         ss->staticEval = eval = evaluate(pos, &complexity);
-        // Save static evaluation into transposition tables
+        // Save static evaluation into the transposition table.
         tte->save(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE, DEPTH_NONE, MOVE_NONE, eval);
     }
 
@@ -1408,7 +1408,7 @@ moves_loop: // When in check, search starts here
         ss->ttPv = ss->ttPv || ((ss-1)->ttPv && depth > 3);
 
     // Write gathered information in transposition table
-    if (!excludedMove && !(rootNode && thisThread->pvIdx))
+    if (!(rootNode && thisThread->pvIdx))
         tte->save(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv,
                   bestValue >= beta ? BOUND_LOWER :
                   PvNode && bestMove ? BOUND_EXACT : BOUND_UPPER,
