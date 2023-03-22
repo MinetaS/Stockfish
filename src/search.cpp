@@ -618,22 +618,19 @@ namespace {
 
     // Step 4. Transposition table lookup.
     excludedMove = ss->excludedMove;
-    posKey = pos.key();
+    posKey = !excludedMove ? pos.key() : pos.key() ^ make_key(excludedMove);
     tte = TT.probe(posKey, ss->ttHit);
     ttValue = ss->ttHit ? value_from_tt(tte->value(), ss->ply, pos.rule50_count()) : VALUE_NONE;
     ttMove =  rootNode ? thisThread->rootMoves[thisThread->pvIdx].pv[0]
             : ss->ttHit    ? tte->move() : MOVE_NONE;
     ttCapture = ttMove && pos.capture_stage(ttMove);
 
-    // At this point, if excluded, skip straight to step 6, static eval. However,
-    // to save indentation, we list the condition in all code between here and there.
     if (!excludedMove)
         ss->ttPv = PvNode || (ss->ttHit && tte->is_pv());
 
     // At non-PV nodes we check for an early TT cutoff
     if (  !PvNode
         && ss->ttHit
-        && !excludedMove
         && tte->depth() > depth - (tte->bound() == BOUND_EXACT)
         && ttValue != VALUE_NONE // Possible in case of TT access race
         && (tte->bound() & (ttValue >= beta ? BOUND_LOWER : BOUND_UPPER)))
@@ -721,44 +718,56 @@ namespace {
     CapturePieceToHistory& captureHistory = thisThread->captureHistory;
 
     // Step 6. Static evaluation of the position
+    ss->staticEval = eval = VALUE_NONE;
+    complexity = 0;
+
     if (ss->inCheck)
     {
         // Skip early pruning when in check
-        ss->staticEval = eval = VALUE_NONE;
         improving = false;
         improvement = 0;
-        complexity = 0;
         goto moves_loop;
     }
-    else if (excludedMove)
+
+    if (excludedMove)
     {
-        // Providing the hint that this node's accumulator will be used often brings significant Elo gain (13 elo)
+        // Providing the hint that this node's accumulator will be used often
+        // brings significant Elo gain. (~13 Elo)
         Eval::NNUE::hint_common_parent_position(pos);
         eval = ss->staticEval;
         complexity = abs(ss->staticEval - pos.psq_eg_stm());
     }
-    else if (ss->ttHit)
+
+    if (ss->ttHit)
     {
-        // Never assume anything about values stored in TT
-        ss->staticEval = eval = tte->eval();
-        if (eval == VALUE_NONE)
-            ss->staticEval = eval = evaluate(pos, &complexity);
-        else // Fall back to (semi)classical complexity for TT hits, the NNUE complexity is lost
+        // Skip evaluating position because we already have static evaluation
+        // from the same level stack.
+        if (!excludedMove)
         {
-            complexity = abs(ss->staticEval - pos.psq_eg_stm());
-            if (PvNode)
-               Eval::NNUE::hint_common_parent_position(pos);
+            // Never assume anything about values stored in TT
+            ss->staticEval = eval = tte->eval();
+            if (eval == VALUE_NONE)
+                ss->staticEval = eval = evaluate(pos, &complexity);
+            else
+            {
+                if (PvNode)
+                    Eval::NNUE::hint_common_parent_position(pos);
+
+                // The NNUE complexity is lost; fall back to (semi)classical
+                // complexity for TT hits.
+                complexity = abs(ss->staticEval - pos.psq_eg_stm());
+            }
         }
 
         // ttValue can be used as a better position evaluation (~7 Elo)
-        if (    ttValue != VALUE_NONE
+        if (   ttValue != VALUE_NONE
             && (tte->bound() & (ttValue > eval ? BOUND_LOWER : BOUND_UPPER)))
             eval = ttValue;
     }
     else
     {
         ss->staticEval = eval = evaluate(pos, &complexity);
-        // Save static evaluation into transposition table
+        // Save static evaluation into transposition tables
         tte->save(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE, DEPTH_NONE, MOVE_NONE, eval);
     }
 
