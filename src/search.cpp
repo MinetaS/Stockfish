@@ -720,11 +720,6 @@ namespace {
 
     CapturePieceToHistory& captureHistory = thisThread->captureHistory;
 
-    static constexpr auto adjust_complexity = [](Position &pos, Value eval) -> int {
-        Value psq = pos.psq_eg_stm();
-        return abs(eval - psq) - 220 * (abs(psq) / 1024);
-    };
-
     // Step 6. Static evaluation of the position
     if (ss->inCheck)
     {
@@ -735,39 +730,45 @@ namespace {
         complexity = 0;
         goto moves_loop;
     }
-    else if (excludedMove)
-    {
-        // Providing the hint that this node's accumulator will be used often brings significant Elo gain (13 elo)
-        Eval::NNUE::hint_common_parent_position(pos);
-        eval = ss->staticEval;
-        complexity = adjust_complexity(pos, ss->staticEval);
-    }
-    else if (ss->ttHit)
-    {
-        // Never assume anything about values stored in TT
-        ss->staticEval = eval = tte->eval();
-        if (eval == VALUE_NONE)
-            ss->staticEval = eval = evaluate(pos, &complexity);
-        else // Fall back to (semi)classical complexity for TT hits, the NNUE complexity is lost
-        {
-            complexity = adjust_complexity(pos, ss->staticEval);
-            if (PvNode)
-               Eval::NNUE::hint_common_parent_position(pos);
-        }
-
-        // ttValue can be used as a better position evaluation (~7 Elo)
-        if (    ttValue != VALUE_NONE
-            && (tte->bound() & (ttValue > eval ? BOUND_LOWER : BOUND_UPPER)))
-            eval = ttValue;
-    }
     else
     {
-        ss->staticEval = eval = evaluate(pos, &complexity);
-        // Save static evaluation into transposition table
-        tte->save(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE, DEPTH_NONE, MOVE_NONE, eval);
-    }
+        Value psq = pos.psq_eg_stm();
 
-    thisThread->complexityAverage.update(complexity);
+        if (excludedMove)
+        {
+            // Providing the hint that this node's accumulator will be used often brings significant Elo gain (13 elo)
+            Eval::NNUE::hint_common_parent_position(pos);
+            eval = ss->staticEval;
+            complexity = abs(ss->staticEval - psq);
+        }
+        else if (ss->ttHit)
+        {
+            // Never assume anything about values stored in TT
+            ss->staticEval = eval = tte->eval();
+            if (eval == VALUE_NONE)
+                ss->staticEval = eval = evaluate(pos, &complexity);
+            else // Fall back to (semi)classical complexity for TT hits, the NNUE complexity is lost
+            {
+                complexity = abs(ss->staticEval - psq);
+                if (PvNode)
+                Eval::NNUE::hint_common_parent_position(pos);
+            }
+
+            // ttValue can be used as a better position evaluation (~7 Elo)
+            if (    ttValue != VALUE_NONE
+                && (tte->bound() & (ttValue > eval ? BOUND_LOWER : BOUND_UPPER)))
+                eval = ttValue;
+        }
+        else
+        {
+            ss->staticEval = eval = evaluate(pos, &complexity);
+            // Save static evaluation into transposition table
+            tte->save(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE, DEPTH_NONE, MOVE_NONE, eval);
+        }
+
+        complexity -= std::max(0, abs(psq) - 1800) * 2;
+        thisThread->complexityAverage.update(complexity);
+    }
 
     // Use static evaluation difference to improve quiet move ordering (~4 Elo)
     if (is_ok((ss-1)->currentMove) && !(ss-1)->inCheck && !priorCapture)
