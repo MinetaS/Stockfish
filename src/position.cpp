@@ -1066,14 +1066,23 @@ bool Position::see_ge(Move m, Bitboard& occupied, Value threshold) const {
 
   assert(is_ok(m));
 
-  // Only deal with normal moves, assume others pass a simple SEE
-  if (type_of(m) != NORMAL)
+  MoveType moveType = type_of(m);
+
+  // Assume castling and en passant moves pass a simple SEE
+  if (moveType != NORMAL && moveType != PROMOTION)
       return VALUE_ZERO >= threshold;
 
   Square from = from_sq(m), to = to_sq(m);
+  int promotionBonus = 0;
+
+  if (moveType == PROMOTION)
+  {
+    Piece promotion = make_piece(side_to_move(), promotion_type(m));
+    promotionBonus = PieceValue[MG][promotion] - PawnValueMg;
+  }
 
   int swap = PieceValue[MG][piece_on(to)] - threshold;
-  if (swap < 0)
+  if (swap + promotionBonus < 0)
       return false;
 
   swap = PieceValue[MG][piece_on(from)] - swap;
