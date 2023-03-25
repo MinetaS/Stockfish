@@ -1004,8 +1004,8 @@ moves_loop: // When in check, search starts here
               || givesCheck)
           {
               // Futility pruning for captures (~2 Elo)
-              if (   !givesCheck
-                  && !PvNode
+              if (   !PvNode
+                  && capture
                   && lmrDepth < 6
                   && !ss->inCheck
                   && ss->staticEval + 182 + 230 * lmrDepth + PieceValue[EG][pos.piece_on(to_sq(move))]
