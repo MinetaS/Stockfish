@@ -89,27 +89,38 @@ static inline const bool IsLittleEndian = (Le.c[0] == 4);
 // RunningAverage : a class to calculate a running average of a series of values.
 // For efficiency, all computations are done with integers.
 class RunningAverage {
-  public:
+public:
+    // Reset the running average to rational value p / q
+    inline void set(int64_t p, int64_t q) {
+        average = (p << period << Resolution) / q;
+    }
 
-      // Reset the running average to rational value p / q
-      void set(int64_t p, int64_t q)
-        { average = p * PERIOD * RESOLUTION / q; }
+    inline void set_period_level(int level) {
+        assert(level <= 24);
 
-      // Update average with value v
-      void update(int64_t v)
-        { average = RESOLUTION * v + (PERIOD - 1) * average / PERIOD; }
+        if (level > period)
+            average <<= (level - period);
+        else
+            average >>= (period - level);
 
-      // Test if average is strictly greater than rational a / b
-      bool is_greater(int64_t a, int64_t b) const
-        { return b * average > a * (PERIOD * RESOLUTION); }
+        period = level;
+    }
 
-      int64_t value() const
-        { return average / (PERIOD * RESOLUTION); }
+    // Update average with value v
+    void update(int64_t v) {
+        average = (v << Resolution) + (((average << period) - average) >> period);
+    }
 
-  private :
-      static constexpr int64_t PERIOD     = 4096;
-      static constexpr int64_t RESOLUTION = 1024;
-      int64_t average;
+    int64_t value() const {
+        return average >> period >> Resolution;
+    }
+
+private:
+    static constexpr int Resolution = 20;
+    static_assert(Resolution <= 24);
+
+    int period = 12; // default scale is 4096
+    int64_t average;
 };
 
 template <typename T, std::size_t MaxSize>
