@@ -1075,16 +1075,15 @@ bool Position::see_ge(Move m, Bitboard& occupied, Value threshold) const {
   Square from = from_sq(m), to = to_sq(m);
   int swap, promotionBonus = 0;
 
-  if (moveType == PROMOTION) {
+  if (moveType == NORMAL)
+      swap = PieceValue[MG][piece_on(to)];
+  else if (moveType == PROMOTION) {
       Piece p = make_piece(side_to_move(), promotion_type(m));
       promotionBonus = PieceValue[MG][p] - PawnValueMg;
       swap = PieceValue[MG][piece_on(to)];
   }
-  else if (moveType == EN_PASSANT)
-      // En passant moves can capture an opponent pawn only.
-      swap = PawnValueMg;
-  else
-      swap = PieceValue[MG][piece_on(to)];
+  else // (moveType == EN_PASSANT)
+      swap = PawnValueMg; // En passant moves can capture an opponent pawn only.
 
   swap -= threshold;
   if (swap + promotionBonus < 0)
