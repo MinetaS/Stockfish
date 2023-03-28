@@ -326,8 +326,6 @@ void Thread::search() {
       if (mainThread)
           totBestMoveChanges /= 2;
 
-      complexityAverage.set_period_level(std::min(int(10 + 0.585 * rootDepth), 24));
-
       // Save the last iteration's scores before first PV line is searched and
       // all the move scores except the (new) PV are set to -VALUE_INFINITE.
       for (RootMove& rm : rootMoves)
@@ -757,7 +755,8 @@ namespace {
         tte->save(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE, DEPTH_NONE, MOVE_NONE, eval);
     }
 
-    thisThread->complexityAverage.update(complexity);
+    if (PvNode)
+        thisThread->complexityAverage.update(complexity);
 
     // Use static evaluation difference to improve quiet move ordering (~4 Elo)
     if (is_ok((ss-1)->currentMove) && !(ss-1)->inCheck && !priorCapture)
