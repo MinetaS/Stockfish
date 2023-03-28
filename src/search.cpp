@@ -192,7 +192,10 @@ void MainThread::search() {
   }
 
   Color us = rootPos.side_to_move();
-  Time.init(Limits, us, rootPos.game_ply());
+  Value rootEval = Eval::useNNUE ? Eval::NNUE::evaluate(rootPos, true)
+                                 : Eval::evaluate(rootPos);
+
+  Time.init(Limits, us, rootPos.game_ply(), rootEval);
   TT.new_search();
 
   Eval::NNUE::verify();
