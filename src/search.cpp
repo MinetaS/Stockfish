@@ -755,7 +755,7 @@ namespace {
         tte->save(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE, DEPTH_NONE, MOVE_NONE, eval);
     }
 
-    if (PvNode)
+    if (PvNode && ss->ply <= 2 + thisThread->rootDepth / 2)
         thisThread->complexityAverage.update(complexity);
 
     // Use static evaluation difference to improve quiet move ordering (~4 Elo)
