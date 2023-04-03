@@ -230,6 +230,10 @@ enum : int {
   DEPTH_OFFSET = -7 // value used only for TT entry occupancy check
 };
 
+enum EvalMode {
+  EVAL_NONE, EVAL_NNUE, EVAL_CLASSICAL
+};
+
 enum Square : int {
   SQ_A1, SQ_B1, SQ_C1, SQ_D1, SQ_E1, SQ_F1, SQ_G1, SQ_H1,
   SQ_A2, SQ_B2, SQ_C2, SQ_D2, SQ_E2, SQ_F2, SQ_G2, SQ_H2,

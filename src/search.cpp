@@ -293,13 +293,9 @@ void Thread::search() {
 
   if (mainThread)
   {
-
       int rootComplexity;
-      if (Eval::useNNUE)
-          Eval::NNUE::evaluate(rootPos, true, &rootComplexity);
-      else
-          Eval::evaluate(rootPos, &rootComplexity);
 
+      mainThread->eval = Eval::evaluate(rootPos, &rootComplexity);
       mainThread->complexity = std::min(1.03 + (rootComplexity - 241) / 1552.0, 1.45);
 
       if (mainThread->bestPreviousScore == VALUE_INFINITE)
@@ -739,13 +735,22 @@ namespace {
     {
         // Never assume anything about values stored in TT
         ss->staticEval = eval = tte->eval();
+
         if (eval == VALUE_NONE)
-            ss->staticEval = eval = evaluate(pos, &complexity);
-        else // Fall back to (semi)classical complexity for TT hits, the NNUE complexity is lost
         {
+            Value rootEval = Threads.main()->eval;
+            bool nnueEnforce =   ss->ttPv
+                              && (   depth > 16
+                                  || (abs(rootEval) > 35 && abs(rootEval) < 394));
+
+            ss->staticEval = eval = evaluate(pos, &complexity, nnueEnforce);
+        }
+        else
+        {
+            // The NNUE complexity is lost; fall back to (semi)classical complexity.
             complexity = abs(ss->staticEval - pos.psq_eg_stm());
             if (PvNode)
-               Eval::NNUE::hint_common_parent_position(pos);
+                Eval::NNUE::hint_common_parent_position(pos);
         }
 
         // ttValue can be used as a better position evaluation (~7 Elo)
@@ -755,7 +760,11 @@ namespace {
     }
     else
     {
-        ss->staticEval = eval = evaluate(pos, &complexity);
+        Value rootEval = Threads.main()->eval;
+        bool nnueEnforce = (   depth > 12
+                            || (abs(rootEval) > 35 && abs(rootEval) < 394));
+
+        ss->staticEval = eval = evaluate(pos, &complexity, nnueEnforce);
         // Save static evaluation into transposition table
         tte->save(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE, DEPTH_NONE, MOVE_NONE, eval);
     }
