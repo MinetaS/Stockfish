@@ -1094,18 +1094,12 @@ moves_loop: // When in check, search starts here
 
                   // Avoid search explosion by limiting the number of double extensions
                   if (  !PvNode
-                      && value < singularBeta - 25
+                      && value < singularBeta - std::max(25, std::abs(ttValue) / 32)
                       && ss->doubleExtensions <= 10)
                   {
                       extension = 2;
                       depth += depth < 13;
                   }
-
-                  // TT move is confirmed to be singular, but we may not want to
-                  // extend it in some cases:
-                  // ( put some decent description here if this idea holds )
-                  if (ss->moveCount == 0)
-                    extension -= 1;
               }
 
               // Multi-cut pruning
