@@ -296,7 +296,8 @@ void Thread::search() {
   {
       int rootComplexity;
       double v = double(Eval::evaluate(rootPos, &rootComplexity));
-      double evalScale = (std::abs(v) / 140.0) / (7 + (v * v) / 10000.0) + 0.91;
+      double evalScale = std::max((std::abs(v) / 140.0) / (7 + (v * v) / 10000.0) + 0.91,
+                                  v < 0 ? 1.0 : 0.0);
 
       mainThread->complexity = std::min(1.03 + (evalScale * rootComplexity - 241) / 1552.0, 1.45);
 
