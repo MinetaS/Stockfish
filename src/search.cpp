@@ -1330,10 +1330,7 @@ moves_loop: // When in check, search starts here
               if (PvNode && value < beta) // Update alpha! Always alpha < beta
               {
                   // Reduce other moves if we have found at least one score improvement (~1 Elo)
-                  if (   !rootNode
-                      && depth > 1
-                      && beta  <  12535
-                      && value > -12535)
+                  if (depth > 1 && abs(value) < 12535)
                       depth -= 1;
 
                   assert(depth > 0);
