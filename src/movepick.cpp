@@ -97,49 +97,6 @@ MovePicker::MovePicker(const Position& p, Move ttm, Value th, const CapturePiece
                              && pos.see_ge(ttm, threshold));
 }
 
-namespace {
-
-int vc1 = 448;
-int vc2 = 64;
-
-int vq1 = 2048;
-int vq2 = 2048;
-int vq3 = 1024;
-int vq4 = 1024;
-int vq5 = 1024;
-int vq6 = 50000;
-int vq7 = 25000;
-int vq8 = 15000;
-int vq9 = 16384;
-
-int ve1 = 1024;
-int ve2 = 1024;
-
-TUNE(SetDefaultRange, vc1, vc2, vq1, vq2, vq3, vq4, vq5, vq6, vq7, vq8, vq9, ve1, ve2);
-
-// Use this values instead
-#if 0
-N = 200000
-A = 200000
-alpha = 0.532
-gamma = 0.148
-vc1,448,0,896,10,0.008
-vc2,64,0,128,1.5,0.008
-vq1,2048,0,4096,50,0.008
-vq2,2048,0,4096,50,0.008
-vq3,1024,0,2048,25,0.008
-vq4,1024,0,2048,25,0.008
-vq5,1024,0,2048,25,0.008
-vq6,50000,0,100000,1000,0.01
-vq7,25000,0,50000,500,0.01
-vq8,15000,0,30000,300,0.01
-vq9,16384,0,32768,400,0.008
-ve1,1024,0,2048,25,0.008
-ve2,1024,0,2048,25,0.008
-#endif
-
-} // namespace
-
 /// MovePicker::score() assigns a numerical value to each move in a list, used
 /// for sorting. Captures are ordered by Most Valuable Victim (MVV), preferring
 /// captures with a good history. Quiets moves are ordered using the history tables.
@@ -165,22 +122,22 @@ void MovePicker::score() {
 
   for (auto& m : *this)
       if constexpr (Type == CAPTURES)
-          m.value = (  vc1 * int(PieceValue[MG][pos.piece_on(to_sq(m))])
-                     + vc2 * (*captureHistory)[pos.moved_piece(m)][to_sq(m)][type_of(pos.piece_on(to_sq(m)))]) / 1024;
+          m.value = (  427 * int(PieceValue[MG][pos.piece_on(to_sq(m))])
+                     + 66 * (*captureHistory)[pos.moved_piece(m)][to_sq(m)][type_of(pos.piece_on(to_sq(m)))]) / 1024;
 
       else if constexpr (Type == QUIETS)
-          m.value =  (  vq1 * (*mainHistory)[pos.side_to_move()][from_to(m)]
-                      + vq2 * (*continuationHistory[0])[pos.moved_piece(m)][to_sq(m)]
-                      + vq3 * (*continuationHistory[1])[pos.moved_piece(m)][to_sq(m)]
-                      + vq4 * (*continuationHistory[3])[pos.moved_piece(m)][to_sq(m)]
-                      + vq5 * (*continuationHistory[5])[pos.moved_piece(m)][to_sq(m)]) / 1024
+          m.value =  (  2087 * (*mainHistory)[pos.side_to_move()][from_to(m)]
+                      + 1968 * (*continuationHistory[0])[pos.moved_piece(m)][to_sq(m)]
+                      + 1065 * (*continuationHistory[1])[pos.moved_piece(m)][to_sq(m)]
+                      + 982  * (*continuationHistory[3])[pos.moved_piece(m)][to_sq(m)]
+                      + 1026 * (*continuationHistory[5])[pos.moved_piece(m)][to_sq(m)]) / 1024
                    + (  threatenedPieces & from_sq(m) ?
-                          (  type_of(pos.moved_piece(m)) == QUEEN && !(to_sq(m) & threatenedByRook)  ? vq6
-                           : type_of(pos.moved_piece(m)) == ROOK  && !(to_sq(m) & threatenedByMinor) ? vq7
-                           :                                         !(to_sq(m) & threatenedByPawn)  ? vq8
+                          (  type_of(pos.moved_piece(m)) == QUEEN && !(to_sq(m) & threatenedByRook)  ? 49712
+                           : type_of(pos.moved_piece(m)) == ROOK  && !(to_sq(m) & threatenedByMinor) ? 25384
+                           :                                         !(to_sq(m) & threatenedByPawn)  ? 14881
                            :                                                                           0)
                       : 0)
-                   + bool(pos.check_squares(type_of(pos.moved_piece(m))) & to_sq(m)) * vq9;
+                   + bool(pos.check_squares(type_of(pos.moved_piece(m))) & to_sq(m)) * 17865;
       else // Type == EVASIONS
       {
           if (pos.capture_stage(m))
@@ -188,8 +145,8 @@ void MovePicker::score() {
                        - Value(type_of(pos.moved_piece(m)))
                        + (1 << 28);
           else
-              m.value = (  ve1 * (*mainHistory)[pos.side_to_move()][from_to(m)]
-                         + ve2 * (*continuationHistory[0])[pos.moved_piece(m)][to_sq(m)]) / 1024;
+              m.value = (  1003 * (*mainHistory)[pos.side_to_move()][from_to(m)]
+                         + 1066 * (*continuationHistory[0])[pos.moved_piece(m)][to_sq(m)]) / 1024;
       }
 }
 
