@@ -1047,8 +1047,11 @@ moves_loop: // When in check, search starts here
           }
       }
 
+      ss->doubleExtensions = (ss-1)->doubleExtensions;
+
       // Step 15. Extensions (~100 Elo)
       // We take care to not overdo to avoid search getting stuck.
+
       if (ss->ply < thisThread->rootDepth * 2)
       {
           // Singular extension search (~94 Elo). If all moves but one fail low on a
@@ -1057,8 +1060,8 @@ moves_loop: // When in check, search starts here
           // a reduced search on all the other moves but the ttMove and if the
           // result is lower than ttValue minus a margin, then we will extend the ttMove.
           if (   !rootNode
-              &&  depth >= 4 - (thisThread->completedDepth > 21) + 2 * (PvNode && tte->is_pv())
-              &&  move == ttMove
+              && move == ttMove
+              && depth >= 2 + 2 * (PvNode && tte->is_pv())
               && !excludedMove // Avoid recursive singular search
            /* &&  ttValue != VALUE_NONE Already implicit in the next condition */
               &&  abs(ttValue) < VALUE_KNOWN_WIN
@@ -1066,7 +1069,7 @@ moves_loop: // When in check, search starts here
               &&  tte->depth() >= depth - 3)
           {
               Value singularBeta = ttValue - (3 + 2 * (ss->ttPv && !PvNode)) * depth / 2;
-              Depth singularDepth = (depth - 1) / 2;
+              Depth singularDepth = std::max(1, (depth - 1) / 2);
 
               ss->excludedMove = move;
               value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, singularDepth, cutNode);
@@ -1084,7 +1087,11 @@ moves_loop: // When in check, search starts here
                   {
                       extension = 2;
                       depth += depth < 13;
+                      ss->doubleExtensions++;
                   }
+
+                  if (depth <= 4)
+                      extension -= 1;
               }
 
               // Multi-cut pruning
@@ -1124,7 +1131,6 @@ moves_loop: // When in check, search starts here
 
       // Add extension to new depth
       newDepth += extension;
-      ss->doubleExtensions = (ss-1)->doubleExtensions + (extension == 2);
 
       // Speculative prefetch as early as possible
       prefetch(TT.first_entry(pos.key_after(move)));
