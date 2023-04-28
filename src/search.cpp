@@ -1061,7 +1061,7 @@ moves_loop: // When in check, search starts here
           // result is lower than ttValue minus a margin, then we will extend the ttMove.
           if (   !rootNode
               && move == ttMove
-              && depth >= 2 + 2 * (PvNode && tte->is_pv())
+              && depth >= 3 + 2 * (PvNode && tte->is_pv())
               && !excludedMove // Avoid recursive singular search
            /* &&  ttValue != VALUE_NONE Already implicit in the next condition */
               &&  abs(ttValue) < VALUE_KNOWN_WIN
@@ -1069,7 +1069,7 @@ moves_loop: // When in check, search starts here
               &&  tte->depth() >= depth - 3)
           {
               Value singularBeta = ttValue - (3 + 2 * (ss->ttPv && !PvNode)) * depth / 2;
-              Depth singularDepth = std::max(1, (depth - 1) / 2);
+              Depth singularDepth = (depth - 1) / 2;
 
               ss->excludedMove = move;
               value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, singularDepth, cutNode);
@@ -1087,7 +1087,7 @@ moves_loop: // When in check, search starts here
                   {
                       extension = 2;
                       depth += depth < 13;
-                      ss->doubleExtensions++;
+                      ss->doubleExtensions += 1;
                   }
 
                   if (depth <= 4)
