@@ -122,15 +122,15 @@ void MovePicker::score() {
 
   for (auto& m : *this)
       if constexpr (Type == CAPTURES)
-          m.value = (  427 * int(PieceValue[MG][pos.piece_on(to_sq(m))])
-                     + 66 * (*captureHistory)[pos.moved_piece(m)][to_sq(m)][type_of(pos.piece_on(to_sq(m)))]) / 1024;
+          m.value =  (7 * int(PieceValue[MG][pos.piece_on(to_sq(m))])
+                   +     (*captureHistory)[pos.moved_piece(m)][to_sq(m)][type_of(pos.piece_on(to_sq(m)))]) / 16;
 
       else if constexpr (Type == QUIETS)
-          m.value =  (  2087 * (*mainHistory)[pos.side_to_move()][from_to(m)]
-                      + 1968 * (*continuationHistory[0])[pos.moved_piece(m)][to_sq(m)]
-                      + 1065 * (*continuationHistory[1])[pos.moved_piece(m)][to_sq(m)]
-                      + 982  * (*continuationHistory[3])[pos.moved_piece(m)][to_sq(m)]
-                      + 1026 * (*continuationHistory[5])[pos.moved_piece(m)][to_sq(m)]) / 1024
+          m.value =  2 * (*mainHistory)[pos.side_to_move()][from_to(m)]
+                   + 2 * (*continuationHistory[0])[pos.moved_piece(m)][to_sq(m)]
+                   +     (*continuationHistory[1])[pos.moved_piece(m)][to_sq(m)]
+                   +     (*continuationHistory[3])[pos.moved_piece(m)][to_sq(m)]
+                   +     (*continuationHistory[5])[pos.moved_piece(m)][to_sq(m)]
                    + (  threatenedPieces & from_sq(m) ?
                           (  type_of(pos.moved_piece(m)) == QUEEN && !(to_sq(m) & threatenedByRook)  ? 49712
                            : type_of(pos.moved_piece(m)) == ROOK  && !(to_sq(m) & threatenedByMinor) ? 25384
@@ -145,8 +145,8 @@ void MovePicker::score() {
                        - Value(type_of(pos.moved_piece(m)))
                        + (1 << 28);
           else
-              m.value = (  1003 * (*mainHistory)[pos.side_to_move()][from_to(m)]
-                         + 1066 * (*continuationHistory[0])[pos.moved_piece(m)][to_sq(m)]) / 1024;
+              m.value =  (*mainHistory)[pos.side_to_move()][from_to(m)]
+                       + (*continuationHistory[0])[pos.moved_piece(m)][to_sq(m)];
       }
 }
 
