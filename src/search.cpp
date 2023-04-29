@@ -1089,7 +1089,7 @@ moves_loop: // When in check, search starts here
                       ss->doubleExtensions += 1;
                   }
 
-                  if (depth <= 4)
+                  if (depth <= 5)
                       extension -= 1;
               }
 
