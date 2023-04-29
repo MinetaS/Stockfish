@@ -1047,8 +1047,6 @@ moves_loop: // When in check, search starts here
           }
       }
 
-      ss->doubleExtensions = (ss-1)->doubleExtensions;
-
       // Step 15. Extensions (~100 Elo)
       // We take care to not overdo to avoid search getting stuck.
       if (ss->ply < thisThread->rootDepth * 2)
@@ -1084,13 +1082,9 @@ moves_loop: // When in check, search starts here
                       && value < singularBeta - 25
                       && ss->doubleExtensions <= 10)
                   {
-                      extension = 2;
+                      extension = 2 - (depth >= thisThread->rootDepth - 3);
                       depth += depth < 13;
-                      ss->doubleExtensions += 1;
                   }
-
-                  if (depth <= 5)
-                      extension -= 1;
               }
 
               // Multi-cut pruning
@@ -1130,6 +1124,7 @@ moves_loop: // When in check, search starts here
 
       // Add extension to new depth
       newDepth += extension;
+      ss->doubleExtensions = (ss-1)->doubleExtensions + (extension == 2);
 
       // Speculative prefetch as early as possible
       prefetch(TT.first_entry(pos.key_after(move)));
