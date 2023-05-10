@@ -1121,7 +1121,7 @@ moves_loop: // When in check, search starts here
 
       // Add extension to new depth
       newDepth += extension;
-      ss->doubleExtensions = (ss-1)->doubleExtensions + (extension == 2);
+      ss->doubleExtensions = (ss-1)->doubleExtensions + (extension >= 1 + (depth > 4));
 
       // Speculative prefetch as early as possible
       prefetch(TT.first_entry(pos.key_after(move)));
@@ -1201,13 +1201,12 @@ moves_loop: // When in check, search starts here
           {
               // Adjust full depth search based on LMR results - if result
               // was good enough search deeper, if it was bad enough search shallower
-              const bool doDeeperSearch = value > (bestValue + 68 + 12 * (newDepth - d));
-              const bool doEvenDeeperSearch = value > alpha + 588 && ss->doubleExtensions <= 5;
-              const bool doShallowerSearch = value < bestValue + newDepth;
+              const int postLMRExtension =  (value > (bestValue + 68 + 12 * (newDepth - d)))
+                                          + (value > alpha + 588 && ss->doubleExtensions <= 5)
+                                          - (value < bestValue + newDepth);
 
-              ss->doubleExtensions = ss->doubleExtensions + doEvenDeeperSearch;
-
-              newDepth += doDeeperSearch - doShallowerSearch + doEvenDeeperSearch;
+              newDepth += postLMRExtension;
+              ss->doubleExtensions += postLMRExtension >= 1 + (depth > 4);
 
               if (newDepth > d)
                   value = -search<NonPV>(pos, ss+1, -(alpha+1), -alpha, newDepth, !cutNode);
