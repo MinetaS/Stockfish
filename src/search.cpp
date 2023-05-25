@@ -507,6 +507,18 @@ void Thread::search() {
 
 namespace {
 
+template<typename T>
+constexpr double D(T v) { return double(v); }
+
+int v1 = 306;
+int v2 = 22761;
+int v3 = 18404;
+int v4 = 50000;
+int v5 = 10445;
+int v6 = 4762;
+
+TUNE(v1, v2, v3, v4, v5, v6);
+
   // search<>() is the main search function for both PV and non-PV nodes
 
   template <NodeType nodeType>
@@ -768,15 +780,15 @@ namespace {
     // The depth condition is important for mate finding.
     if (   !ss->ttPv
         &&  depth < 9
-        &&  eval - futility_margin(depth, improving) - (ss-1)->statScore / 306 >= beta
+        &&  eval - futility_margin(depth, improving) - (ss-1)->statScore / v1 >= beta
         &&  eval >= beta
-        &&  eval < 22761) // larger than VALUE_KNOWN_WIN, but smaller than TB wins
+        &&  eval < v2) // larger than VALUE_KNOWN_WIN, but smaller than TB wins
         return eval;
 
     // Step 9. Null move search with verification search (~35 Elo)
     if (   !PvNode
         && (ss-1)->currentMove != MOVE_NULL
-        && (ss-1)->statScore < 18404
+        && (ss-1)->statScore < v3
         &&  eval >= beta
         &&  eval >= ss->staticEval
         &&  ss->staticEval >= beta - 19 * depth - improvement / 13 + 257
@@ -1173,8 +1185,8 @@ moves_loop: // When in check, search starts here
                      - 3755;
 
       // Decrease/increase reduction for moves with a good/bad history (~25 Elo)
-      r -=  (ss->statScore + (bestValue != -VALUE_INFINITE ? bestValue : 0))
-          / (10445 + 4762 * (depth > 6 && depth < 21));
+      r -=   int(D(ss->statScore) + D(v4) / 10000.0 * (bestValue != -VALUE_INFINITE ? bestValue : 0))
+           / (v5 + v6 * (depth > 6 && depth < 21));
 
       // Step 17. Late moves reduction / extension (LMR, ~117 Elo)
       // We use various heuristics for the sons of a node after the first son has
