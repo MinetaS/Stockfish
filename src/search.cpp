@@ -513,7 +513,7 @@ constexpr double D(T v) { return double(v); }
 int v1 = 306;
 int v2 = 22761;
 int v3 = 18404;
-int v4 = 50000;
+int v4 = 30000;
 int v5 = 10445;
 int v6 = 4762;
 
