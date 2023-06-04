@@ -21,9 +21,14 @@
 #include <fstream>
 #include <iostream>
 #include <istream>
+#include <sstream>
 #include <vector>
 
 #include "position.h"
+
+#ifndef DEFAULT_BENCHMARK_SETUP
+#define DEFAULT_BENCHMARK_SETUP "16 1 13 default depth mixed"
+#endif
 
 using namespace std;
 
@@ -114,14 +119,15 @@ vector<string> setup_bench(const Position& current, istream& is) {
 
   vector<string> fens, list;
   string go, token;
+  stringstream def(DEFAULT_BENCHMARK_SETUP);
 
   // Assign default values to missing arguments
-  string ttSize    = (is >> token) ? token : "16";
-  string threads   = (is >> token) ? token : "1";
-  string limit     = (is >> token) ? token : "13";
-  string fenFile   = (is >> token) ? token : "default";
-  string limitType = (is >> token) ? token : "depth";
-  string evalType  = (is >> token) ? token : "mixed";
+  string ttSize    = (is >> token) ? token : (def >> token, token);
+  string threads   = (is >> token) ? token : (def >> token, token);
+  string limit     = (is >> token) ? token : (def >> token, token);
+  string fenFile   = (is >> token) ? token : (def >> token, token);
+  string limitType = (is >> token) ? token : (def >> token, token);
+  string evalType  = (is >> token) ? token : (def >> token, token);
 
   go = limitType == "eval" ? "eval" : "go " + limitType + " " + limit;
 

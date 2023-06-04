@@ -994,9 +994,11 @@ $(EXE): $(OBJS)
 misc.o: FORCE
 FORCE:
 
+DEFAULT_BENCHMARK_SETUP = \"16 1 13 default depth nnue\"
+
 clang-profile-make:
 	$(MAKE) ARCH=$(ARCH) COMP=$(COMP) \
-	EXTRACXXFLAGS='-fprofile-instr-generate ' \
+	EXTRACXXFLAGS='-fprofile-instr-generate -DDEFAULT_BENCHMARK_SETUP="$(DEFAULT_BENCHMARK_SETUP)"' \
 	EXTRALDFLAGS=' -fprofile-instr-generate' \
 	all
 
@@ -1010,7 +1012,7 @@ clang-profile-use:
 gcc-profile-make:
 	@mkdir -p profdir
 	$(MAKE) ARCH=$(ARCH) COMP=$(COMP) \
-	EXTRACXXFLAGS='-fprofile-generate=profdir' \
+	EXTRACXXFLAGS='-fprofile-generate=profdir -DDEFAULT_BENCHMARK_SETUP="$(DEFAULT_BENCHMARK_SETUP)"' \
 	EXTRACXXFLAGS+=$(EXTRAPROFILEFLAGS) \
 	EXTRALDFLAGS='-lgcov' \
 	all
@@ -1024,7 +1026,7 @@ gcc-profile-use:
 
 icx-profile-make:
 	$(MAKE) ARCH=$(ARCH) COMP=$(COMP) \
-	EXTRACXXFLAGS='-fprofile-instr-generate ' \
+	EXTRACXXFLAGS='-fprofile-instr-generate -DDEFAULT_BENCHMARK_SETUP="$(DEFAULT_BENCHMARK_SETUP)"' \
 	EXTRALDFLAGS=' -fprofile-instr-generate' \
 	all
 
