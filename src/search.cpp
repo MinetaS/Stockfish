@@ -545,12 +545,10 @@ Value Search::Worker::search(
 
     // Step 1. Initialize node
     Worker* thisThread = this;
+    ss->moveCount      = 0;
     ss->inCheck        = pos.checkers();
     priorCapture       = pos.captured_piece();
     Color us           = pos.side_to_move();
-    moveCount = captureCount = quietCount = ss->moveCount = 0;
-    bestValue                                             = -VALUE_INFINITE;
-    maxValue                                              = VALUE_INFINITE;
 
     // Check for the available remaining time
     if (is_mainthread())
@@ -585,12 +583,11 @@ Value Search::Worker::search(
 
     assert(0 <= ss->ply && ss->ply < MAX_PLY);
 
-    bestMove             = Move::none();
     (ss + 2)->killers[0] = (ss + 2)->killers[1] = Move::none();
     (ss + 2)->cutoffCnt                         = 0;
+    ss->statScore                               = 0;
     ss->multipleExtensions                      = (ss - 1)->multipleExtensions;
     Square prevSq = ((ss - 1)->currentMove).is_ok() ? ((ss - 1)->currentMove).to_sq() : SQ_NONE;
-    ss->statScore = 0;
 
     // Step 4. Transposition table lookup.
     excludedMove = ss->excludedMove;
@@ -633,6 +630,9 @@ Value Search::Worker::search(
                    ? (ttValue * 3 + beta) / 4
                    : ttValue;
     }
+
+    bestValue = -VALUE_INFINITE;
+    maxValue  = VALUE_INFINITE;
 
     // Step 5. Tablebases probe
     if (!rootNode && !excludedMove && tbConfig.cardinality)
@@ -739,17 +739,6 @@ Value Search::Worker::search(
               << bonus / 2;
     }
 
-    // Set up the improving flag, which is true if current static evaluation is
-    // bigger than the previous static evaluation at our turn (if we were in
-    // check at our previous move we look at static evaluation at move prior to it
-    // and if we were in check at move prior to it flag is set to true) and is
-    // false otherwise. The improving flag is used in various pruning heuristics.
-    improving = (ss - 2)->staticEval != VALUE_NONE
-                ? ss->staticEval > (ss - 2)->staticEval
-                : (ss - 4)->staticEval != VALUE_NONE && ss->staticEval > (ss - 4)->staticEval;
-
-    opponentWorsening = ss->staticEval + (ss - 1)->staticEval > 2;
-
     // Step 7. Razoring (~1 Elo)
     // If eval is really low check with qsearch if it can exceed alpha, if it can't,
     // return a fail low.
@@ -760,6 +749,17 @@ Value Search::Worker::search(
         if (value < alpha)
             return value;
     }
+
+    // Set up the improving flag, which is true if current static evaluation is
+    // bigger than the previous static evaluation at our turn (if we were in
+    // check at our previous move we look at static evaluation at move prior to it
+    // and if we were in check at move prior to it flag is set to true) and is
+    // false otherwise. The improving flag is used in various pruning heuristics.
+    improving = (ss - 2)->staticEval != VALUE_NONE
+                ? ss->staticEval > (ss - 2)->staticEval
+                : (ss - 4)->staticEval != VALUE_NONE && ss->staticEval > (ss - 4)->staticEval;
+
+    opponentWorsening = ss->staticEval + (ss - 1)->staticEval > 2;
 
     // Step 8. Futility pruning: child node (~40 Elo)
     // The depth condition is important for mate finding.
@@ -902,7 +902,9 @@ moves_loop:  // When in check, search starts here
     MovePicker mp(pos, ttMove, depth, &thisThread->mainHistory, &thisThread->captureHistory,
                   contHist, &thisThread->pawnHistory, countermove, ss->killers);
 
-    value            = bestValue;
+    bestMove  = Move::none();
+    value     = bestValue;
+    moveCount = captureCount = quietCount = 0;
     moveCountPruning = false;
 
     // Step 13. Loop through all pseudo-legal moves until no moves remain
@@ -1405,9 +1407,7 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta,
     }
 
     Worker* thisThread = this;
-    bestMove           = Move::none();
     ss->inCheck        = pos.checkers();
-    moveCount          = 0;
 
     // Used to send selDepth info to GUI (selDepth counts from 1, ply from 0)
     if (PvNode && thisThread->selDepth < ss->ply + 1)
@@ -1494,6 +1494,8 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta,
     MovePicker mp(pos, ttMove, depth, &thisThread->mainHistory, &thisThread->captureHistory,
                   contHist, &thisThread->pawnHistory);
 
+    bestMove = Move::none();
+    moveCount = 0;
     int quietCheckEvasions = 0;
 
     // Step 5. Loop through all pseudo-legal moves until no moves remain
