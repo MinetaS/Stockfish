@@ -39,8 +39,10 @@ class TimeManagement {
    public:
     void init(Search::LimitsType& limits, Color us, int ply, const OptionsMap& options);
 
-    TimePoint optimum() const;
-    TimePoint maximum() const;
+    inline TimePoint optimum() const { return optimumTime; }
+    inline TimePoint maximum() const { return maximumTime; }
+
+    TimePoint elapsed_time() const;
     TimePoint elapsed(std::size_t nodes) const;
 
     void clear();
