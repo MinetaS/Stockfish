@@ -181,14 +181,11 @@ std::string trace(Position& pos, const Eval::NNUE::Networks& networks) {
         ss << "|  " << bucket << "        ";
         ss << " |  ";
         format_cp_aligned_dot(t.psqt[bucket], ss, pos);
-        ss << "  "
-           << " |  ";
+        ss << "  " << " |  ";
         format_cp_aligned_dot(t.positional[bucket], ss, pos);
-        ss << "  "
-           << " |  ";
+        ss << "  " << " |  ";
         format_cp_aligned_dot(t.psqt[bucket] + t.positional[bucket], ss, pos);
-        ss << "  "
-           << " |";
+        ss << "  " << " |";
         if (bucket == t.correctBucket)
             ss << " <-- this bucket is used";
         ss << '\n';
