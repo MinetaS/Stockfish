@@ -36,21 +36,23 @@ void TTEntry::save(
   Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) {
 
     // Preserve any existing move for the same position
-    if (m || uint16_t(k) != key16)
+    if (m || uint32_t(k) != key32)
         move16 = m;
 
     // Overwrite less valuable entries (cheapest checks first)
-    if (b == BOUND_EXACT || uint16_t(k) != key16 || d - DEPTH_OFFSET + 2 * pv > depth8 - 4
+    if (b == BOUND_EXACT || uint32_t(k) != key32 || d - DEPTH_OFFSET + 2 * pv > depth8 - 4
         || relative_age(generation8))
     {
         assert(d > DEPTH_OFFSET);
         assert(d < 256 + DEPTH_OFFSET);
 
-        key16     = uint16_t(k);
+        key32     = uint32_t(k);
         depth8    = uint8_t(d - DEPTH_OFFSET);
-        genBound8 = uint8_t(generation8 | uint8_t(pv) << 2 | b);
+        gen8      = generation8;
         value16   = int16_t(v);
         eval16    = int16_t(ev);
+        pv8       = pv;
+        bound8    = uint8_t(b);
     }
 }
 
@@ -62,8 +64,7 @@ uint8_t TTEntry::relative_age(const uint8_t generation8) const {
     // the result) to calculate the entry age correctly even after
     // generation8 overflows into the next cycle.
 
-    return (TranspositionTable::GENERATION_CYCLE + generation8 - genBound8)
-         & TranspositionTable::GENERATION_MASK;
+    return generation8 - gen8;
 }
 
 
@@ -120,10 +121,10 @@ void TranspositionTable::clear(size_t threadCount) {
 TTEntry* TranspositionTable::probe(const Key key, bool& found) const {
 
     TTEntry* const tte   = first_entry(key);
-    const uint16_t key16 = uint16_t(key);  // Use the low 16 bits as key inside the cluster
+    const uint32_t key32 = uint32_t(key);  // Use the low 16 bits as key inside the cluster
 
     for (int i = 0; i < ClusterSize; ++i)
-        if (tte[i].key16 == key16 || !tte[i].depth8)
+        if (tte[i].key32 == key32 || !tte[i].depth8)
             return found = bool(tte[i].depth8), &tte[i];
 
     // Find an entry to be replaced according to the replacement strategy
@@ -145,8 +146,7 @@ int TranspositionTable::hashfull() const {
     int cnt = 0;
     for (int i = 0; i < 1000; ++i)
         for (int j = 0; j < ClusterSize; ++j)
-            cnt += table[i].entry[j].depth8
-                && (table[i].entry[j].genBound8 & GENERATION_MASK) == generation8;
+            cnt += table[i].entry[j].depth8 && table[i].entry[j].gen8 == generation8;
 
     return cnt / ClusterSize;
 }
