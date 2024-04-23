@@ -122,13 +122,13 @@ TTEntry* TranspositionTable::probe(const Key key, bool& found) const {
     TTEntry* const tte   = first_entry(key);
     const uint16_t key16 = uint16_t(key);  // Use the low 16 bits as key inside the cluster
 
-    for (int i = 0; i < ClusterSize; ++i)
+    for (int i = 0; i < InternalClusterSize; ++i)
         if (tte[i].key16 == key16 || !tte[i].depth8)
             return found = bool(tte[i].depth8), &tte[i];
 
     // Find an entry to be replaced according to the replacement strategy
     TTEntry* replace = tte;
-    for (int i = 1; i < ClusterSize; ++i)
+    for (int i = 1; i < InternalClusterSize; ++i)
         if (replace->depth8 - replace->relative_age(generation8) * 2
             > tte[i].depth8 - tte[i].relative_age(generation8) * 2)
             replace = &tte[i];
