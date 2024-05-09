@@ -1093,17 +1093,18 @@ moves_loop:  // When in check, search starts here
             else if (PvNode && move == ttMove)
             {
                 Square capturedSq = SQ_NONE;
+                int capExt = 0;
 
                 if (move.to_sq() == prevSq)
-                    capturedSq = prevSq;
+                    capturedSq = prevSq, capExt = 1;
                 else if (move.type_of() == EN_PASSANT)
-                    capturedSq = move.to_sq() - pawn_push(us);
+                    capturedSq = move.to_sq() - pawn_push(us), capExt = 2;
 
                 if (capturedSq != SQ_NONE
                     && thisThread->captureHistory[movedPiece][capturedSq]
                                                  [type_of(pos.piece_on(capturedSq))]
                          >= 4016)
-                    extension = 1;
+                    extension = capExt;
             }
         }
 
