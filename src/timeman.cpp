@@ -106,8 +106,8 @@ void TimeManagement::init(
         double optExtra = scaledInc < 500 ? 1.0 : 1.13;
 
         // Use more time for early positions
-        if (pieceCount > 24)
-            optExtra += 0.045 * (pieceCount - 24);
+        if (pieceCount == 32)
+            optExtra += 0.1;
 
         // Calculate time constants based on current time left.
         double logTimeInSec = std::log10(scaledTime / 1000.0);
