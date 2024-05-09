@@ -157,7 +157,8 @@ void Search::Worker::start_searching() {
         return;
     }
 
-    main_manager()->tm.init(limits, rootPos.side_to_move(), rootPos.game_ply(), options);
+    main_manager()->tm.init(limits, rootPos.side_to_move(), rootPos.game_ply(),
+                            rootPos.count<ALL_PIECES>(), options);
     tt.new_search();
 
     if (rootMoves.empty())

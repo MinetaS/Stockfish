@@ -44,10 +44,8 @@ void TimeManagement::advance_nodes_time(std::int64_t nodes) {
 // the bounds of time allowed for the current game ply. We currently support:
 //      1) x basetime (+ z increment)
 //      2) x moves in y seconds (+ z increment)
-void TimeManagement::init(Search::LimitsType& limits,
-                          Color               us,
-                          int                 ply,
-                          const OptionsMap&   options) {
+void TimeManagement::init(
+  Search::LimitsType& limits, Color us, int ply, int pieceCount, const OptionsMap& options) {
     TimePoint npmsec = TimePoint(options["nodestime"]);
 
     // If we have no time, we don't need to fully initialize TM.
@@ -106,6 +104,10 @@ void TimeManagement::init(Search::LimitsType& limits,
     {
         // Use extra time with larger increments
         double optExtra = scaledInc < 500 ? 1.0 : 1.13;
+
+        // Use more time for early positions
+        if (pieceCount > 24)
+            optExtra += 0.045 * (pieceCount - 24);
 
         // Calculate time constants based on current time left.
         double logTimeInSec = std::log10(scaledTime / 1000.0);
