@@ -1090,11 +1090,21 @@ moves_loop:  // When in check, search starts here
             }
 
             // Extension for capturing the previous moved piece (~0 Elo on STC, ~1 Elo on LTC)
-            if (PvNode && extension < 3 && move == ttMove && move.to_sq() == prevSq
-                && thisThread->captureHistory[movedPiece][move.to_sq()]
-                                             [type_of(pos.piece_on(move.to_sq()))]
-                     > 4016)
-                extension += 1;
+            else if (PvNode && move == ttMove)
+            {
+                Square capturedSq = SQ_NONE;
+
+                if (move.to_sq() == prevSq)
+                    capturedSq = prevSq;
+                else if (move.type_of() == EN_PASSANT)
+                    capturedSq = move.to_sq() - pawn_push(us);
+
+                if (capturedSq != SQ_NONE
+                    && thisThread->captureHistory[movedPiece][capturedSq]
+                                                 [type_of(pos.piece_on(capturedSq))]
+                         >= 4016)
+                    extension = 1;
+            }
         }
 
         // Add extension to new depth
