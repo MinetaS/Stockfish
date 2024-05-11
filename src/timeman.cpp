@@ -45,10 +45,19 @@ void TimeManagement::advance_nodes_time(std::int64_t nodes) {
 //      1) x basetime (+ z increment)
 //      2) x moves in y seconds (+ z increment)
 void TimeManagement::init(Search::LimitsType& limits,
-                          Color               us,
-                          int                 ply,
+                          const Position&     pos,
                           const OptionsMap&   options) {
-    TimePoint npmsec = TimePoint(options["nodestime"]);
+    static constexpr double optExtraByPieces[32] = {
+        0,        0,        0.00363,  0.12426,  -0.05144, 0.00452, 0.04119,  0.00458,
+        0.08715,  0.06607,  -0.02365, -0.03689, -0.01435, 0.07795, 0.01223,  0.04025,
+        0.03434,  -0.04601, -0.02400, -0.04123, -0.07835, 0.00941, -0.02440, 0.00431,
+        -0.09789, -0.05314, 0.02561,  0.04989,  0.03909,  0.01814, 0.02546,  0.02355
+    };
+
+    Color     us         = pos.side_to_move();
+    int       ply        = pos.game_ply();
+    int       pieceCount = pos.count<ALL_PIECES>();
+    TimePoint npmsec     = TimePoint(options["nodestime"]);
 
     // If we have no time, we don't need to fully initialize TM.
     // startTime is used by movetime and useNodesTime is used in elapsed calls.
@@ -105,7 +114,7 @@ void TimeManagement::init(Search::LimitsType& limits,
     if (limits.movestogo == 0)
     {
         // Use extra time with larger increments
-        double optExtra = scaledInc < 500 ? 1.0 : 1.13;
+        double optExtra = (scaledInc < 500 ? 1.0 : 1.13) + optExtraByPieces[pieceCount - 1];
 
         // Calculate time constants based on current time left.
         double logTimeInSec = std::log10(scaledTime / 1000.0);
