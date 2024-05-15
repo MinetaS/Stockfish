@@ -457,7 +457,7 @@ void Search::Worker::iterative_deepening() {
             if (bestMoveChanged) {
                 for (auto it = rootMoveHistory.rbegin() + 1; it != rootMoveHistory.rend(); ++it) {
                     if (bestMove == it->first) {
-                        bestMoveAgain = 1.5 - 0.05 * std::min(rootDepth - it->second - 2, 10);
+                        bestMoveAgain = 0.8 + 0.02 * std::min(rootDepth - it->second - 2, 10);
                         break;
                     }
                 }
