@@ -160,6 +160,7 @@ void Search::Worker::start_searching() {
     main_manager()->tm.init(limits, rootPos.side_to_move(), rootPos.game_ply(), options,
                             main_manager()->originalPly);
     tt.new_search();
+    rootMoveHistory.clear();
 
     if (rootMoves.empty())
     {
@@ -391,6 +392,9 @@ void Search::Worker::iterative_deepening() {
         if (!threads.stop)
             completedDepth = rootDepth;
 
+        Move bestMove = rootMoves[0].pv[0];
+        bool bestMoveChanged = !rootMoveHistory.empty() && bestMove != rootMoveHistory.rbegin()->first;
+
         // We make sure not to pick an unproven mated-in score,
         // in case this thread prematurely stopped search (aborted-search).
         if (threads.abortedSearch && rootMoves[0].score != -VALUE_INFINITE
@@ -402,12 +406,17 @@ void Search::Worker::iterative_deepening() {
             rootMoves[0].pv    = lastBestPV;
             rootMoves[0].score = rootMoves[0].uciScore = lastBestScore;
         }
-        else if (rootMoves[0].pv[0] != lastBestPV[0])
+        else if (bestMove != lastBestPV[0])
         {
             lastBestPV        = rootMoves[0].pv;
             lastBestScore     = rootMoves[0].score;
             lastBestMoveDepth = rootDepth;
         }
+
+        if (rootMoveHistory.empty() || rootMoveHistory.rbegin()->first != bestMove)
+            rootMoveHistory.emplace_back(bestMove, rootDepth);
+        else
+            rootMoveHistory.rbegin()->second = rootDepth;
 
         if (!mainThread)
             continue;
@@ -442,15 +451,27 @@ void Search::Worker::iterative_deepening() {
                                / 10000.0;
             fallingEval = std::clamp(fallingEval, 0.580, 1.667);
 
+            // Increase time if the best move had appeared in previous search
+            double bestMoveAgain = 1.0;
+
+            if (bestMoveChanged) {
+                for (auto it = rootMoveHistory.rbegin() + 1; it != rootMoveHistory.rend(); ++it) {
+                    if (bestMove == it->first) {
+                        bestMoveAgain = 1.2 - 0.02 * std::min(rootDepth - it->second - 1, 10);
+                        break;
+                    }
+                }
+            }
+
             // If the bestMove is stable over several iterations, reduce time accordingly
             timeReduction    = lastBestMoveDepth + 8 < completedDepth ? 1.495 : 0.687;
             double reduction = (1.48 + mainThread->previousTimeReduction) / (2.17 * timeReduction);
             double bestMoveInstability = 1 + 1.88 * totBestMoveChanges / threads.size();
             int    el                  = std::clamp((bestValue + 750) / 150, 0, 9);
-            double recapture           = limits.capSq == rootMoves[0].pv[0].to_sq() ? 0.955 : 1.005;
+            double recapture           = limits.capSq == bestMove.to_sq() ? 0.955 : 1.005;
 
             double totalTime = mainThread->tm.optimum() * fallingEval * reduction
-                             * bestMoveInstability * EvalLevel[el] * recapture;
+                             * bestMoveInstability * EvalLevel[el] * recapture * bestMoveAgain;
 
             // Cap used time in case of a single legal move for a better viewer experience
             if (rootMoves.size() == 1)
@@ -507,6 +528,8 @@ void Search::Worker::clear() {
 
     for (size_t i = 1; i < reductions.size(); ++i)
         reductions[i] = int((21.19 + std::log(size_t(options["Threads"])) / 2) * std::log(i));
+
+    rootMoveHistory.clear();
 
     refreshTable.clear(networks);
 }

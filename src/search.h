@@ -230,6 +230,7 @@ class NullSearchManager: public ISearchManager {
     void check_time(Search::Worker&) override {}
 };
 
+using RootMoveHistory = std::vector<std::pair<Move, Depth>>;
 
 // Search::Worker is the class that does the actual search.
 // It is instantiated once per thread, and it is responsible for keeping track
@@ -292,6 +293,8 @@ class Worker {
     RootMoves rootMoves;
     Depth     rootDepth, completedDepth;
     Value     rootDelta;
+
+    RootMoveHistory rootMoveHistory;
 
     size_t thread_idx;
 
