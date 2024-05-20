@@ -829,10 +829,10 @@ Value Search::Worker::search(
         // immediately. Otherwise, set depth to 1.
         if (depth <= 0)
         {
-            bestValue = qsearch<PV>(pos, ss, alpha, beta);
+            value = qsearch<PV>(pos, ss, alpha, beta);
 
-            if (bestValue < alpha || bestValue >= beta)
-                return bestValue;
+            if (value < alpha || value >= beta)
+                return value;
             else
                 depth = 1;
         }
