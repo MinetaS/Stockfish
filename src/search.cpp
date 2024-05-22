@@ -58,6 +58,8 @@ namespace {
 static constexpr double EvalLevel[10] = {0.981, 0.956, 0.895, 0.949, 0.913,
                                          0.942, 0.933, 0.890, 0.984, 0.941};
 
+static int razorMargins[MAX_PLY + 1];
+
 // Futility margin
 Value futility_margin(Depth d, bool noTtCutNode, bool improving, bool oppWorsening) {
     Value futilityMult       = 127 - 48 * noTtCutNode;
@@ -509,6 +511,12 @@ void Search::Worker::clear() {
     for (size_t i = 1; i < reductions.size(); ++i)
         reductions[i] = int((21.69 + std::log(size_t(options["Threads"])) / 2) * std::log(i));
 
+    // Use the first element as an initialization indicator
+    if (!__atomic_exchange_n(&razorMargins[0], 1, __ATOMIC_SEQ_CST)) {
+        for (int i = 1; i < MAX_PLY; ++i)
+            razorMargins[i] = 560 + int(324.0 * std::pow(i, 1.9));
+    }
+
     refreshTable.clear(networks);
 }
 
@@ -698,8 +706,6 @@ Value Search::Worker::search(
 
     // Step 6. Static evaluation of the position
     Value unadjustedStaticEval = VALUE_NONE;
-    bool  evalFromTT           = false;
-
     if (ss->inCheck)
     {
         // Skip early pruning when in check
@@ -727,10 +733,7 @@ Value Search::Worker::search(
 
         // ttValue can be used as a better position evaluation (~7 Elo)
         if (ttValue != VALUE_NONE && (tte->bound() & (ttValue > eval ? BOUND_LOWER : BOUND_UPPER)))
-        {
-            eval       = ttValue;
-            evalFromTT = true;
-        }
+            eval = ttValue;
     }
     else
     {
@@ -767,8 +770,7 @@ Value Search::Worker::search(
     // Step 7. Razoring (~1 Elo)
     // If eval is really low check with qsearch if it can exceed alpha, if it can't,
     // return a fail low.
-    if (eval
-        < alpha - 474 - (324 - (evalFromTT ? std::clamp(8 * tte->depth(), 0, 160) : 0)) * depth * depth)
+    if (eval < alpha - razorMargins[depth])
     {
         value = qsearch<NonPV>(pos, ss, alpha - 1, alpha);
         if (value < alpha)
