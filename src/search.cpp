@@ -698,6 +698,8 @@ Value Search::Worker::search(
 
     // Step 6. Static evaluation of the position
     Value unadjustedStaticEval = VALUE_NONE;
+    bool  evalFromTT           = false;
+
     if (ss->inCheck)
     {
         // Skip early pruning when in check
@@ -725,7 +727,10 @@ Value Search::Worker::search(
 
         // ttValue can be used as a better position evaluation (~7 Elo)
         if (ttValue != VALUE_NONE && (tte->bound() & (ttValue > eval ? BOUND_LOWER : BOUND_UPPER)))
-            eval = ttValue;
+        {
+            eval       = ttValue;
+            evalFromTT = true;
+        }
     }
     else
     {
@@ -762,7 +767,7 @@ Value Search::Worker::search(
     // Step 7. Razoring (~1 Elo)
     // If eval is really low check with qsearch if it can exceed alpha, if it can't,
     // return a fail low.
-    if (depth <= 15 && eval < alpha - 474 - 324 * depth * depth)
+    if (eval < alpha - 474 - (324 + evalFromTT * (8 * std::max(0, tte->depth()))) * depth * depth)
     {
         value = qsearch<NonPV>(pos, ss, alpha - 1, alpha);
         if (value < alpha)
