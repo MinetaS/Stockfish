@@ -514,7 +514,7 @@ void Search::Worker::clear() {
     // Use the first element as an initialization indicator
     if (!__atomic_exchange_n(&razorMargins[0], 1, __ATOMIC_SEQ_CST)) {
         for (int i = 1; i < MAX_PLY; ++i)
-            razorMargins[i] = 560 + int(324.0 * std::pow(i, 1.9));
+            razorMargins[i] = 474 + int(324.0 * std::pow(i, 2.1));
     }
 
     refreshTable.clear(networks);
