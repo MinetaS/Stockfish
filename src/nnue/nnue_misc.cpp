@@ -45,7 +45,7 @@ constexpr std::string_view PieceToChar(" PNBRQK  pnbrqk");
 void hint_common_parent_position(const Position&    pos,
                                  const Networks&    networks,
                                  AccumulatorCaches& caches) {
-    if (Eval::use_smallnet(pos))
+    if (Eval::use_smallnet(pos).first)
         networks.small.hint_common_access(pos, &caches.small);
     else
         networks.big.hint_common_access(pos, &caches.big);
@@ -178,14 +178,11 @@ trace(Position& pos, const Eval::NNUE::Networks& networks, Eval::NNUE::Accumulat
         ss << "|  " << bucket << "        ";
         ss << " |  ";
         format_cp_aligned_dot(t.psqt[bucket], ss, pos);
-        ss << "  "
-           << " |  ";
+        ss << "  " << " |  ";
         format_cp_aligned_dot(t.positional[bucket], ss, pos);
-        ss << "  "
-           << " |  ";
+        ss << "  " << " |  ";
         format_cp_aligned_dot(t.psqt[bucket] + t.positional[bucket], ss, pos);
-        ss << "  "
-           << " |";
+        ss << "  " << " |";
         if (bucket == t.correctBucket)
             ss << " <-- this bucket is used";
         ss << '\n';
