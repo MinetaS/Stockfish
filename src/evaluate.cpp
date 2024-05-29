@@ -49,6 +49,16 @@ bool Eval::use_smallnet(const Position& pos) {
     return std::abs(simpleEval) > 992 + 6 * pos.count<PAWN>();
 }
 
+namespace {
+
+int pcv[5]  = {200, 350, 400, 640, 1200};
+int spcv[5] = {200, 350, 400, 640, 1200};
+
+// alpha = 0.651, gamma = 0.135, c = 20, r = 0.002
+TUNE(pcv, spcv);
+
+}  // namespace
+
 // Evaluate is the evaluator for the outer world. It returns a static evaluation
 // of the position from the point of view of the side to move.
 Value Eval::evaluate(const Eval::NNUE::Networks&    networks,
@@ -77,8 +87,12 @@ Value Eval::evaluate(const Eval::NNUE::Networks&    networks,
     optimism += optimism * nnueComplexity / 470;
     nnue -= nnue * (nnueComplexity * 5 / 3) / 32621;
 
-    int material = 200 * pos.count<PAWN>() + 350 * pos.count<KNIGHT>() + 400 * pos.count<BISHOP>()
-                 + 640 * pos.count<ROOK>() + 1200 * pos.count<QUEEN>();
+    int material = smallNet ? spcv[0] * pos.count<PAWN>() + spcv[1] * pos.count<KNIGHT>()
+                                + spcv[2] * pos.count<BISHOP>() + spcv[3] * pos.count<ROOK>()
+                                + spcv[4] * pos.count<QUEEN>()
+                            : pcv[0] * pos.count<PAWN>() + pcv[1] * pos.count<KNIGHT>()
+                                + pcv[2] * pos.count<BISHOP>() + pcv[3] * pos.count<ROOK>()
+                                + pcv[4] * pos.count<QUEEN>();
 
     v = (nnue * (34000 + material + 135 * pos.count<PAWN>())
          + optimism * (4400 + material + 99 * pos.count<PAWN>()))
