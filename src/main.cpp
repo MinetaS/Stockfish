@@ -25,9 +25,28 @@
 #include "uci.h"
 #include "tune.h"
 
+namespace Stockfish {
+
+Value PawnValue   = 208;
+Value KnightValue = 781;
+Value BishopValue = 825;
+Value RookValue   = 1276;
+Value QueenValue  = 2538;
+
+Value PieceValue[PIECE_NB] = { 0 };
+
+TUNE(PawnValue, KnightValue, BishopValue, RookValue, QueenValue);
+
+} // namespace Stockfish
+
 using namespace Stockfish;
 
 int main(int argc, char* argv[]) {
+    PieceValue[W_PAWN] = PieceValue[B_PAWN] = PawnValue;
+    PieceValue[W_KNIGHT] = PieceValue[B_KNIGHT] = KnightValue;
+    PieceValue[W_BISHOP] = PieceValue[B_BISHOP] = BishopValue;
+    PieceValue[W_ROOK] = PieceValue[B_ROOK] = RookValue;
+    PieceValue[W_QUEEN] = PieceValue[B_QUEEN] = QueenValue;
 
     std::cout << engine_info() << std::endl;
 
