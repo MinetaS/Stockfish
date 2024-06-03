@@ -55,7 +55,8 @@ bool Eval::use_smallnet(const Position& pos) {
 Value Eval::evaluate(const Eval::NNUE::Networks&    networks,
                      const Position&                pos,
                      Eval::NNUE::AccumulatorCaches& caches,
-                     int                            optimism) {
+                     int                            optimism,
+                     bool                           cycle) {
 
     assert(!pos.checkers());
 
@@ -84,7 +85,7 @@ Value Eval::evaluate(const Eval::NNUE::Networks&    networks,
     v = (nnue * (34300 + material) + optimism * (4400 + material)) / 36672;
 
     // Damp down the evaluation linearly when shuffling
-    v -= v * pos.rule50_count() / 193;
+    v -= v * (324 * pos.rule50_count() - 549 * cycle) / 65536;
 
     // Guarantee evaluation does not hit the tablebase range
     v = std::clamp(v, VALUE_TB_LOSS_IN_MAX_PLY + 1, VALUE_TB_WIN_IN_MAX_PLY - 1);
