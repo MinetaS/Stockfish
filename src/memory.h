@@ -37,6 +37,7 @@ void  std_aligned_free(void* ptr);
 void* aligned_large_pages_alloc(size_t size);
 // nop if mem == nullptr
 void aligned_large_pages_free(void* mem);
+bool check_large_pages(void *mem);
 
 // frees memory which was placed there with placement new.
 // works for both single objects and arrays of unknown bound

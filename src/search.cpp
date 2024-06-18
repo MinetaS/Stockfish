@@ -186,6 +186,7 @@ void Search::Worker::start_searching() {
 
     // Stop the threads if not already stopped (also raise the stop if
     // "ponderhit" just reset threads.ponder).
+    bool interrupted = threads.stop;
     threads.stop = true;
 
     // Wait until all threads have finished
@@ -209,7 +210,7 @@ void Search::Worker::start_searching() {
     main_manager()->bestPreviousAverageScore = bestThread->rootMoves[0].averageScore;
 
     // Send again PV info if we have a new best thread
-    if (bestThread != this)
+    if (interrupted || bestThread != this)
         main_manager()->pv(*bestThread, threads, tt, bestThread->completedDepth);
 
     std::string ponder;
@@ -349,12 +350,6 @@ void Search::Worker::iterative_deepening() {
                 if (threads.stop)
                     break;
 
-                // When failing high/low give some update (without cluttering
-                // the UI) before a re-search.
-                if (mainThread && multiPV == 1 && (bestValue <= alpha || bestValue >= beta)
-                    && elapsed_time() > 3000)
-                    main_manager()->pv(*this, threads, tt, rootDepth);
-
                 // In case of failing low/high increase aspiration window and
                 // re-search, otherwise exit the loop.
                 if (bestValue <= alpha)
@@ -382,8 +377,8 @@ void Search::Worker::iterative_deepening() {
             // Sort the PV lines searched so far and update the GUI
             std::stable_sort(rootMoves.begin() + pvFirst, rootMoves.begin() + pvIdx + 1);
 
-            if (mainThread
-                && (threads.stop || pvIdx + 1 == multiPV || elapsed_time() > 3000)
+            if (mainThread && !threads.stop
+                && (pvIdx + 1 == multiPV || elapsed_time() > 3000)
                 // A thread that aborted search can have mated-in/TB-loss PV and score
                 // that cannot be trusted, i.e. it can be delayed or refuted if we would have
                 // had time to fully search other root-moves. Thus we suppress this output and
