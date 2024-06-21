@@ -57,30 +57,54 @@ struct TTEntry {
 
     bool is_occupied() const;
     void save(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
-    // The returned age is a multiple of TranspositionTable::GENERATION_DELTA
     uint8_t relative_age(const uint8_t generation8) const;
 
    private:
     friend class TranspositionTable;
 
-    uint16_t key16;
-    uint8_t  depth8;
-    uint8_t  genBound8;
-    Move     move16;
-    int16_t  value16;
-    int16_t  eval16;
+    Cluster* cluster() const {
+        return reinterpret_cast<Cluster*>(reinterpret_cast<uintptr_t>(this) & ~uintptr_t(0x1F));
+    }
+
+    int cluster_index() const {
+        return  (reinterpret_cast<uintptr_t>(this) >> 3) & 0x3;
+    }
+
+    uint8_t depth8;
+    uint8_t genBound8;
+    Move    move16;
+    int16_t value16;
+    int16_t eval16;
 };
+static_assert(sizeof(TTEntry) == 8, "TTEntry is not 8 bytes");
+
+static constexpr int ClusterSize = 3;
+
+struct Cluster {
+   public:
+    TTEntry  entry[ClusterSize];
+    uint64_t keys;
+
+   private:
+    friend class TranspositionTable;
+    friend struct TTEntry;
+
+    static constexpr uint64_t kKeyMask = 0x1FFFFFuL;
+
+    constexpr uint64_t get_key(int index) const { return keys >> (index * 21) & kKeyMask; }
+
+    constexpr void set_key(int index, uint64_t key) {
+        keys = (keys & ~(kKeyMask << (index * 21))) | (key << (index * 21));
+    }
+};
+static_assert(sizeof(Cluster) == 32, "Cluster is not 32 bytes");
 
 // `genBound8` is where most of the details are. We use the following constants to manipulate 5 leading generation bits
 // and 3 trailing miscellaneous bits.
 
-// These bits are reserved for other things.
 static constexpr unsigned GENERATION_BITS = 3;
-// increment for generation field
 static constexpr int GENERATION_DELTA = (1 << GENERATION_BITS);
-// cycle length
 static constexpr int GENERATION_CYCLE = 255 + GENERATION_DELTA;
-// mask to pull out generation number
 static constexpr int GENERATION_MASK = (0xFF << GENERATION_BITS) & 0xFF;
 
 // DEPTH_ENTRY_OFFSET exists because 1) we use `bool(depth8)` as the occupancy check, but
@@ -93,25 +117,30 @@ bool TTEntry::is_occupied() const { return bool(depth8); }
 void TTEntry::save(
   Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) {
 
-    // Preserve the old ttmove if we don't have a new one
-    if (m || uint16_t(k) != key16)
+    Cluster*  cl    = cluster();
+    const int index = cluster_index();
+
+    uint64_t ki    = k & Cluster::kKeyMask;
+    uint64_t key21 = cl->get_key(index);
+
+    // Preserve the old TT move if we don't have a new one
+    if (m || ki != key21)
         move16 = m;
 
     // Overwrite less valuable entries (cheapest checks first)
-    if (b == BOUND_EXACT || uint16_t(k) != key16 || d - DEPTH_ENTRY_OFFSET + 2 * pv > depth8 - 4
+    if (b == BOUND_EXACT || ki != key21 || d - DEPTH_ENTRY_OFFSET + 2 * pv > depth8 - 4
         || relative_age(generation8))
     {
         assert(d > DEPTH_ENTRY_OFFSET);
         assert(d < 256 + DEPTH_ENTRY_OFFSET);
 
-        key16     = uint16_t(k);
+        cl->set_key(index, ki);
         depth8    = uint8_t(d - DEPTH_ENTRY_OFFSET);
         genBound8 = uint8_t(generation8 | uint8_t(pv) << 2 | b);
         value16   = int16_t(v);
         eval16    = int16_t(ev);
     }
 }
-
 
 uint8_t TTEntry::relative_age(const uint8_t generation8) const {
     // Due to our packed storage format for generation and its cyclic
@@ -123,7 +152,6 @@ uint8_t TTEntry::relative_age(const uint8_t generation8) const {
 }
 
 
-// TTWriter is but a very thin wrapper around the pointer
 TTWriter::TTWriter(TTEntry* tte) :
     entry(tte) {}
 
@@ -131,20 +159,6 @@ void TTWriter::write(
   Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) {
     entry->save(k, v, pv, b, d, m, ev, generation8);
 }
-
-
-// A TranspositionTable is an array of Cluster, of size clusterCount. Each cluster consists of ClusterSize number
-// of TTEntry. Each non-empty TTEntry contains information on exactly one position. The size of a Cluster should
-// divide the size of a cache line for best performance, as the cacheline is prefetched when possible.
-
-static constexpr int ClusterSize = 3;
-
-struct Cluster {
-    TTEntry entry[ClusterSize];
-    char    padding[2];  // Pad to 32 bytes
-};
-
-static_assert(sizeof(Cluster) == 32, "Suboptimal Cluster size");
 
 
 // Sets the size of the transposition table,
@@ -166,9 +180,6 @@ void TranspositionTable::resize(size_t mbSize, ThreadPool& threads) {
     clear(threads);
 }
 
-
-// Initializes the entire transposition table to zero,
-// in a multi-threaded way.
 void TranspositionTable::clear(ThreadPool& threads) {
     generation8              = 0;
     const size_t threadCount = threads.num_threads();
@@ -189,10 +200,9 @@ void TranspositionTable::clear(ThreadPool& threads) {
         threads.wait_on_thread(i);
 }
 
-
-// Returns an approximation of the hashtable
-// occupation during a search. The hash is x permill full, as per UCI protocol.
-// Only counts entries which match the current generation.
+// Returns an approximation of the hashtable occupation during a search. The
+// hash is x permill full, as per UCI protocol. This counts entries which match
+// the current generation only.
 int TranspositionTable::hashfull() const {
 
     int cnt = 0;
@@ -204,46 +214,46 @@ int TranspositionTable::hashfull() const {
     return cnt / ClusterSize;
 }
 
-
 void TranspositionTable::new_search() {
     // increment by delta to keep lower bits as is
     generation8 += GENERATION_DELTA;
 }
 
-
 uint8_t TranspositionTable::generation() const { return generation8; }
 
+// Looks up the current position in the transposition table.
+// If the matching entry is not found, it returns a pointer to an empty or
+// least valuable TTEntry to be replaced later. The replacement strategy is
+// based on depth and relative age of each entry.
+TranspositionTable::ProbeResult TranspositionTable::probe(const Key key) const {
 
-// Looks up the current position in the transposition
-// table. It returns true if the position is found.
-// Otherwise, it returns false and a pointer to an empty or least valuable TTEntry
-// to be replaced later. The replace value of an entry is calculated as its depth
-// minus 8 times its relative age. TTEntry t1 is considered more valuable than
-// TTEntry t2 if its replace value is greater than that of t2.
-std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key) const {
-
-    TTEntry* const tte   = first_entry(key);
-    const uint16_t key16 = uint16_t(key);  // Use the low 16 bits as key inside the cluster
+    uint64_t key21 = key & Cluster::kKeyMask;  // Use low 21 bits as a key inside the cluster
+    Cluster* cl    = cluster(key);
 
     for (int i = 0; i < ClusterSize; ++i)
-        if (tte[i].key16 == key16)
-            // This gap is the main place for read races.
-            // After `read()` completes that copy is final, but may be self-inconsistent.
-            return {tte[i].is_occupied(), tte[i].read(), TTWriter(&tte[i])};
+        if (cl->get_key(i) == key21)
+        {
+            TTEntry* tte = &cl->entry[i];
+            return {tte->is_occupied(), tte->read(), TTWriter(tte)};
+        }
 
-    // Find an entry to be replaced according to the replacement strategy
-    TTEntry* replace = tte;
+    // Find an entry to be replaced.
+    TTEntry* replace = &cl->entry[0];
+
     for (int i = 1; i < ClusterSize; ++i)
+    {
+        TTEntry* tte = &cl->entry[i];
         if (replace->depth8 - replace->relative_age(generation8) * 2
-            > tte[i].depth8 - tte[i].relative_age(generation8) * 2)
-            replace = &tte[i];
+            > tte->depth8 - tte->relative_age(generation8) * 2)
+            replace = tte;
+    }
 
     return {false, replace->read(), TTWriter(replace)};
 }
 
 
-TTEntry* TranspositionTable::first_entry(const Key key) const {
-    return &table[mul_hi64(key, clusterCount)].entry[0];
+Cluster* TranspositionTable::cluster(const Key key) const {
+    return &table[mul_hi64(key, clusterCount)];
 }
 
 }  // namespace Stockfish

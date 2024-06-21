@@ -68,21 +68,21 @@ struct TTWriter {
 
 class TranspositionTable {
 
+    // The result of a probe: whether the entry was found, the data in the
+    // entry, and a writer object to the entry.
+    using ProbeResult = std::tuple<bool, TTData, TTWriter>;
+
    public:
     ~TranspositionTable() { aligned_large_pages_free(table); }
 
-    void resize(size_t mbSize, ThreadPool& threads);  // Set TT size
-    void clear(ThreadPool& threads);                  // Re-initialize memory, multithreaded
-    int  hashfull()
-      const;  // Approximate what fraction of entries (permille) have been written to during this root search
+    void resize(size_t mbSize, ThreadPool& threads);
+    void clear(ThreadPool& threads);
+    int  hashfull() const;
 
-    void
-    new_search();  // This must be called at the beginning of each root search to track entry aging
-    uint8_t generation() const;  // The current age, used when writing new data to the TT
-    std::tuple<bool, TTData, TTWriter>
-    probe(const Key key) const;  // The main method, whose retvals separate local vs global objects
-    TTEntry* first_entry(const Key key)
-      const;  // This is the hash function; its only external use is memory prefetching.
+    void new_search();
+    uint8_t generation() const;
+    ProbeResult probe(const Key key) const;
+    Cluster* cluster(const Key key) const;
 
    private:
     friend struct TTEntry;
@@ -90,7 +90,7 @@ class TranspositionTable {
     size_t   clusterCount;
     Cluster* table = nullptr;
 
-    uint8_t generation8 = 0;  // Size must be not bigger than TTEntry::genBound8
+    uint8_t generation8 = 0;
 };
 
 }  // namespace Stockfish
