@@ -735,16 +735,16 @@ Value Search::Worker::search(
 
         ss->staticEval = eval = to_corrected_static_eval(unadjustedStaticEval, *thisThread, pos);
 
-        if (ttData.value != VALUE_NONE)
+        if (ttData.value != VALUE_NONE
+            && (ttData.bound & (ttData.value > eval ? BOUND_LOWER : BOUND_UPPER)))
         {
             // Eager TT cutoff for deep nodes when eval is consistent with the TT value
             if (!rootNode && ss->ply > rootDepth && ttData.depth >= depth
-                && ttData.value * eval > 0 && std::abs(ttData.value) > std::abs(eval))
+                && ttData.value * eval > 0)
                 return ttData.value;
 
             // ttValue can be used as a better position evaluation (~7 Elo)
-            if (ttData.bound & (ttData.value > eval ? BOUND_LOWER : BOUND_UPPER))
-                eval = ttData.value;
+            eval = ttData.value;
         }
     }
     else
