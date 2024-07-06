@@ -237,6 +237,7 @@ Move MovePicker::select(Pred filter) {
 Move MovePicker::next_move(bool skipQuiets) {
 
     auto quiet_threshold = [](Depth d) { return -3560 * d; };
+    Move m;
 
 top:
     switch (stage)
@@ -261,12 +262,12 @@ top:
         goto top;
 
     case GOOD_CAPTURE :
-        if (select<Next>([&]() {
+        if ((m = select<Next>([&]() {
                 // Move losing capture to endBadCaptures to be tried later
                 return pos.see_ge(*cur, -cur->value / 18) ? true
                                                           : (*endBadCaptures++ = *cur, false);
-            }))
-            return *(cur - 1);
+            })))
+            return m;
 
         // Prepare the pointers to loop over the refutations array
         cur      = std::begin(refutations);
@@ -276,10 +277,10 @@ top:
         [[fallthrough]];
 
     case REFUTATION :
-        if (select<Next>([&]() {
+        if ((m = select<Next>([&]() {
                 return *cur != Move::none() && !pos.capture_stage(*cur) && pos.pseudo_legal(*cur);
-            }))
-            return *(cur - 1);
+            })))
+            return m;
         ++stage;
         [[fallthrough]];
 
@@ -316,8 +317,8 @@ top:
         [[fallthrough]];
 
     case BAD_CAPTURE :
-        if (select<Next>([]() { return true; }))
-            return *(cur - 1);
+        if ((m = select<Next>([]() { return true; })))
+            return m;
 
         // Prepare the pointers to loop over the bad quiets
         cur      = beginBadQuiets;
@@ -349,8 +350,8 @@ top:
         return select<Next>([&]() { return pos.see_ge(*cur, threshold); });
 
     case QCAPTURE :
-        if (select<Next>([]() { return true; }))
-            return *(cur - 1);
+        if ((m = select<Next>([]() { return true; })))
+            return m;
 
         // If we found no move and the depth is too low to try checks, then we have finished
         if (depth <= DEPTH_QS_NORMAL)
