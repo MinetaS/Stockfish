@@ -68,7 +68,7 @@ namespace {
 // Futility margin
 Value futility_margin(Depth d, bool noTtCutNode, int improvement, bool oppWorsening) {
     Value futilityMult       = 122 - 37 * noTtCutNode;
-    Value improvingDeduction = 28 * improvement * futilityMult / 32;
+    Value improvingDeduction = 13 * improvement * futilityMult / 32;
     Value worseningDeduction = oppWorsening * futilityMult / 3;
 
     return futilityMult * d - improvingDeduction - worseningDeduction;
@@ -767,18 +767,14 @@ Value Search::Worker::search(
     // and if we were in check at move prior to it flag is set to true) and is
     // false otherwise. This flag is used in various pruning heuristics.
     improvement = 0;
-    {
-        const Value seCont[4] = {ss->staticEval, (ss - 2)->staticEval, (ss - 4)->staticEval,
-                                 (ss - 6)->staticEval};
 
-        for (int lvl = 0; improvement == lvl && lvl < 3; ++lvl)
-            for (int i = lvl + 1; i < 4; ++i)
-                if (seCont[lvl] != VALUE_NONE && seCont[i] != VALUE_NONE && seCont[lvl] > seCont[i])
-                {
-                    improvement += 1;
-                    break;
-                }
-    }
+    for (Stack *pss = ss - 2, *css = ss; pss >= ss - 6; pss -= 2)
+        if (css->staticEval != VALUE_NONE && pss->staticEval != VALUE_NONE
+            && css->staticEval > pss->staticEval)
+        {
+            improvement += 8 / (ss - pss);
+            css = pss;
+        }
 
     opponentWorsening = ss->staticEval + (ss - 1)->staticEval > 2;
 
@@ -860,7 +856,7 @@ Value Search::Worker::search(
     // Step 11. ProbCut (~10 Elo)
     // If we have a good enough capture (or queen promotion) and a reduced search returns a value
     // much above beta, we can (almost) safely prune the previous move.
-    probCutBeta = beta + 184 - 25 * improvement;
+    probCutBeta = beta + 184 - 12 * improvement;
     if (
       !PvNode && depth > 3
       && std::abs(beta) < VALUE_TB_WIN_IN_MAX_PLY
