@@ -739,7 +739,8 @@ Value Search::Worker::search(
             && (ttData.bound & (ttData.value > eval ? BOUND_LOWER : BOUND_UPPER)))
         {
             // Eager TT cutoff for non-PV deep nodes when eval is consistent with the TT value
-            if (!PvNode && depth <= 4 && ttData.depth >= depth && ttData.value * eval > 0)
+            if (!PvNode && ttData.depth >= depth && ttData.value * eval >= 32000
+                && std::abs(ttData.value - eval) <= 10)
                 return ttData.value;
 
             // ttValue can be used as a better position evaluation (~7 Elo)
