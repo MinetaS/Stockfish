@@ -59,19 +59,30 @@ enum Stages {
     QCHECK
 };
 
-// Sort moves in descending order up to and including
-// a given limit. The order of moves smaller than the limit is left unspecified.
-void partial_insertion_sort(ExtMove* begin, ExtMove* end, int limit) {
-
+// Sort moves in descending order.
+void insertion_sort(ExtMove* begin, ExtMove* end) {
     for (ExtMove *sortedEnd = begin, *p = begin + 1; p < end; ++p)
-        if (p->value >= limit)
-        {
-            ExtMove tmp = *p, *q;
-            *p          = *++sortedEnd;
-            for (q = sortedEnd; q != begin && *(q - 1) < tmp; --q)
-                *q = *(q - 1);
-            *q = tmp;
-        }
+    {
+        ExtMove tmp = *p, *q;
+        *p          = *++sortedEnd;
+        for (q = sortedEnd; q != begin && *(q - 1) < tmp; --q)
+            *q = *(q - 1);
+        *q = tmp;
+    }
+}
+
+// Sort moves in descending order up to and including a given limit. The order
+// of moves smaller than the limit is left unspecified.
+void partial_selection_sort(ExtMove* begin, ExtMove* end, int limit) {
+    for (ExtMove* p = begin; p < end - 1; ++p)
+    {
+        ExtMove* max = std::max_element(p, end);
+
+        if (max->value < limit)
+            break;
+
+        std::swap(*p, *max);
+    }
 }
 
 }  // namespace
@@ -236,6 +247,8 @@ Move MovePicker::select(Pred filter) {
 // moves left, picking the move with the highest score from a list of generated moves.
 Move MovePicker::next_move(bool skipQuiets) {
 
+    const int goodQuietsThreshold = std::min(-7997, -3560 * depth);
+
 top:
     switch (stage)
     {
@@ -254,7 +267,7 @@ top:
         endMoves             = generate<CAPTURES>(pos, cur);
 
         score<CAPTURES>();
-        partial_insertion_sort(cur, endMoves, std::numeric_limits<int>::min());
+        insertion_sort(cur, endMoves);
         ++stage;
         goto top;
 
@@ -288,7 +301,7 @@ top:
             endMoves = beginBadQuiets = endBadQuiets = generate<QUIETS>(pos, cur);
 
             score<QUIETS>();
-            partial_insertion_sort(cur, endMoves, std::numeric_limits<int>::min());
+            partial_selection_sort(cur, endMoves, goodQuietsThreshold);
         }
 
         ++stage;
@@ -299,7 +312,7 @@ top:
                 return *cur != refutations[0] && *cur != refutations[1] && *cur != refutations[2];
             }))
         {
-            if ((cur - 1)->value > -7998)
+            if ((cur - 1)->value >= goodQuietsThreshold)
                 return *(cur - 1);
 
             // Remaining quiets are bad
