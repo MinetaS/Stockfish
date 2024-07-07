@@ -1191,12 +1191,13 @@ moves_loop:  // When in check, search starts here
         // Decrease/increase reduction for moves with a good/bad history (~8 Elo)
         r -= ss->statScore / 10898;
 
-        for (int i = 0; i < probcutCaptureCount; i++)
-            if (move == probcutCapturesSearched[i])
-            {
-                r += 2;
-                break;
-            }
+        if (capture)
+            for (int i = 0; i < probcutCaptureCount; i++)
+                if (move == probcutCapturesSearched[i])
+                {
+                    r -= 1;
+                    break;
+                }
 
         // Step 17. Late moves reduction / extension (LMR, ~117 Elo)
         if (depth >= 2 && moveCount > 1 + rootNode)
