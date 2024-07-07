@@ -575,6 +575,9 @@ Value Search::Worker::search(
     bestValue                                             = -VALUE_INFINITE;
     maxValue                                              = VALUE_INFINITE;
 
+    Move probcutCapturesSearched[32];
+    int  probcutCaptureCount = 0;
+
     // Check for the available remaining time
     if (is_mainthread())
         main_manager()->check_time(*thisThread);
@@ -863,8 +866,6 @@ Value Search::Worker::search(
         assert(probCutBeta < VALUE_INFINITE && probCutBeta > beta);
 
         MovePicker mp(pos, ttData.move, probCutBeta - ss->staticEval, &thisThread->captureHistory);
-        Move       probcutCapturesSearched[32];
-        int        probcutCaptureCount = 0;
         Piece      captured;
 
         while ((move = mp.next_move()) != Move::none())
@@ -874,7 +875,6 @@ Value Search::Worker::search(
 
                 movedPiece = pos.moved_piece(move);
                 captured   = pos.piece_on(move.to_sq());
-
 
                 // Prefetch the TT entry for the resulting position
                 prefetch(tt.first_entry(pos.key_after(move)));
@@ -1190,6 +1190,13 @@ moves_loop:  // When in check, search starts here
 
         // Decrease/increase reduction for moves with a good/bad history (~8 Elo)
         r -= ss->statScore / 10898;
+
+        for (int i = 0; i < probcutCaptureCount; i++)
+            if (move == probcutCapturesSearched[i])
+            {
+                r += 2;
+                break;
+            }
 
         // Step 17. Late moves reduction / extension (LMR, ~117 Elo)
         if (depth >= 2 && moveCount > 1 + rootNode)
