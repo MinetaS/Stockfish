@@ -163,10 +163,21 @@ void MovePicker::score() {
                          | (pos.pieces(us, KNIGHT, BISHOP) & threatenedByPawn);
     }
 
+    auto adjusted_piece_value = [&](Piece pc) -> int {
+        PieceType pt = type_of(pc);
+
+        if (pt == QUEEN)
+            return PieceValue[pc] - 3 * (pos.count<ALL_PIECES>() - 8);
+        else if (pt == KNIGHT)
+            return PieceValue[pc] - (pos.count<ALL_PIECES>() - 8);
+        else
+            return PieceValue[pc];
+    };
+
     for (auto& m : *this)
         if constexpr (Type == CAPTURES)
             m.value =
-              7 * int(PieceValue[pos.piece_on(m.to_sq())])
+              7 * adjusted_piece_value(pos.piece_on(m.to_sq()))
               + (*captureHistory)[pos.moved_piece(m)][m.to_sq()][type_of(pos.piece_on(m.to_sq()))];
 
         else if constexpr (Type == QUIETS)
@@ -204,8 +215,8 @@ void MovePicker::score() {
         else  // Type == EVASIONS
         {
             if (pos.capture_stage(m))
-                m.value =
-                  PieceValue[pos.piece_on(m.to_sq())] - type_of(pos.moved_piece(m)) + (1 << 28);
+                m.value = adjusted_piece_value(pos.piece_on(m.to_sq()))
+                        - type_of(pos.moved_piece(m)) + (1 << 28);
             else
                 m.value = (*mainHistory)[pos.side_to_move()][m.from_to()]
                         + (*continuationHistory[0])[pos.moved_piece(m)][m.to_sq()]
