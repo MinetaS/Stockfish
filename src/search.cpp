@@ -1150,6 +1150,9 @@ moves_loop:  // When in check, search starts here
 
         // These reduction adjustments have no proven non-linear scaling.
 
+        if (excludedMove)
+            r -= 1;
+
         // Increase reduction for cut nodes (~4 Elo)
         if (cutNode)
             r += 2 - (ttData.depth >= depth && ss->ttPv)
