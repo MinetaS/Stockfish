@@ -49,6 +49,7 @@ enum Stages {
     PROBCUT_TT,
     PROBCUT_INIT,
     PROBCUT,
+    PROBCUT_NONE,
 
     // generate qsearch moves
     QSEARCH_TT,
@@ -254,9 +255,13 @@ top:
         cur = endBadCaptures = moves;
         endMoves             = generate<CAPTURES>(pos, cur);
 
-        score<CAPTURES>();
-        partial_insertion_sort(cur, endMoves, std::numeric_limits<int>::min());
-        ++stage;
+        if (!(noCaptures = cur == endMoves))
+        {
+            score<CAPTURES>();
+            partial_insertion_sort(cur, endMoves, std::numeric_limits<int>::min());
+        }
+
+        stage += 1 + noCaptures;
         goto top;
 
     case GOOD_CAPTURE :
@@ -341,18 +346,21 @@ top:
     case PROBCUT :
         return select<Next>([&]() { return pos.see_ge(*cur, threshold); });
 
+    case PROBCUT_NONE:
+        return Move::none();
+
     case QCAPTURE :
         if (select<Next>([]() { return true; }))
             return *(cur - 1);
-
-        // If we found no move and the depth is too low to try checks, then we have finished
-        if (depth <= DEPTH_QS_NORMAL)
-            return Move::none();
 
         ++stage;
         [[fallthrough]];
 
     case QCHECK_INIT :
+        // If we found no move and the depth is too low to try checks, then we have finished
+        if (depth <= DEPTH_QS_NORMAL)
+            return Move::none();
+
         cur      = moves;
         endMoves = generate<QUIET_CHECKS>(pos, cur);
 

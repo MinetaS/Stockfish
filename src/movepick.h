@@ -187,6 +187,7 @@ class MovePicker {
     Move                         ttMove;
     ExtMove killer, *cur, *endMoves, *endBadCaptures, *beginBadQuiets, *endBadQuiets;
     int     stage;
+    bool    noCaptures;
     int     threshold;
     Depth   depth;
     ExtMove moves[MAX_MOVES];
