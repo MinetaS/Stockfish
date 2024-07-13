@@ -563,7 +563,7 @@ Value Search::Worker::search(
     Depth extension, newDepth;
     Value bestValue, value, eval, maxValue, probCutBeta;
     bool  givesCheck, improving, priorCapture, opponentWorsening;
-    bool  capture, moveCountPruning, ttCapture;
+    bool  capture, ttCapture;
     Piece movedPiece;
     int   moveCount, captureCount, quietCount;
 
@@ -936,8 +936,10 @@ moves_loop:  // When in check, search starts here
     MovePicker mp(pos, ttData.move, depth, &thisThread->mainHistory, &thisThread->captureHistory,
                   contHist, &thisThread->pawnHistory, ss->killer);
 
-    value            = bestValue;
-    moveCountPruning = false;
+    value = bestValue;
+
+    bool moveCountPruning = false;
+    int  failHighMoves    = 0;
 
     // Step 13. Loop through all pseudo-legal moves until no moves remain
     // or a beta cutoff occurs.
@@ -987,7 +989,13 @@ moves_loop:  // When in check, search starts here
         if (!rootNode && pos.non_pawn_material(us) && bestValue > VALUE_TB_LOSS_IN_MAX_PLY)
         {
             // Skip quiet moves if movecount exceeds our FutilityMoveCount threshold (~8 Elo)
-            moveCountPruning = moveCount >= futility_move_count(improving, depth);
+            if (!moveCountPruning && moveCount >= futility_move_count(improving, depth))
+            {
+                if (!improving && failHighMoves >= (moveCount - 1) * 3 / 4)
+                    improving = true;
+                else
+                    moveCountPruning = true;
+            }
 
             // Reduced depth of the next LMR search
             int lmrDepth = newDepth - r;
@@ -1233,6 +1241,8 @@ moves_loop:  // When in check, search starts here
 
             value = -search<PV>(pos, ss + 1, -beta, -alpha, newDepth, false);
         }
+
+        failHighMoves += PvNode ? value >= beta : value > alpha;
 
         // Step 19. Undo move
         pos.undo_move(move);
