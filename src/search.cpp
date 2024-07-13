@@ -939,6 +939,8 @@ moves_loop:  // When in check, search starts here
     value            = bestValue;
     moveCountPruning = false;
 
+    int movesInWindow = 0;
+
     // Step 13. Loop through all pseudo-legal moves until no moves remain
     // or a beta cutoff occurs.
     while ((move = mp.next_move(moveCountPruning)) != Move::none())
@@ -1150,7 +1152,7 @@ moves_loop:  // When in check, search starts here
 
         // Decrease reduction for PvNodes (~0 Elo on STC, ~2 Elo on LTC)
         if (PvNode)
-            r--;
+            r -= 1 + (movesInWindow >= 1);
 
         // These reduction adjustments have no proven non-linear scaling
 
@@ -1233,6 +1235,9 @@ moves_loop:  // When in check, search starts here
 
             value = -search<PV>(pos, ss + 1, -beta, -alpha, newDepth, false);
         }
+
+        if (PvNode && value > alpha && value <= beta)
+            ++movesInWindow;
 
         // Step 19. Undo move
         pos.undo_move(move);
