@@ -508,6 +508,7 @@ void Search::Worker::iterative_deepening() {
 
 // Reset histories, usually before a new game
 void Search::Worker::clear() {
+    static constexpr int16_t CH[2][2] = { { -58, -58 }, { -83, -66 }};
     mainHistory.fill(0);
     captureHistory.fill(-700);
     pawnHistory.fill(-1188);
@@ -517,7 +518,7 @@ void Search::Worker::clear() {
         for (StatsType c : {NoCaptures, Captures})
             for (auto& to : continuationHistory[inCheck][c])
                 for (auto& h : to)
-                    h->fill(-58);
+                    h->fill(CH[inCheck][c]);
 
     for (size_t i = 1; i < reductions.size(); ++i)
         reductions[i] = int((18.62 + std::log(size_t(options["Threads"])) / 2) * std::log(i));
