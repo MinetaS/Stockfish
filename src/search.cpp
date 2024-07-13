@@ -610,7 +610,7 @@ Value Search::Worker::search(
 
     bestMove            = Move::none();
     (ss + 1)->killer    = Move::none();
-    (ss + 2)->cutoffCnt = 0;
+    (ss + 1)->cutoffCnt = 0;
     Square prevSq = ((ss - 1)->currentMove).is_ok() ? ((ss - 1)->currentMove).to_sq() : SQ_NONE;
     ss->statScore = 0;
 
@@ -1164,7 +1164,7 @@ moves_loop:  // When in check, search starts here
             r++;
 
         // Increase reduction if next ply has a lot of fail high (~5 Elo)
-        if ((ss + 1)->cutoffCnt > 3)
+        if ((ss + 1)->cutoffCnt > 1)
             r += 1 + !(PvNode || cutNode);
 
         // For first picked move (ttMove) reduce reduction, but never allow
