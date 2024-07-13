@@ -1205,11 +1205,10 @@ moves_loop:  // When in check, search starts here
                     value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, newDepth, !cutNode);
 
                 // Post LMR continuation history updates (~1 Elo)
-                int bonus = value <= alpha ? -stat_malus(newDepth)
-                          : value >= beta  ? stat_bonus(newDepth)
-                                           : 0;
-
-                update_continuation_histories(ss, movedPiece, move.to_sq(), bonus);
+                if (value <= alpha)
+                    update_continuation_histories(ss, movedPiece, move.to_sq(), -stat_malus(newDepth));
+                else if (value >= beta)
+                    update_continuation_histories(ss, movedPiece, move.to_sq(), stat_bonus(newDepth));
             }
         }
 
@@ -1818,9 +1817,6 @@ void update_all_stats(const Position& pos,
 // Updates histories of the move pairs formed by moves
 // at ply -1, -2, -3, -4, and -6 with current move.
 void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus) {
-
-    if (unsigned(bonus + 1) <= 2)
-        return;
 
     bonus = bonus * 52 / 64;
 
