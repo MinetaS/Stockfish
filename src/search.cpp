@@ -50,6 +50,8 @@
 #include "uci.h"
 #include "ucioption.h"
 
+#include <unordered_set>
+
 namespace Stockfish {
 
 namespace TB = Tablebases;
@@ -708,6 +710,8 @@ Value Search::Worker::search(
         }
     }
 
+    std::unordered_set<uint16_t> legalMoves;
+
     // Step 6. Static evaluation of the position
     Value unadjustedStaticEval = VALUE_NONE;
     if (ss->inCheck)
@@ -877,6 +881,8 @@ Value Search::Worker::search(
 
             assert(pos.capture_stage(move));
 
+            legalMoves.insert(move.raw());
+
             movedPiece = pos.moved_piece(move);
             captured   = pos.piece_on(move.to_sq());
 
@@ -949,7 +955,9 @@ moves_loop:  // When in check, search starts here
             continue;
 
         // Check for legality
-        if (!pos.legal(move))
+        const bool isCachedLegal = legalMoves.find(move.raw()) != legalMoves.end();
+
+        if (!isCachedLegal && !pos.legal(move))
             continue;
 
         // At root obey the "searchmoves" option and skip moves not listed in Root
