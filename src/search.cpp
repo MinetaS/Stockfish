@@ -519,7 +519,7 @@ void Search::Worker::clear() {
         reductions[i] = int((18.62 + std::log(size_t(options["Threads"])) / 2) * std::log(i));
 
     for (size_t i = 1; i < moveCountThreshold.size(); ++i)
-        moveCountThreshold[i] = 3 + std::pow(i, 1.9);
+        moveCountThreshold[i] = 3 + std::pow(i, 2.1);
 
     refreshTable.clear(networks[numaAccessToken]);
 }
