@@ -1148,10 +1148,6 @@ moves_loop:  // When in check, search starts here
         if (ss->ttPv)
             r -= 1 + (ttData.value > alpha) + (ttData.depth >= depth);
 
-        // Decrease reduction for PvNodes (~0 Elo on STC, ~2 Elo on LTC)
-        if (PvNode)
-            r--;
-
         // These reduction adjustments have no proven non-linear scaling
 
         // Increase reduction for cut nodes (~4 Elo)
@@ -1178,6 +1174,10 @@ moves_loop:  // When in check, search starts here
 
         // Decrease/increase reduction for moves with a good/bad history (~8 Elo)
         r -= ss->statScore / 10898;
+
+        // Cancel reduction for PV nodes
+        if (PvNode && r > 0)
+            r -= r / 4 + 1;
 
         // Step 17. Late moves reduction / extension (LMR, ~117 Elo)
         if (depth >= 2 && moveCount > 1 + (rootNode && depth < 10))
