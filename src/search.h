@@ -265,6 +265,7 @@ class Worker {
     Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth = 0);
 
     Depth reduction(bool i, Depth d, int mn, int delta) const;
+    int futility_move_count(bool improving, Depth d) const;
 
     // Pointer to the search manager, only allowed to be called by the main thread
     SearchManager* main_manager() const {
@@ -294,6 +295,7 @@ class Worker {
 
     // Reductions lookup table initialized at startup
     std::array<int, MAX_MOVES> reductions;  // [depth or moveNumber]
+    std::array<int, MAX_PLY>   moveCountThreshold;
 
     // The main thread has a SearchManager, the others have a NullSearchManager
     std::unique_ptr<ISearchManager> manager;

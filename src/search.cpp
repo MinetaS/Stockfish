@@ -74,10 +74,6 @@ Value futility_margin(Depth d, bool noTtCutNode, bool improving, bool oppWorseni
     return futilityMult * d - improvingDeduction - worseningDeduction;
 }
 
-constexpr int futility_move_count(bool improving, Depth depth) {
-    return improving ? (3 + depth * depth) : (3 + depth * depth) / 2;
-}
-
 // Add correctionHistory value to raw staticEval and guarantee evaluation
 // does not hit the tablebase range.
 Value to_corrected_static_eval(Value v, const Worker& w, const Position& pos) {
@@ -521,6 +517,9 @@ void Search::Worker::clear() {
 
     for (size_t i = 1; i < reductions.size(); ++i)
         reductions[i] = int((18.62 + std::log(size_t(options["Threads"])) / 2) * std::log(i));
+
+    for (size_t i = 1; i < moveCountThreshold.size(); ++i)
+        moveCountThreshold[i] = 3 + std::pow(i, 1.99);
 
     refreshTable.clear(networks[numaAccessToken]);
 }
@@ -987,7 +986,7 @@ moves_loop:  // When in check, search starts here
         if (!rootNode && pos.non_pawn_material(us) && bestValue > VALUE_TB_LOSS_IN_MAX_PLY)
         {
             // Skip quiet moves if movecount exceeds our FutilityMoveCount threshold (~8 Elo)
-            moveCountPruning = moveCount >= futility_move_count(improving && ss->ttHit, depth);
+            moveCountPruning = moveCount >= futility_move_count(improving, depth);
 
             // Reduced depth of the next LMR search
             int lmrDepth = newDepth - r;
@@ -1684,6 +1683,10 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta,
 Depth Search::Worker::reduction(bool i, Depth d, int mn, int delta) const {
     int reductionScale = reductions[d] * reductions[mn];
     return (reductionScale + 1274 - delta * 746 / rootDelta) / 1024 + (!i && reductionScale > 1293);
+}
+
+int Search::Worker::futility_move_count(bool i, Depth d) const {
+    return moveCountThreshold[d] / (2 - i);
 }
 
 // elapsed() returns the time elapsed since the search started. If the
