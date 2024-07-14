@@ -939,6 +939,8 @@ moves_loop:  // When in check, search starts here
     value            = bestValue;
     moveCountPruning = false;
 
+    int cutoffs = 0;
+
     // Step 13. Loop through all pseudo-legal moves until no moves remain
     // or a beta cutoff occurs.
     while ((move = mp.next_move(moveCountPruning)) != Move::none())
@@ -989,7 +991,7 @@ moves_loop:  // When in check, search starts here
             // Skip quiet moves if movecount exceeds our FutilityMoveCount threshold (~8 Elo)
             if (!moveCountPruning && moveCount >= futility_move_count(improving, depth))
             {
-                if (!improving && ss->cutoffCnt == moveCount - 1)
+                if (!improving && cutoffs >= std::max(2, (moveCount - 1) * 3 / 4))
                     improving = true;
                 else
                     moveCountPruning = true;
@@ -1251,6 +1253,9 @@ moves_loop:  // When in check, search starts here
         // best move, principal variation nor transposition table.
         if (threads.stop.load(std::memory_order_relaxed))
             return VALUE_ZERO;
+
+        if (value <= alpha)
+            ++cutoffs;
 
         if (rootNode)
         {
