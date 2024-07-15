@@ -508,7 +508,7 @@ void Search::Worker::iterative_deepening() {
 
 // Reset histories, usually before a new game
 void Search::Worker::clear() {
-    static constexpr int16_t CH[2][2] = { { -83, -66 }, { -58, -58 }};
+    static constexpr int16_t CH[2][2] = { { -210, -109 }, { -72, -61 }};
 
     mainHistory.fill(0);
     captureHistory.fill(-700);
