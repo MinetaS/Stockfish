@@ -168,9 +168,6 @@ void MovePicker::score() {
 
             m.value += (m == killer) * 65536;
 
-            // bonus for checks
-            m.value += bool(pos.check_squares(pt) & to) * 16384;
-
             // bonus for escaping from capture
             const int evadeBonus = threatenedPieces & from
                                    ? (pt == QUEEN && !(to & threatenedByRook)   ? 51700
