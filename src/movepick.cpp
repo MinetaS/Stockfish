@@ -172,19 +172,23 @@ void MovePicker::score() {
             m.value += bool(pos.check_squares(pt) & to) * 16384;
 
             // bonus for escaping from capture
-            m.value += threatenedPieces & from ? (pt == QUEEN && !(to & threatenedByRook)   ? 51700
-                                                  : pt == ROOK && !(to & threatenedByMinor) ? 25600
-                                                  : !(to & threatenedByPawn)                ? 14450
-                                                                                            : 0)
-                                               : 0;
+            const int evadeBonus = threatenedPieces & from
+                                   ? (pt == QUEEN && !(to & threatenedByRook)   ? 51700
+                                      : pt == ROOK && !(to & threatenedByMinor) ? 25600
+                                      : !(to & threatenedByPawn)                ? 14450
+                                                                                : 0)
+                                   : 0;
+            m.value += evadeBonus;
 
             // malus for putting piece en prise
-            const int penalty = (pt == QUEEN  ? bool(to & threatenedByRook) * 49000
-                                 : pt == ROOK ? bool(to & threatenedByMinor) * 24335
-                                              : bool(to & threatenedByPawn) * 14900);
+            const int threatPenalty = (pt == QUEEN  ? bool(to & threatenedByRook) * 49000
+                                       : pt == ROOK ? bool(to & threatenedByMinor) * 24335
+                                                    : bool(to & threatenedByPawn) * 14900);
+            m.value -= threatPenalty;
 
-            if (penalty > 0 && !pos.see_ge(m))
-                m.value -= penalty;
+            // bonus for checks
+            if (!threatPenalty && (pos.check_squares(pt) & to))
+                m.value += 16384;
         }
 
         else  // Type == EVASIONS
