@@ -158,17 +158,18 @@ void MovePicker::score() {
             Square    to   = m.to_sq();
 
             // histories
-            m.value = m == killer ? 65536 : 0;
-            m.value += (*mainHistory)[pos.side_to_move()][m.from_to()];
+            m.value = (*mainHistory)[pos.side_to_move()][m.from_to()];
             m.value += 2 * (*pawnHistory)[pawn_structure_index(pos)][pc][to];
+            m.value += 2 * (*continuationHistory[0])[pc][to];
+            m.value += (*continuationHistory[1])[pc][to];
+            m.value += (*continuationHistory[2])[pc][to] / 3;
+            m.value += (*continuationHistory[3])[pc][to];
+            m.value += (*continuationHistory[5])[pc][to];
 
-            const int continuationHistoryScore =
-              2 * (*continuationHistory[0])[pc][to] + (*continuationHistory[1])[pc][to]
-              + (*continuationHistory[2])[pc][to] / 3 + (*continuationHistory[3])[pc][to]
-              + (*continuationHistory[5])[pc][to];
+            m.value += (m == killer) * 65536;
 
-            // Double bonus for checks
-            m.value += continuationHistoryScore * (1 + bool(pos.check_squares(pt) & to));
+            // bonus for checks
+            m.value += bool(pos.check_squares(pt) & to) * 16384;
 
             // bonus for escaping from capture
             m.value += threatenedPieces & from ? (pt == QUEEN && !(to & threatenedByRook)   ? 51700
@@ -178,9 +179,12 @@ void MovePicker::score() {
                                                : 0;
 
             // malus for putting piece en prise
-            m.value -= (pt == QUEEN  ? bool(to & threatenedByRook) * 49000
-                        : pt == ROOK ? bool(to & threatenedByMinor) * 24335
-                                     : bool(to & threatenedByPawn) * 14900);
+            const int penalty = (pt == QUEEN  ? bool(to & threatenedByRook) * 49000
+                                 : pt == ROOK ? bool(to & threatenedByMinor) * 24335
+                                              : bool(to & threatenedByPawn) * 14900);
+
+            if (penalty > 0 && !pos.see_ge(m))
+                m.value -= penalty;
         }
 
         else  // Type == EVASIONS
