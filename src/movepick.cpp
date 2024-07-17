@@ -57,6 +57,10 @@ enum Stages {
     QCHECK
 };
 
+constexpr int kGoodQuietThreshold = -7997;
+
+constexpr bool quiet_sort_threshold(Depth d) { return -3560 * d; }
+
 // Sort moves in descending order up to and including a given limit.
 // The order of moves smaller than the limit is left unspecified.
 void partial_insertion_sort(ExtMove* begin, ExtMove* end, int limit) {
@@ -166,8 +170,6 @@ void MovePicker::score() {
             m.value += (*continuationHistory[3])[pc][to];
             m.value += (*continuationHistory[5])[pc][to];
 
-            m.value += (m == killer) * 65536;
-
             // bonus for checks
             m.value += bool(pos.check_squares(pt) & to) * 16384;
 
@@ -182,6 +184,9 @@ void MovePicker::score() {
             m.value -= (pt == QUEEN  ? bool(to & threatenedByRook) * 49000
                         : pt == ROOK ? bool(to & threatenedByMinor) * 24335
                                      : bool(to & threatenedByPawn) * 14900);
+
+            if (m == killer)
+                m.value = std::max(m.value + 65536, kGoodQuietThreshold);
         }
 
         else  // Type == EVASIONS
@@ -218,8 +223,6 @@ Move MovePicker::select(Pred filter) {
 // returns a new pseudo-legal move every time it is called until there are no more
 // moves left, picking the move with the highest score from a list of generated moves.
 Move MovePicker::next_move(bool skipQuiets) {
-
-    auto quiet_threshold = [](Depth d) { return -3560 * d; };
 
 top:
     switch (stage)
@@ -261,7 +264,7 @@ top:
             endMoves = beginBadQuiets = endBadQuiets = generate<QUIETS>(pos, cur);
 
             score<QUIETS>();
-            partial_insertion_sort(cur, endMoves, quiet_threshold(depth));
+            partial_insertion_sort(cur, endMoves, quiet_sort_threshold(depth));
         }
 
         ++stage;
@@ -270,7 +273,8 @@ top:
     case GOOD_QUIET :
         if (!skipQuiets && select<Next>([]() { return true; }))
         {
-            if ((cur - 1)->value > -7998 || (cur - 1)->value <= quiet_threshold(depth))
+            if ((cur - 1)->value >= kGoodQuietThreshold
+                || (cur - 1)->value <= quiet_sort_threshold(depth))
                 return *(cur - 1);
 
             // Remaining quiets are bad
