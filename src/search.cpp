@@ -282,6 +282,7 @@ void Search::Worker::iterative_deepening() {
     multiPV = std::min(multiPV, rootMoves.size());
 
     int searchAgainCounter = 0;
+    int bestScoreShift;
 
     // Iterative deepening loop until requested to stop or the target depth is reached
     while (++rootDepth < MAX_PLY && !threads.stop
@@ -404,6 +405,8 @@ void Search::Worker::iterative_deepening() {
         if (!threads.stop)
             completedDepth = rootDepth;
 
+        bestScoreShift = 0;
+
         // We make sure not to pick an unproven mated-in score,
         // in case this thread prematurely stopped search (aborted-search).
         if (threads.abortedSearch && rootMoves[0].score != -VALUE_INFINITE
@@ -417,6 +420,9 @@ void Search::Worker::iterative_deepening() {
         }
         else if (rootMoves[0].pv[0] != lastBestPV[0])
         {
+            if (mainThread && rootDepth > 1)
+                bestScoreShift = std::abs(rootMoves[0].score - lastBestScore);
+
             lastBestPV        = rootMoves[0].pv;
             lastBestScore     = rootMoves[0].score;
             lastBestMoveDepth = rootDepth;
@@ -459,10 +465,22 @@ void Search::Worker::iterative_deepening() {
             timeReduction    = lastBestMoveDepth + 8 < completedDepth ? 1.495 : 0.687;
             double reduction = (1.48 + mainThread->previousTimeReduction) / (2.17 * timeReduction);
             double bestMoveInstability = 1 + 1.88 * totBestMoveChanges / threads.size();
-            double recapture           = limits.capSq == rootMoves[0].pv[0].to_sq() ? 0.955 : 1.005;
 
-            double totalTime =
-              mainThread->tm.optimum() * fallingEval * reduction * bestMoveInstability * recapture;
+            // Increase time if best move has changed
+            double bestScoreInstability = bestScoreShift ? 1.1 : 1.0;
+
+            if (bestScoreShift > 180)
+            {
+                static constexpr int Pivot = 400;
+                bestScoreInstability += std::min(
+                  double(bestScoreShift) / (std::abs(Pivot - std::abs(lastBestScore)) + Pivot) / 4,
+                  1.0);
+            }
+
+            double recapture = limits.capSq == rootMoves[0].pv[0].to_sq() ? 0.955 : 1.005;
+
+            double totalTime = mainThread->tm.optimum() * fallingEval * reduction
+                             * bestMoveInstability * bestScoreInstability * recapture;
 
             // Cap used time in case of a single legal move for a better viewer experience
             if (rootMoves.size() == 1)
