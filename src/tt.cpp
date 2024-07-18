@@ -23,11 +23,20 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <sstream>
 
 #include "memory.h"
 #include "misc.h"
 #include "syzygy/tbprobe.h"
 #include "thread.h"
+
+class comma_numpunct: public std::numpunct<char> {
+   protected:
+    virtual char        do_thousands_sep() const { return ','; }
+    virtual std::string do_grouping() const { return "\03"; }
+};
+
+static std::locale comma_locale(std::locale(), new comma_numpunct());
 
 namespace Stockfish {
 
@@ -161,6 +170,15 @@ void TranspositionTable::resize(size_t mbSize, ThreadPool& threads) {
     {
         std::cerr << "Failed to allocate " << mbSize << "MB for transposition table." << std::endl;
         exit(EXIT_FAILURE);
+    }
+
+    // Custom information print for large page support check
+    if (mbSize > 16 && check_if_large_pages(table))
+    {
+        std::stringstream ss;
+        ss.imbue(comma_locale);
+        ss << std::fixed << mbSize;
+        sync_cout << "info string Large page enabled (" << ss.str() << " MiB)" << sync_endl;
     }
 
     clear(threads);

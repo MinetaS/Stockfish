@@ -37,6 +37,7 @@ void  std_aligned_free(void* ptr);
 // Memory aligned by page size, min alignment: 4096 bytes
 void* aligned_large_pages_alloc(size_t size);
 void  aligned_large_pages_free(void* mem);
+bool  check_if_large_pages(void *mem);
 
 // Frees memory which was placed there with placement new.
 // Works for both single objects and arrays of unknown bound.

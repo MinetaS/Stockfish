@@ -234,4 +234,30 @@ void aligned_large_pages_free(void* mem) {
 void aligned_large_pages_free(void* mem) { std_aligned_free(mem); }
 
 #endif
+
+#if defined(_WIN64)
+
+    #include <Psapi.h>
+
+bool check_if_large_pages(void* mem) {
+    PSAPI_WORKING_SET_EX_INFORMATION pwsei;
+
+    RtlZeroMemory(&pwsei, sizeof(PSAPI_WORKING_SET_EX_INFORMATION));
+    pwsei.VirtualAddress = mem;
+
+    if (!QueryWorkingSetEx(GetCurrentProcess(), &pwsei, sizeof(PSAPI_WORKING_SET_INFORMATION)))
+        return false;
+
+    if (pwsei.VirtualAttributes.LargePage)
+        return true;
+
+    return false;
+}
+
+#else
+
+bool check_if_large_pages(void* mem) { return false; }
+
+#endif
+
 }  // namespace Stockfish
