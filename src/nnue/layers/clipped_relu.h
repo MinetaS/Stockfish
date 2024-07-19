@@ -64,8 +64,17 @@ class ClippedReLU {
 #if defined(USE_AVX2)
         if constexpr (InputDimensions % SimdWidth == 0)
         {
+    #if defined(__has_builtin)
+        #if __has_builtin(__builtin_shufflevector)
+            #define vec_shuffle __builtin_shufflevector
+        #endif
+    #endif
+
+    #ifndef vec_shuffle
+            const __m256i Offsets = _mm256_set_epi32(7, 3, 6, 2, 5, 1, 4, 0);
+    #endif
+
             constexpr IndexType NumChunks = InputDimensions / SimdWidth;
-            const __m256i       Offsets   = _mm256_set_epi32(7, 3, 6, 2, 5, 1, 4, 0);
             const auto          in        = reinterpret_cast<const __m256i*>(input);
             const auto          out       = reinterpret_cast<__m256i*>(output);
             for (IndexType i = 0; i < NumChunks; ++i)
@@ -78,8 +87,15 @@ class ClippedReLU {
                   _mm256_srli_epi16(_mm256_packus_epi32(_mm256_load_si256(&in[i * 4 + 2]),
                                                         _mm256_load_si256(&in[i * 4 + 3])),
                                     WeightScaleBits);
+
+    #ifdef vec_shuffle
+                const __v8si tmp = _mm256_packs_epi16(words0, words1);
+                _mm256_store_si256(&out[i], vec_shuffle(tmp, tmp, 0, 4, 1, 5, 2, 6, 3, 7));
+        #undef vec_shuffle
+    #else
                 _mm256_store_si256(&out[i], _mm256_permutevar8x32_epi32(
                                               _mm256_packs_epi16(words0, words1), Offsets));
+    #endif
             }
         }
         else
