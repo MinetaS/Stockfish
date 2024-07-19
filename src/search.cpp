@@ -1197,7 +1197,7 @@ moves_loop:  // When in check, search starts here
                 // good enough search deeper, if it was bad enough search shallower.
                 const bool doDeeperSearch = value > (bestValue + 35 + 2 * newDepth);  // (~1 Elo)
                 const bool doShallowerSearch =
-                  value < bestValue + std::min(newDepth, 10);  // (~2 Elo)
+                  newDepth > 10 && value < bestValue + newDepth;  // (~2 Elo)
 
                 newDepth += doDeeperSearch - doShallowerSearch;
 
