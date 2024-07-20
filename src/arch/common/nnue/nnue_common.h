@@ -28,7 +28,7 @@
 #include <iostream>
 #include <type_traits>
 
-#include "../misc.h"
+#include "misc.h"
 
 #if defined(USE_AVX2)
     #include <immintrin.h>

@@ -36,13 +36,13 @@
 #include <utility>
 #include <vector>
 
-#include "../bitboard.h"
-#include "../misc.h"
-#include "../movegen.h"
-#include "../position.h"
-#include "../search.h"
-#include "../types.h"
-#include "../ucioption.h"
+#include "bitboard.h"
+#include "misc.h"
+#include "movegen.h"
+#include "position.h"
+#include "search.h"
+#include "types.h"
+#include "ucioption.h"
 
 #ifndef _WIN32
     #include <fcntl.h>

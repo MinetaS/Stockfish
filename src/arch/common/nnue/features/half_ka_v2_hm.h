@@ -23,8 +23,8 @@
 
 #include <cstdint>
 
-#include "../../misc.h"
-#include "../../types.h"
+#include "misc.h"
+#include "types.h"
 #include "../nnue_common.h"
 
 namespace Stockfish {

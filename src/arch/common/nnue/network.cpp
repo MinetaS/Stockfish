@@ -26,12 +26,12 @@
 #include <type_traits>
 #include <vector>
 
-#include "../evaluate.h"
-#include "../incbin/incbin.h"
-#include "../memory.h"
-#include "../misc.h"
-#include "../position.h"
-#include "../types.h"
+#include "evaluate.h"
+#include "incbin/incbin.h"
+#include "memory.h"
+#include "misc.h"
+#include "position.h"
+#include "types.h"
 #include "nnue_architecture.h"
 #include "nnue_common.h"
 #include "nnue_misc.h"

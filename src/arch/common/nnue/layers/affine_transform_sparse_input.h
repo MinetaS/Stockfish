@@ -26,7 +26,7 @@
 #include <cstdint>
 #include <iostream>
 
-#include "../../bitboard.h"
+#include "bitboard.h"
 #include "../nnue_common.h"
 #include "affine_transform.h"
 #include "simd.h"

@@ -22,7 +22,7 @@
 #include <cstddef>
 #include <string>
 
-#include "../types.h"
+#include "types.h"
 #include "nnue_architecture.h"
 
 namespace Stockfish {

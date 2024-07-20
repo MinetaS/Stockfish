@@ -53,8 +53,7 @@ This distribution of Stockfish consists of the following files:
 
   * [AUTHORS][authors-link], a text file with the list of authors for the project.
 
-  * [src][src-link], a subdirectory containing the full source code, including a
-    Makefile that can be used to compile Stockfish on Unix-like systems.
+  * src, a subdirectory containing the full source code.
 
   * a file with the .nnue extension, storing the neural network for the NNUE
     evaluation. Binary distributions will have this file embedded.
@@ -90,14 +89,13 @@ about the codebase and how to improve it.
 Stockfish has support for 32 or 64-bit CPUs, certain hardware instructions,
 big-endian machines such as Power PC, and other platforms.
 
-On Unix-like systems, it should be easy to compile Stockfish directly from the
-source code with the included Makefile in the folder `src`. In general, it is
-recommended to run `make help` to see a list of make targets with corresponding
-descriptions. An example suitable for most Intel and AMD chips:
+On most platforms, compiling Stockfish is easy as:
 
 ```
-cd src
-make -j profile-build ARCH=x86-64-avx2
+mkdir build
+cd build
+cmake ..
+make
 ```
 
 Detailed compilation instructions for all platforms can be found in our

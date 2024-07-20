@@ -16,8 +16,6 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// A class that converts the input features of the NNUE evaluation function
-
 #ifndef NNUE_FEATURE_TRANSFORMER_H_INCLUDED
 #define NNUE_FEATURE_TRANSFORMER_H_INCLUDED
 
@@ -28,8 +26,8 @@
 #include <iosfwd>
 #include <utility>
 
-#include "../position.h"
-#include "../types.h"
+#include "position.h"
+#include "types.h"
 #include "nnue_accumulator.h"
 #include "nnue_architecture.h"
 #include "nnue_common.h"

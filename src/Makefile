@@ -727,11 +727,13 @@ ifeq ($(neon),yes)
 	endif
 endif
 
+CXXFLAGS := $(CXXFLAGS) -I.
+
 ifeq ($(dotprod),yes)
 	ifeq ($(sve),yes)
-	     CXXFLAGS += -march=armv8.2-a+dotprod+sve -DUSE_NEON_DOTPROD -DUSE_SVE
-        else
-	     CXXFLAGS += -march=armv8.2-a+dotprod -DUSE_NEON_DOTPROD
+	    CXXFLAGS += -march=armv8.2-a+dotprod+sve -DUSE_NEON_DOTPROD -DUSE_SVE -I./arch/armv9-sve
+    else
+	    CXXFLAGS += -march=armv8.2-a+dotprod -DUSE_NEON_DOTPROD
 	endif
 endif
 
@@ -742,6 +744,8 @@ ifeq ($(pext),yes)
 		CXXFLAGS += -mbmi2
 	endif
 endif
+
+CXXFLAGS := $(CXXFLAGS) -I./arch/common
 
 ### 3.8.1 Try to include git commit sha for versioning
 GIT_SHA := $(shell git rev-parse HEAD 2>/dev/null | cut -c 1-8)
