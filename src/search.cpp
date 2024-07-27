@@ -913,6 +913,7 @@ moves_loop:  // When in check, search starts here
 
     int  moveCount        = 0;
     bool moveCountPruning = false;
+    bool ttMoveOk         = false;
 
     // Step 13. Loop through all pseudo-legal moves until no moves remain
     // or a beta cutoff occurs.
@@ -962,7 +963,7 @@ moves_loop:  // When in check, search starts here
         if (!rootNode && pos.non_pawn_material(us) && bestValue > VALUE_TB_LOSS_IN_MAX_PLY)
         {
             // Skip quiet moves if movecount exceeds our FutilityMoveCount threshold (~8 Elo)
-            moveCountPruning = moveCount >= futility_move_count(improving, depth);
+            moveCountPruning = moveCount >= futility_move_count(improving, depth) / (1 + ttMoveOk);
 
             // Reduced depth of the next LMR search
             int lmrDepth = newDepth - r;
@@ -1217,6 +1218,9 @@ moves_loop:  // When in check, search starts here
         pos.undo_move(move);
 
         assert(value > -VALUE_INFINITE && value < VALUE_INFINITE);
+
+        if (!PvNode && move == ttData.move && value > alpha)
+            ttMoveOk = true;
 
         // Step 20. Check for a new best move
         // Finished searching the move. If a stop occurred, the return value of
