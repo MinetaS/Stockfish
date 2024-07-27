@@ -126,8 +126,6 @@ using psqt_vec_t = vec_s32_t;
     #define vec_mulhi_16(a, b) svmulh_s16_z(svptrue_b16(), a, b)
     #define vec_zero() svdup_n_s16(0)
     #define vec_set_16(a) svdup_n_s16(a)
-    #define vec_max_16(a, b) svmax_s16_z(svptrue_b16(), a, b)
-    #define vec_min_16(a, b) svmin_s16_z(svptrue_b16(), a, b)
     #define vec_slli_16(a, n) svlsl_n_s16_z(svptrue_b16(), a, n)
     #define vec_packus_16 sve_vec_packus_16
     #define vec_load_psqt(ptr) (*(ptr))
@@ -384,8 +382,8 @@ class FeatureTransformer {
             static_assert((HalfDimensions / 2) % OutputChunkSize == 0);
             constexpr IndexType NumOutputChunks = HalfDimensions / 2 / OutputChunkSize;
 
-            const vec_t Zero = vec_zero();
-            const vec_t One  = vec_set_16(127 * 2);
+            const vec_t Zeroes = vec_zero();
+            const vec_t Ones   = vec_set_16(127 * 2);
 
             const vec_t* in0 = reinterpret_cast<const vec_t*>(&(accumulation[perspectives[p]][0]));
             const vec_t* in1 =
@@ -406,18 +404,30 @@ class FeatureTransformer {
                     // "vqdmulhq_s16" also doubles the return value after the
                     // multiplication, adding an extra shift to the left by 1, so
                     // we compensate by shifting less before the multiplication.
+    #if defined(USE_SVE)
+                constexpr std::int16_t Zero  = 0;
+                constexpr std::int16_t One   = 127 * 2;
+                constexpr int          Shift = 7;
 
-    #if defined(USE_SSE2) || defined(USE_SVE)
-                constexpr int shift = 7;
-    #else
-                constexpr int shift = 6;
-    #endif
                 const vec_t sum0a =
-                  vec_slli_16(vec_max_16(vec_min_16(in0[j * 2 + 0], One), Zero), shift);
+                  vec_slli_16(svmax_n_s16_z(svmin_n_s16_z(in0[j * 2 + 0], One), Zero), Shift);
                 const vec_t sum0b =
-                  vec_slli_16(vec_max_16(vec_min_16(in0[j * 2 + 1], One), Zero), shift);
-                const vec_t sum1a = vec_min_16(in1[j * 2 + 0], One);
-                const vec_t sum1b = vec_min_16(in1[j * 2 + 1], One);
+                  vec_slli_16(svmax_n_s16_z(svmin_n_s16_z(in0[j * 2 + 1], One), Zero), Shift);
+                const vec_t sum1a = svmin_n_s16_z(in1[j * 2 + 0], One);
+                const vec_t sum1b = svmin_n_s16_z(in1[j * 2 + 1], One);
+    #else
+        #if defined(USE_NEON)
+                constexpr int Shift = 6;
+        #else
+                constexpr int Shift = 7;
+        #endif
+                const vec_t sum0a =
+                  vec_slli_16(vec_max_16(vec_min_16(in0[j * 2 + 0], Ones), Zeroes), Shift);
+                const vec_t sum0b =
+                  vec_slli_16(vec_max_16(vec_min_16(in0[j * 2 + 1], Ones), Zeroes), Shift);
+                const vec_t sum1a = vec_min_16(in1[j * 2 + 0], Ones);
+                const vec_t sum1b = vec_min_16(in1[j * 2 + 1], Ones);
+    #endif
 
                 const vec_t pa = vec_mulhi_16(sum0a, sum1a);
                 const vec_t pb = vec_mulhi_16(sum0b, sum1b);

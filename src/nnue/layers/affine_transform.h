@@ -39,9 +39,23 @@
 
 namespace Stockfish::Eval::NNUE::Layers {
 
+#if 0
+
+template<IndexType InputDimensions, IndexType PaddedInputDimensions, IndexType OutputDimensions>
+static void affine_transform_non_ssse3(std::int32_t*       output,
+                                       const std::int8_t*  weights,
+                                       const std::int32_t* biases,
+                                       const std::uint8_t* input) {
+
+    constexpr IndexType NumChunks = ceil_to_multiple<IndexType>(InputDimensions, 16) / 16;
+
+    const auto 
+}
+
 // Fallback implementation for older/other architectures.
 // Requires the input to be padded to at least 16 values.
-#if !defined(USE_SSSE3)
+#elif !defined(USE_SSSE3)
+
 template<IndexType InputDimensions, IndexType PaddedInputDimensions, IndexType OutputDimensions>
 static void affine_transform_non_ssse3(std::int32_t*       output,
                                        const std::int8_t*  weights,
@@ -51,7 +65,7 @@ static void affine_transform_non_ssse3(std::int32_t*       output,
         #if defined(USE_SSE2)
     // At least a multiple of 16, with SSE2.
     constexpr IndexType NumChunks   = ceil_to_multiple<IndexType>(InputDimensions, 16) / 16;
-    const __m128i       Zeros       = _mm_setzero_si128();
+    const __m128i       Zeroes      = _mm_setzero_si128();
     const auto          inputVector = reinterpret_cast<const __m128i*>(input);
 
         #elif defined(USE_NEON_DOTPROD)
@@ -68,8 +82,9 @@ static void affine_transform_non_ssse3(std::int32_t*       output,
         const IndexType offset = i * PaddedInputDimensions;
 
         #if defined(USE_SSE2)
+
         __m128i    sumLo = _mm_cvtsi32_si128(biases[i]);
-        __m128i    sumHi = Zeros;
+        __m128i    sumHi = Zeroes;
         const auto row   = reinterpret_cast<const __m128i*>(&weights[offset]);
         for (IndexType j = 0; j < NumChunks; ++j)
         {
@@ -77,8 +92,8 @@ static void affine_transform_non_ssse3(std::int32_t*       output,
             __m128i input_j         = _mm_load_si128(&inputVector[j]);
             __m128i extendedRowLo   = _mm_srai_epi16(_mm_unpacklo_epi8(row_j, row_j), 8);
             __m128i extendedRowHi   = _mm_srai_epi16(_mm_unpackhi_epi8(row_j, row_j), 8);
-            __m128i extendedInputLo = _mm_unpacklo_epi8(input_j, Zeros);
-            __m128i extendedInputHi = _mm_unpackhi_epi8(input_j, Zeros);
+            __m128i extendedInputLo = _mm_unpacklo_epi8(input_j, Zeroes);
+            __m128i extendedInputHi = _mm_unpackhi_epi8(input_j, Zeroes);
             __m128i productLo       = _mm_madd_epi16(extendedRowLo, extendedInputLo);
             __m128i productHi       = _mm_madd_epi16(extendedRowHi, extendedInputHi);
             sumLo                   = _mm_add_epi32(sumLo, productLo);
@@ -91,7 +106,18 @@ static void affine_transform_non_ssse3(std::int32_t*       output,
         sum                   = _mm_add_epi32(sum, sum_second_32);
         output[i]             = _mm_cvtsi128_si32(sum);
 
+        #elif defined(USE_SVE)
+
+        vec_s32_t  sum = svdup_s32(biases[i]);
+        const auto row = reinterpret_cast<const vec_s8_t*>(&weights[offset]);
+
+        for (IndexType j = 0; j < NumChunks; ++j)
+            sum = svdot_s32(sum, inputVector[j], row[j]);
+
+        output[i] = svaddv_s32(sum);
+
         #elif defined(USE_NEON_DOTPROD)
+
         int32x4_t  sum = {biases[i]};
         const auto row = reinterpret_cast<const int8x16_t*>(&weights[offset]);
         for (IndexType j = 0; j < NumChunks; ++j)
@@ -101,6 +127,7 @@ static void affine_transform_non_ssse3(std::int32_t*       output,
         output[i] = vaddvq_s32(sum);
 
         #elif defined(USE_NEON)
+
         int32x4_t  sum = {biases[i]};
         const auto row = reinterpret_cast<const int8x8_t*>(&weights[offset]);
         for (IndexType j = 0; j < NumChunks; ++j)
@@ -113,7 +140,9 @@ static void affine_transform_non_ssse3(std::int32_t*       output,
 
         #endif
     }
-    #else
+
+    #else  // Vectorization is not supported for any other architecture.
+
     std::memcpy(output, biases, sizeof(std::int32_t) * OutputDimensions);
 
     // Traverse weights in transpose order to take advantage of input sparsity
@@ -127,6 +156,7 @@ static void affine_transform_non_ssse3(std::int32_t*       output,
         }
     #endif
 }
+
 #endif
 
 template<IndexType InDims, IndexType OutDims>
@@ -187,6 +217,7 @@ class AffineTransform {
 
         return !stream.fail();
     }
+
     // Forward propagation
     void propagate(const InputType* input, OutputType* output) const {
 
