@@ -99,9 +99,9 @@ namespace Stockfish::Simd {
 
 [[maybe_unused]] static void
 dotprod_m128_add_dpbusd_epi32(int32x4_t& acc, int8x16_t a, int8x16_t b) {
-
     acc = vdotq_s32(acc, a, b);
 }
+
 #endif
 
 #if defined(USE_NEON)
