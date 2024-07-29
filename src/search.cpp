@@ -1748,6 +1748,9 @@ void update_all_stats(const Position&      pos,
     int quietMoveBonus = stat_bonus(depth);
     int quietMoveMalus = stat_malus(depth);
 
+    if (ss->excludedMove)
+        quietMoveBonus /= 4, quietMoveMalus /= 4;
+
     if (!pos.capture_stage(bestMove))
     {
         update_quiet_histories(pos, ss, workerThread, bestMove, quietMoveBonus);
