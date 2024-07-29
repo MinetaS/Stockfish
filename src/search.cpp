@@ -681,11 +681,63 @@ Value Search::Worker::search(
 
     // Step 6. Static evaluation of the position
     Value unadjustedStaticEval = VALUE_NONE;
+
+    const PieceToHistory* contHist[] = {(ss - 1)->continuationHistory,
+                                        (ss - 2)->continuationHistory,
+                                        (ss - 3)->continuationHistory,
+                                        (ss - 4)->continuationHistory,
+                                        nullptr,
+                                        (ss - 6)->continuationHistory};
+
     if (ss->inCheck)
     {
-        // Skip early pruning when in check
         ss->staticEval = eval = (ss - 2)->staticEval;
         improving             = false;
+
+        const Value safeAlpha = alpha - 485;
+
+        if (!PvNode && !excludedMove && depth >= 3 && ttData.value <= safeAlpha
+            && ttData.depth >= depth - 2 && (ttData.bound & BOUND_UPPER))
+        {
+            MovePicker mp(pos, ttData.move, depth, &thisThread->mainHistory,
+                          &thisThread->captureHistory, contHist, &thisThread->pawnHistory);
+
+            while ((move = mp.next_move()) != Move::none())
+            {
+                assert(move.is_ok());
+
+                if (move == excludedMove)
+                    continue;
+
+                if (!pos.legal(move))
+                    continue;
+
+                prefetch(tt.first_entry(pos.key_after(move)));
+
+                ss->currentMove = move;
+                ss->continuationHistory =
+                  &this->continuationHistory[true][pos.capture_stage(move)][pos.moved_piece(move)]
+                                            [move.to_sq()];
+
+                thisThread->nodes.fetch_add(1, std::memory_order_relaxed);
+                pos.do_move(move, st);
+
+                value     = -search<NonPV>(pos, ss + 1, -safeAlpha - 1, -safeAlpha, 1, !cutNode);
+                bestValue = std::max(bestValue, value);
+
+                pos.undo_move(move);
+
+                if (value > safeAlpha)
+                    break;
+            }
+
+            if (bestValue <= safeAlpha)
+                return safeAlpha;
+
+            Eval::NNUE::hint_common_parent_position(pos, networks[numaAccessToken], refreshTable);
+        }
+
+        // Skip early pruning when in check
         goto moves_loop;
     }
     else if (excludedMove)
@@ -893,14 +945,6 @@ moves_loop:  // When in check, search starts here
         && std::abs(beta) < VALUE_TB_WIN_IN_MAX_PLY
         && std::abs(ttData.value) < VALUE_TB_WIN_IN_MAX_PLY)
         return probCutBeta;
-
-    const PieceToHistory* contHist[] = {(ss - 1)->continuationHistory,
-                                        (ss - 2)->continuationHistory,
-                                        (ss - 3)->continuationHistory,
-                                        (ss - 4)->continuationHistory,
-                                        nullptr,
-                                        (ss - 6)->continuationHistory};
-
 
     MovePicker mp(pos, ttData.move, depth, &thisThread->mainHistory, &thisThread->captureHistory,
                   contHist, &thisThread->pawnHistory);
