@@ -1484,13 +1484,6 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
                 && (ttData.bound & (ttData.value > bestValue ? BOUND_LOWER : BOUND_UPPER)))
                 bestValue = ttData.value;
         }
-        else if ((ss - 1)->currentMove == Move::null())
-        {
-            // In case of null move search, use previous static eval with opposite sign
-            ss->staticEval = bestValue = -(ss - 1)->staticEval;
-            auto cv = correctionHistory[~pos.side_to_move()][pawn_structure_index<Correction>(pos)];
-            unadjustedStaticEval = ss->staticEval - 66 * cv / 512;
-        }
         else
         {
             unadjustedStaticEval =
