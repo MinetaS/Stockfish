@@ -59,6 +59,16 @@ struct TTWriter {
    public:
     void write(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
 
+    inline void prefetch() const {
+#ifndef NO_PREFETCH
+    #ifdef _MSC_VER
+        _mm_prefetch(reinterpret_cast<const char*>(entry), _MM_HINT_ET0);
+    #else
+        __builtin_prefetch(entry, 1, 3);
+    #endif
+#endif
+    }
+
    private:
     friend class TranspositionTable;
     TTEntry* entry;
