@@ -870,8 +870,13 @@ Value Search::Worker::search(
 
             // If the qsearch held, perform the regular search
             if (value >= probCutBeta)
+            {
+                const bool prevState = disallowExtension;
+                disallowExtension = true;
                 value =
                   -search<NonPV>(pos, ss + 1, -probCutBeta, -probCutBeta + 1, depth - 4, !cutNode);
+                disallowExtension = prevState;
+            }
 
             pos.undo_move(move);
 
@@ -1041,7 +1046,7 @@ moves_loop:  // When in check, search starts here
             // time controls. Generally, higher singularBeta (i.e closer to ttValue)
             // and lower extension margins scale well.
 
-            if (!rootNode && move == ttData.move && !excludedMove
+            if (!rootNode && move == ttData.move && !excludedMove && !disallowExtension
                 && depth >= 4 - (thisThread->completedDepth > 36) + ss->ttPv
                 && std::abs(ttData.value) < VALUE_TB_WIN_IN_MAX_PLY && (ttData.bound & BOUND_LOWER)
                 && ttData.depth >= depth - 3)
