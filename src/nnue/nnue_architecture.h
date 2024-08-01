@@ -91,6 +91,11 @@ struct NetworkArchitecture {
             && fc_2.write_parameters(stream);
     }
 
+    inline void prefetch() const {
+        Stockfish::prefetch<L1 == TransformedFeatureDimensionsBig ? PrefetchHint::T1
+                                                                  : PrefetchHint::T0>(&fc_0);
+    }
+
     std::int32_t propagate(const TransformedFeatureType* transformedFeatures) {
         struct alignas(CacheLineSize) Buffer {
             alignas(CacheLineSize) typename decltype(fc_0)::OutputBuffer fc_0_out;

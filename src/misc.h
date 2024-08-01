@@ -41,7 +41,25 @@ std::string compiler_info();
 // Preloads the given address in L1/L2 cache. This is a non-blocking
 // function that doesn't stall the CPU waiting for data to be loaded from memory,
 // which can be quite slow.
-void prefetch(const void* addr);
+enum class PrefetchHint {
+    ET0 = 7,
+    T0  = 3,
+    T1  = 2,
+    T2  = 1,
+    NTA = 0
+};
+
+template<PrefetchHint Hint = PrefetchHint::T0>
+inline void prefetch(const void* addr) {
+    constexpr int hint = static_cast<int>(Hint);
+#ifndef NO_PREFETCH
+    #if defined(_MSC_VER)
+    _mm_prefetch(static_cast<char const*>(addr), hint);
+    #else
+    __builtin_prefetch(addr, hint >> 2, hint & 0x3);
+    #endif
+#endif
+}
 
 void start_logger(const std::string& fname);
 
