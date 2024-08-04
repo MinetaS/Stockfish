@@ -121,8 +121,16 @@ void MovePicker::score() {
 
     static_assert(Type == CAPTURES || Type == QUIETS || Type == EVASIONS, "Wrong type");
 
+    [[maybe_unused]] int adversityBonus;
     [[maybe_unused]] Bitboard threatenedByPawn, threatenedByMinor, threatenedByRook,
       threatenedPieces;
+
+    if constexpr (Type == CAPTURES)
+    {
+        const Color us = pos.side_to_move();
+        adversityBonus = 5000 * (pos.count<ALL_PIECES>(us) < pos.count<ALL_PIECES>(~us));
+    }
+
     if constexpr (Type == QUIETS)
     {
         Color us = pos.side_to_move();
@@ -142,7 +150,8 @@ void MovePicker::score() {
         if constexpr (Type == CAPTURES)
             m.value =
               7 * int(PieceValue[pos.piece_on(m.to_sq())])
-              + (*captureHistory)[pos.moved_piece(m)][m.to_sq()][type_of(pos.piece_on(m.to_sq()))];
+              + (*captureHistory)[pos.moved_piece(m)][m.to_sq()][type_of(pos.piece_on(m.to_sq()))]
+              + adversityBonus;
 
         else if constexpr (Type == QUIETS)
         {
