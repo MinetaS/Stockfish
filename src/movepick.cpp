@@ -178,7 +178,7 @@ void MovePicker::score() {
 
         else  // Type == EVASIONS
         {
-            if (pos.capture_stage(m))
+            if (pos.capture_stage(m) && pos.see_ge(m))
                 m.value =
                   PieceValue[pos.piece_on(m.to_sq())] - type_of(pos.moved_piece(m)) + (1 << 28);
             else
