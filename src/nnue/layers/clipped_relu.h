@@ -64,8 +64,10 @@ class ClippedReLU {
 #if defined(USE_AVX2)
         if constexpr (InputDimensions % SimdWidth == 0)
         {
+            static const __m256i permuteTable = _mm256_set_epi32(7, 3, 6, 2, 5, 1, 4, 0);
+
             constexpr IndexType NumChunks = InputDimensions / SimdWidth;
-            const __m256i       Offsets   = _mm256_set_epi32(7, 3, 6, 2, 5, 1, 4, 0);
+
             const auto          in        = reinterpret_cast<const __m256i*>(input);
             const auto          out       = reinterpret_cast<__m256i*>(output);
             for (IndexType i = 0; i < NumChunks; ++i)
@@ -79,7 +81,7 @@ class ClippedReLU {
                                                         _mm256_load_si256(&in[i * 4 + 3])),
                                     WeightScaleBits);
                 _mm256_store_si256(&out[i], _mm256_permutevar8x32_epi32(
-                                              _mm256_packs_epi16(words0, words1), Offsets));
+                                              _mm256_packs_epi16(words0, words1), permuteTable));
             }
         }
         else
