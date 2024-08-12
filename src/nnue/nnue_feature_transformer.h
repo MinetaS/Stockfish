@@ -405,8 +405,10 @@ class FeatureTransformer {
 
     void hint_common_access(const Position&                           pos,
                             AccumulatorCaches::Cache<HalfDimensions>* cache) const {
-        hint_common_access_for_perspective<WHITE>(pos, cache);
-        hint_common_access_for_perspective<BLACK>(pos, cache);
+        if (pos.side_to_move() == WHITE)
+            hint_common_access_for_perspective<WHITE>(pos, cache);
+        else
+            hint_common_access_for_perspective<BLACK>(pos, cache);
     }
 
    private:
