@@ -59,6 +59,8 @@ struct TTWriter {
    public:
     void write(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
 
+    inline const void* entry_ptr() const { return entry; }
+
    private:
     friend class TranspositionTable;
     TTEntry* entry;

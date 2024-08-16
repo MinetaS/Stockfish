@@ -52,6 +52,12 @@
 
 namespace Stockfish {
 
+#ifdef __CLDEMOTE__
+    #define cldemote _cldemote
+#else
+    #define cldemote(p) ((void)(p))
+#endif
+
 namespace TB = Tablebases;
 
 void syzygy_extend_pv(const OptionsMap&            options,
@@ -670,7 +676,7 @@ Value Search::Worker::search(
                     ttWriter.write(posKey, value_to_tt(value, ss->ply), ss->ttPv, b,
                                    std::min(MAX_PLY - 1, depth + 6), Move::none(), VALUE_NONE,
                                    tt.generation());
-
+                    cldemote(ttWriter.entry_ptr());
                     return value;
                 }
 
@@ -883,6 +889,7 @@ Value Search::Worker::search(
                 // Save ProbCut data into transposition table
                 ttWriter.write(posKey, value_to_tt(value, ss->ply), ss->ttPv, BOUND_LOWER,
                                depth - 3, move, unadjustedStaticEval, tt.generation());
+                cldemote(ttWriter.entry_ptr());
                 return std::abs(value) < VALUE_TB_WIN_IN_MAX_PLY ? value - (probCutBeta - beta)
                                                                  : value;
             }
@@ -1380,6 +1387,8 @@ moves_loop:  // When in check, search starts here
                                             : BOUND_UPPER,
                        depth, bestMove, unadjustedStaticEval, tt.generation());
 
+    cldemote(ttWriter.entry_ptr());
+
     // Adjust correction history
     if (!ss->inCheck && (!bestMove || !pos.capture(bestMove))
         && !(bestValue >= beta && bestValue <= ss->staticEval)
@@ -1510,6 +1519,7 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
                 ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), false, BOUND_LOWER,
                                DEPTH_UNSEARCHED, Move::none(), unadjustedStaticEval,
                                tt.generation());
+                cldemote(ttWriter.entry_ptr());
             return bestValue;
         }
 
@@ -1649,6 +1659,7 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
     ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), pvHit,
                    bestValue >= beta ? BOUND_LOWER : BOUND_UPPER, DEPTH_QS, bestMove,
                    unadjustedStaticEval, tt.generation());
+    cldemote(ttWriter.entry_ptr());
 
     assert(bestValue > -VALUE_INFINITE && bestValue < VALUE_INFINITE);
 
