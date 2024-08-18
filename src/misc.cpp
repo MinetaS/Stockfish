@@ -159,134 +159,111 @@ std::string engine_info(bool to_uci) {
 
 // Returns a string trying to describe the compiler we use
 std::string compiler_info() {
+    std::stringstream ss;
 
-#define make_version_string(major, minor, patch) \
-    stringify(major) "." stringify(minor) "." stringify(patch)
-
-    // Predefined macros hell:
-    //
-    // __GNUC__                Compiler is GCC, Clang or ICX
-    // __clang__               Compiler is Clang or ICX
-    // __INTEL_LLVM_COMPILER   Compiler is ICX
-    // _MSC_VER                Compiler is MSVC
-    // _WIN32                  Building on Windows (any)
-    // _WIN64                  Building on Windows 64 bit
-
-    std::string compiler = "\nCompiled by                : ";
+    ss << "Compiler        : ";
 
 #if defined(__INTEL_LLVM_COMPILER)
-    compiler += "ICX ";
-    compiler += stringify(__INTEL_LLVM_COMPILER);
+    ss << "ICX ";
+    ss << stringify(__VERSION);
 #elif defined(__clang__)
-    compiler += "clang++ ";
-    compiler += make_version_string(__clang_major__, __clang_minor__, __clang_patchlevel__);
-#elif _MSC_VER
-    compiler += "MSVC ";
-    compiler += "(version ";
-    compiler += stringify(_MSC_FULL_VER) "." stringify(_MSC_BUILD);
-    compiler += ")";
+    ss << "Clang ";
+    ss << __clang_major__ << '.' << __clang_minor__ << '.' << __clang_patchlevel__;
 #elif defined(__e2k__) && defined(__LCC__)
-    #define dot_ver2(n) \
-        compiler += char('.'); \
-        compiler += char('0' + (n) / 10); \
-        compiler += char('0' + (n) % 10);
-
-    compiler += "MCST LCC ";
-    compiler += "(version ";
-    compiler += std::to_string(__LCC__ / 100);
-    dot_ver2(__LCC__ % 100) dot_ver2(__LCC_MINOR__) compiler += ")";
-#elif __GNUC__
-    compiler += "g++ (GNUC) ";
-    compiler += make_version_string(__GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__);
+    ss << "MCST LCC ";
+    ss << (__LCC__ / 100) << '.' << std::setfill('0') << std::setw(2) << (__LCC__ % 100) << '.'
+       << __LCC_MINOR__;
+    ss.clear();
+#elif defined(__GNUC__)
+    ss << "g++ ";
+    ss << __GNUC__ << '.' << __GNUC_MINOR__ << '.' << __GNUC_PATCHLEVEL__;
+#elif defined(_MSC_VER)
+    ss << "MSVC ";
+    ss << _MSC_FULL_VER << '.' << _MSC_BUILD;
 #else
-    compiler += "Unknown compiler ";
-    compiler += "(unknown version)";
+    ss << "Unknown compiler";
 #endif
 
 #if defined(__APPLE__)
-    compiler += " on Apple";
+    ss << " on Apple";
 #elif defined(__CYGWIN__)
-    compiler += " on Cygwin";
-#elif defined(__MINGW64__)
-    compiler += " on MinGW64";
+    ss << " on Cygwin";
 #elif defined(__MINGW32__)
-    compiler += " on MinGW32";
-#elif defined(__ANDROID__)
-    compiler += " on Android";
+    ss << " on MinGW";
 #elif defined(__linux__)
-    compiler += " on Linux";
+    ss << " on Linux";
 #elif defined(_WIN64)
-    compiler += " on Microsoft Windows 64-bit";
+    ss << " on Microsoft Windows 64-bit";
 #elif defined(_WIN32)
-    compiler += " on Microsoft Windows 32-bit";
+    ss << " on Microsoft Windows 32-bit";
 #else
-    compiler += " on unknown system";
+    ss << " on unknown system";
 #endif
 
-    compiler += "\nCompilation architecture   : ";
-#if defined(ARCH)
-    compiler += stringify(ARCH);
+    ss << "\n";
+    ss << "Build type      : ";
+
+#ifdef NDEBUG
+    ss << "Release";
 #else
-    compiler += "(undefined architecture)";
+    ss << "Debug";
 #endif
 
-    compiler += "\nCompilation settings       : ";
-    compiler += (Is64Bit ? "64bit" : "32bit");
+    ss << "\n";
+    ss << "Build profile   : ";
+
+#ifdef ARCH
+    ss << stringify(ARCH);
+#else
+    ss << "unknown";
+#endif
+
+    ss << "\n";
+    ss << "Compile options : ";
+    ss << (Is64Bit ? "64bit" : "32bit");
 
 // x86/AMD64 family
-#if defined(USE_VNNI)
-    compiler += " VNNI";
-#endif
-#if defined(USE_AVX512)
-    compiler += " AVX512";
-#endif
-    compiler += (HasPext ? " BMI2" : "");
-#if defined(USE_AVX2)
-    compiler += " AVX2";
-#endif
-#if defined(USE_SSE41)
-    compiler += " SSE41";
-#endif
-#if defined(USE_SSSE3)
-    compiler += " SSSE3";
-#endif
-#if defined(USE_SSE2)
-    compiler += " SSE2";
-#endif
-
-    compiler += (HasPopCnt ? " POPCNT" : "");
-
-// ARM/AArch64 family
-#if defined(USE_SVE)
-    #if USE_SVE >= 2001
-    compiler += " SVE2.1";
-    #elif USE_SVE >= 2000
-    compiler += " SVE2";
-    #else
-    compiler += " SVE";
+#ifdef __AVX512F__
+    ss << " AVX-512 (F";
+    #ifdef __AVX512BW__
+    ss << ",BW";
     #endif
+    #ifdef __AVX512VL__
+    ss << ",VL";
+    #endif
+    #ifdef __AVX512VNNI__
+    ss << ",VNNI";
+    #endif
+    ss << ")";
+#endif
+#ifdef __BMI2__
+    ss << " BMI2";
+#endif
+#ifdef __AVX2__
+    ss << " AVX2";
+#endif
+#ifdef __BMI__
+    ss << " BMI";
+#endif
+#ifdef __AVX__
+    ss << " AVX";
+#endif
+#ifdef __POPCNT__
+    ss << " POPCNT";
+#endif
+#ifdef __SSE4_1__
+    ss << " SSE4.1";
+#endif
+#ifdef __SSSE3__
+    ss << " SSSE3";
+#endif
+#ifdef __SSE2__
+    ss << " SSE2";
 #endif
 
-#if defined(USE_NEON_DOTPROD)
-    compiler += " NEON_DOTPROD";
-#elif defined(USE_NEON)
-    compiler += " NEON";
-#endif
+    ss << "\n";
 
-#if !defined(NDEBUG)
-    compiler += " DEBUG";
-#endif
-
-    compiler += "\nCompiler __VERSION__ macro : ";
-#ifdef __VERSION__
-    compiler += __VERSION__;
-#else
-    compiler += "(undefined macro)";
-#endif
-
-    compiler += "\n";
-
-    return compiler;
+    return ss.str();
 }
 
 

@@ -1,0 +1,134 @@
+define HELP_STRING_I386
+To build Stockfish, run the following command:
+
+make <build-target> [ARCH=<preset>] [LIMIT_AVX512=1]
+
+Build presets for x86 architecture:
+
+x86-64-avx512-vnni      > 64-bit, AVX-512 with BW/VL/VNNI
+x86-64-avx512-vl        > 64-bit, AVX-512 with BW/VL
+x86-64-avx512           > 64-bit, AVX-512
+x86-64-avxvnni          > 64-bit, AVX2 with AVX-VNNI
+x86-64-bmi2             > 64-bit, AVX2 and BMI2
+x86-64-avx2             > 64-bit, AVX2
+x86-64-avx              > 64-bit, AVX
+x86-64-popcnt           > 64-bit, POPCNT with SSE4.2
+x86-64-sse41            > 64-bit, SSE4.1
+x86-64-ssse3            > 64-bit, SSSE3
+x86-64                  > 64-bit generic (supports up to SSE2)
+x86-32                  > 32-bit generic (supports up to SSE2)
+
+Build presets for x86 architecture, AMD processors:
+
+x86-64-bmi              > 64-bit, AVX with BMI
+x86-64-abm              > 64-bit, SSE4a with ABM
+
+x86 options:
+
+    LIMIT_AVX512
+
+If LIMIT_AVX512 is set, use EVEX encoded 256-bit width registers intstead of
+512-bit registers. This option is only available for AVX-512 with VL.
+
+    SIMD_REGISTER_COUNT
+
+Override how many XMM registers are present in the target architecture.
+
+endef
+export HELP_STRING_I386
+
+ifeq ($(ARCH),x86-64-vnni512)
+    override ARCH := x86-64-avx512-vnni
+endif
+
+ifeq ($(ARCH),x86-64-vnni256)
+    override ARCH := x86-64-avx512-vnni
+    override LIMIT_AVX512 := 1
+endif
+
+ifneq ($(filter $(COMP),gcc clang icx),)
+
+ifneq ($(filter x86-64%,$(ARCH)),)
+    BITS := 64
+else
+    BITS := 32
+endif
+
+SF_CXXFLAGS += -m$(BITS)
+
+ifeq ($(ARCH),x86-64-avx512-vnni)
+    SF_CXXFLAGS += -m64 -mmmx -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 \
+                   -mpopcnt -mavx -mbmi -mavx2 -mbmi2 -mavx512f -mavx512bw \
+                   -mavx512vl -mavx512vnni
+    ifeq ($(LIMIT_AVX512),1)
+        SF_CXXFLAGS += -mprefer-vector-width=256
+    endif
+else ifeq ($(ARCH),x86-64-avx512-vl)
+    # VL support implies BW support.
+    SF_CXXFLAGS += -m64 -mmmx -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 \
+                   -mpopcnt -mavx -mbmi -mavx2 -mbmi2 -mavx512f -mavx512bw \
+                   -mavx512vl
+    ifeq ($(LIMIT_AVX512),1)
+        SF_CXXFLAGS += -mprefer-vector-width=256
+    endif
+else ifeq ($(ARCH),x86-64-avx512)
+    SF_CXXFLAGS += -m64 -mmmx -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 \
+                   -mpopcnt -mavx -mbmi -mavx2 -mbmi2 -mavx512f
+else ifeq ($(ARCH),x86-64-avxvnni)
+    SF_CXXFLAGS += -m64 -mmmx -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 \
+                   -mpopcnt -mavx -mbmi -mavx2 -mbmi2 -mavxvnni
+else ifeq ($(ARCH),x86-64-bmi2)
+    SF_CXXFLAGS += -m64 -mmmx -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 \
+                   -mpopcnt -mavx -mbmi -mavx2 -mbmi2
+else ifeq ($(ARCH),x86-64-avx2)
+    # VIA Eden X4 does not support BMI/BMI2, need a custom profile if required.
+    SF_CXXFLAGS += -m64 -mmmx -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 \
+                   -mpopcnt -mavx -mbmi -mavx2
+else ifeq ($(ARCH),x86-64-bmi)
+    # Some AMD processors (AMD family 15h) have BMI1 only.
+    SF_CXXFLAGS += -m64 -mmmx -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 \
+                   -mpopcnt -mavx -mbmi
+else ifeq ($(ARCH),x86-64-avx)
+    SF_CXXFLAGS += -m64 -mmmx -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 \
+                   -mpopcnt -mavx
+else ifeq ($(ARCH),x86-64-popcnt)
+    SF_CXXFLAGS += -m64 -mmmx -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 \
+                   -mpopcnt
+else ifeq ($(ARCH),x86-64-sse41)
+    SF_CXXFLAGS += -m64 -mmmx -msse -msse2 -msse3 -mssse3 -msse4.1
+else ifeq ($(ARCH),x86-64-ssse3)
+    SF_CXXFLAGS += -m64 -mmmx -msse -msse2 -msse3 -mssse3
+else ifeq ($(ARCH),x86-64-abm)
+    SF_CXXFLAGS += -m64 -mmmx -msse -msse2 -msse3 -msse4a -mabm
+else ifeq ($(ARCH),x86-64)
+    # Modern compilers add SSE2 flag by default.
+    # Do not add it explicitly to make it compatible with older compilers.
+    SF_CXXFLAGS += -m64
+else ifeq ($(ARCH),x86-32)
+    SF_CXXFLAGS += -m32
+endif
+
+ifneq ($(SIMD_REGISTER_COUNT),)
+    SF_CXXFLAGS += -DSIMD_REGISTER_COUNT=$(SIMD_REGISTER_COUNT)
+endif
+
+.PHONY: help-arch config-sanity-arch
+
+help-arch:
+	@echo "$${HELP_STRING_I386}"
+
+config-sanity-arch:
+	@[ "$(ARCH)" = "x86-64-avx512-vnni" -o \
+	   "$(ARCH)" = "x86-64-avx512-vl" -o \
+	   "$(ARCH)" = "x86-64-avx512" -o \
+	   "$(ARCH)" = "x86-64-avxvnni" -o \
+	   "$(ARCH)" = "x86-64-avx2" -o \
+	   "$(ARCH)" = "x86-64-bmi" -o \
+	   "$(ARCH)" = "x86-64-avx" -o \
+	   "$(ARCH)" = "x86-64-popcnt" -o \
+	   "$(ARCH)" = "x86-64-sse41" -o \
+	   "$(ARCH)" = "x86-64-ssse3" -o \
+	   "$(ARCH)" = "x86-64-abm" -o \
+	   "$(ARCH)" = "x86-64" -o \
+	   "$(ARCH)" = "x86-32" \
+	]

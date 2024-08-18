@@ -29,12 +29,6 @@
 //
 // -DNO_PREFETCH | Disable use of prefetch asm-instruction. You may need this to
 //               | run on some very old machines.
-//
-// -DUSE_POPCNT  | Add runtime support for use of popcnt asm-instruction. Works
-//               | only in 64-bit mode and requires hardware with popcnt support.
-//
-// -DUSE_PEXT    | Add runtime support for use of pext asm-instruction. Works
-//               | only in 64-bit mode and requires hardware with pext support.
 
     #include <cassert>
     #include <cstdint>
@@ -84,13 +78,7 @@
 
 namespace Stockfish {
 
-    #ifdef USE_POPCNT
-constexpr bool HasPopCnt = true;
-    #else
-constexpr bool HasPopCnt = false;
-    #endif
-
-    #ifdef USE_PEXT
+    #ifdef __BMI2__
 constexpr bool HasPext = true;
     #else
 constexpr bool HasPext = false;

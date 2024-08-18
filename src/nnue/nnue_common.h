@@ -16,7 +16,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// Constants used in NNUE evaluation function
+// Common constants and functions used in NNUE evaluation function
 
 #ifndef NNUE_COMMON_H_INCLUDED
 #define NNUE_COMMON_H_INCLUDED
@@ -28,52 +28,18 @@
 #include <iostream>
 #include <type_traits>
 
-#include "../misc.h"
-
-#if defined(USE_AVX2)
-    #include <immintrin.h>
-
-#elif defined(USE_SSE41)
-    #include <smmintrin.h>
-
-#elif defined(USE_SSSE3)
-    #include <tmmintrin.h>
-
-#elif defined(USE_SSE2)
-    #include <emmintrin.h>
-
-#endif
-
-#if defined(USE_SVE)
-    #include <arm_sve.h>
-
-// SVE vector types.
-
-static constexpr size_t SVERegisterSize = __ARM_FEATURE_SVE_BITS;
-static_assert(SVERegisterSize % 128 == 0);
-
-    #define __sve_vlst__ __attribute__((arm_sve_vector_bits(__ARM_FEATURE_SVE_BITS)))
-
-using vec_s8_t  = svint8_t    __sve_vlst__;
-using vec_u8_t  = svuint8_t   __sve_vlst__;
-using vec_s16_t = svint16_t  __sve_vlst__;
-using vec_u16_t = svuint16_t __sve_vlst__;
-using vec_s32_t = svint32_t  __sve_vlst__;
-using vec_u32_t = svuint32_t __sve_vlst__;
-using vec_s64_t = svint64_t  __sve_vlst__;
-using vec_u64_t = svuint64_t __sve_vlst__;
-using pred_t    = svbool_t      __sve_vlst__;
-
-#endif
-
-#if defined(USE_NEON)
-    #include <arm_neon.h>
-#endif
+#include "misc.h"
 
 namespace Stockfish::Eval::NNUE {
 
 // Version of the evaluation file
 constexpr std::uint32_t Version = 0x7AF32F20u;
+
+using IndexType = std::uint32_t;
+
+using FTBiasType             = std::int16_t;
+using FTPSQTWeightType       = std::int32_t;
+using TransformedFeatureType = std::uint8_t;
 
 // Constant used in evaluation value calculation
 constexpr int OutputScale     = 16;
@@ -82,25 +48,11 @@ constexpr int WeightScaleBits = 6;
 // Size of cache line (in bytes)
 constexpr std::size_t CacheLineSize = 64;
 
-constexpr const char        Leb128MagicString[]   = "COMPRESSED_LEB128";
-constexpr const std::size_t Leb128MagicStringSize = sizeof(Leb128MagicString) - 1;
+// Alignment/padding of input/output buffers across layers
+constexpr std::size_t BufferAlignment = 32;
 
-// SIMD width (in bytes)
-#if defined(USE_AVX2)
-constexpr std::size_t SimdWidth = 32;
-
-#elif defined(USE_SSE2)
-constexpr std::size_t SimdWidth = 16;
-
-#elif defined(USE_NEON)
-constexpr std::size_t SimdWidth = 16;
-#endif
-
-constexpr std::size_t MaxSimdWidth = 32;
-
-// Type of input feature after conversion
-using TransformedFeatureType = std::uint8_t;
-using IndexType              = std::uint32_t;
+constexpr const char  Leb128MagicString[]   = "COMPRESSED_LEB128";
+constexpr std::size_t Leb128MagicStringSize = sizeof(Leb128MagicString) - 1;
 
 // Round n up to be a multiple of base
 template<typename IntType>
