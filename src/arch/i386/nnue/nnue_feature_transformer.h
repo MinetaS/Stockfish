@@ -39,14 +39,15 @@
 #include "position.h"
 #include "nnue/nnue_accumulator.h"
 #include "nnue/nnue_common.h"
+#include "types.h"
 
 namespace Stockfish::Eval::NNUE {
 
 template<IndexType                                 TransformedFeatureDimensions,
          Accumulator<TransformedFeatureDimensions> StateInfo::*accPtr>
-struct FeatureTransformer<TransformedFeatureDimensions, accPtr>::RegisterInfo {
+struct FeatureTransformer<TransformedFeatureDimensions, accPtr>::Details {
 #if defined(__AVX512F__) && defined(__AVX512BW__)
-    // The size of the current PSQT weights array is 32 bytes.
+    // The size of the current PSQT weights array is too small for AVX-512.
     using vec_t      = __m512i;
     using psqt_vec_t = __m256i;
 #elif defined(__AVX2__)
@@ -59,8 +60,7 @@ struct FeatureTransformer<TransformedFeatureDimensions, accPtr>::RegisterInfo {
 
    private:
 #if defined(__AVX512F__)
-    // EVEX encoding of XMM/YMM registers
-    static constexpr int NumXMM = 32;
+    static constexpr int NumXMM = 32;  // EVEX encoding scheme
 #else
     static constexpr int NumXMM = Is64Bit ? 16 : 8;
 #endif
@@ -95,9 +95,17 @@ struct FeatureTransformer<TransformedFeatureDimensions, accPtr>::RegisterInfo {
       optimal_register_count<AccRegisterSize, sizeof(WeightType), TransformedFeatureDimensions>();
     static constexpr int OptimalPSQTRegisterCount =
       optimal_register_count<PSQTRegisterSize, sizeof(PSQTWeightType), PSQTBuckets>();
+
+    static constexpr IndexType TileHeight     = OptimalAccRegisterCount * AccRegisterSize / 2;
+    static constexpr IndexType PsqtTileHeight = OptimalPSQTRegisterCount * PSQTRegisterSize / 4;
+
+    static_assert(HalfDimensions % TileHeight == 0,
+                  "HalfDimensions must be multiple of TileHeight");
+    static_assert(PSQTBuckets % PsqtTileHeight == 0,
+                  "PSQTBuckets must be multiple of PsqtTileHeight");
 };
 
-template<bool RegisterSize, bool Write>
+template<std::size_t RegisterSize, bool Write>
 static inline constexpr void permute_pack(std::uint64_t* v) {
     if constexpr (RegisterSize == 64)
         if constexpr (Write)
@@ -122,8 +130,7 @@ static inline constexpr void permute_pack(std::uint64_t* v) {
             v[12] = v[10], v[13] = v[11];
             v[10] = tmp0, v[11] = tmp1;
         }
-
-    if constexpr (RegisterSize == 32)
+    else if constexpr (RegisterSize == 32)
     {
         std::swap(v[2], v[4]);
         std::swap(v[3], v[5]);
@@ -133,23 +140,22 @@ static inline constexpr void permute_pack(std::uint64_t* v) {
 template<IndexType                                 TransformedFeatureDimensions,
          Accumulator<TransformedFeatureDimensions> StateInfo::*accPtr>
 template<bool Write>
-void FeatureTransformer<TransformedFeatureDimensions, accPtr>::permute_weights() const {
+void FeatureTransformer<TransformedFeatureDimensions, accPtr>::permute_weights() {
     // The weight numbers are permuted preliminarily, due to the use of
     // AVX2/AVX-512 pack intrinsics.
-#ifdef __AVX2__
+    if constexpr (Details::AccRegisterSize >= 32)
+    {
+        constexpr IndexType Width = Details::AccRegisterSize == 64 ? 16 : 8;
 
-    constexpr IndexType Width = RegisterInfo::AccRegisterSize == 64 ? 16 : 8;
+        for (IndexType i = 0; i < HalfDimensions * sizeof(BiasType) / 8; i += Width)
+            permute_pack<Details::AccRegisterSize, Write>(
+              &reinterpret_cast<std::uint64_t*>(biases)[i]);
 
-    for (IndexType i = 0; i < HalfDimensions * sizeof(BiasType) / 8; i += Width)
-        permute_pack<RegisterInfo::AccRegisterSize, Write>(
-          &reinterpret_cast<std::uint64_t*>(biases)[i]);
-
-    for (IndexType j = 0; j < InputDimensions; ++j)
-        for (IndexType i = 0; i < HalfDimensions * sizeof(WeightType) / 8; i += Width)
-            permute_pack<RegisterInfo::AccRegisterSize, Write>(
-              &reinterpret_cast<std::uint64_t*>(&weights[j * HalfDimensions])[i]);
-
-#endif  // __AVX2__
+        for (IndexType j = 0; j < InputDimensions; ++j)
+            for (IndexType i = 0; i < HalfDimensions * sizeof(WeightType) / 8; i += Width)
+                permute_pack<Details::AccRegisterSize, Write>(
+                  &reinterpret_cast<std::uint64_t*>(&weights[j * HalfDimensions])[i]);
+    }
 }
 
 template<IndexType                                 TransformedFeatureDimensions,
@@ -160,29 +166,44 @@ void FeatureTransformer<TransformedFeatureDimensions, accPtr>::
                                         StateInfo*            states_to_update[N],
                                         FeatureSet::IndexList removed[N],
                                         FeatureSet::IndexList added[N]) const {
-    using vec_t      = typename RegisterInfo::vec_t;
-    using psqt_vec_t = typename RegisterInfo::psqt_vec_t;
+    using vec_t      = typename Details::vec_t;
+    using psqt_vec_t = typename Details::psqt_vec_t;
 
     StateInfo* st = computed_st;
 
-    vec_t acc[RegisterInfo::OptimalAccRegisterCount];
-    vec_t psqt[RegisterInfo::OptimalPSQTRegisterCount];
-
+    // The most common case when updating the accumulator incrementally.
+    // Calculates feature differences directly without using tiling mechanism.
     if (N == 1 && (removed[0].size() == 1 || removed[0].size() == 2) && added[0].size() == 1)
     {
         const auto accIn =
           reinterpret_cast<const vec_t*>(&(st->*accPtr).accumulation[Perspective][0]);
         const auto accOut =
           reinterpret_cast<vec_t*>(&(states_to_update[0]->*accPtr).accumulation[Perspective][0]);
-        const auto accPsqtIn =
-          reinterpret_cast<const psqt_vec_t*>(&(st->*accPtr).psqtAccumulation[Perspective][0]);
-        const auto accPsqtOut = reinterpret_cast<psqt_vec_t*>(
-          &(states_to_update[0]->*accPtr).psqtAccumulation[Perspective][0]);
 
         const IndexType offsetR0 = HalfDimensions * removed[0][0];
         const auto      columnR0 = reinterpret_cast<const vec_t*>(&weights[offsetR0]);
         const IndexType offsetA  = HalfDimensions * added[0][0];
         const auto      columnA  = reinterpret_cast<const vec_t*>(&weights[offsetA]);
+
+        if (removed[0].size() == 1)
+        {
+            for (IndexType k = 0; k < HalfDimensions * sizeof(WeightType) / sizeof(vec_t); ++k)
+                accOut[k] = vadd_16(vsub_16(accIn[k], columnR0[k]), columnA[k]);
+        }
+        else
+        {
+            const IndexType offsetR1 = HalfDimensions * removed[0][1];
+            auto            columnR1 = reinterpret_cast<const vec_t*>(&weights[offsetR1]);
+
+            for (IndexType k = 0; k < HalfDimensions * sizeof(WeightType) / sizeof(vec_t); ++k)
+                accOut[k] =
+                  vsub_16(vadd_16(accIn[k], columnA[k]), vadd_16(columnR0[k], columnR1[k]));
+        }
+
+        const auto accPsqtIn =
+          reinterpret_cast<const psqt_vec_t*>(&(st->*accPtr).psqtAccumulation[Perspective][0]);
+        const auto accPsqtOut = reinterpret_cast<psqt_vec_t*>(
+          &(states_to_update[0]->*accPtr).psqtAccumulation[Perspective][0]);
 
         const IndexType offsetPsqtR0 = PSQTBuckets * removed[0][0];
         auto columnPsqtR0 = reinterpret_cast<const psqt_vec_t*>(&psqtWeights[offsetPsqtR0]);
@@ -191,24 +212,14 @@ void FeatureTransformer<TransformedFeatureDimensions, accPtr>::
 
         if (removed[0].size() == 1)
         {
-            for (IndexType k = 0; k < HalfDimensions * sizeof(WeightType) / sizeof(vec_t); ++k)
-                accOut[k] = vadd_16(vsub_16(accIn[k], columnR0[k]), columnA[k]);
-
             for (IndexType k = 0; k < PSQTBuckets * sizeof(PSQTWeightType) / sizeof(psqt_vec_t);
                  ++k)
                 accPsqtOut[k] = vadd_32(vsub_32(accPsqtIn[k], columnPsqtR0[k]), columnPsqtA[k]);
         }
         else
         {
-            const IndexType offsetR1 = HalfDimensions * removed[0][1];
-            auto            columnR1 = reinterpret_cast<const vec_t*>(&weights[offsetR1]);
-
             const IndexType offsetPsqtR1 = PSQTBuckets * removed[0][1];
             auto columnPsqtR1 = reinterpret_cast<const psqt_vec_t*>(&psqtWeights[offsetPsqtR1]);
-
-            for (IndexType k = 0; k < HalfDimensions * sizeof(WeightType) / sizeof(vec_t); ++k)
-                accOut[k] =
-                  vsub_16(vadd_16(accIn[k], columnA[k]), vadd_16(columnR0[k], columnR1[k]));
 
             for (IndexType k = 0; k < PSQTBuckets * sizeof(PSQTWeightType) / sizeof(psqt_vec_t);
                  ++k)
@@ -218,83 +229,77 @@ void FeatureTransformer<TransformedFeatureDimensions, accPtr>::
     }
     else
     {
-        static constexpr IndexType TileHeight =
-          RegisterInfo::OptimalAccRegisterCount * RegisterInfo::AccRegisterSize / 2;
-        static constexpr IndexType PsqtTileHeight =
-          RegisterInfo::OptimalPSQTRegisterCount * RegisterInfo::PSQTRegisterSize / 2;
-        static_assert(HalfDimensions % TileHeight == 0, "TileHeight must divide HalfDimensions");
-        static_assert(PSQTBuckets % PsqtTileHeight == 0, "PsqtTileHeight must divide PSQTBuckets");
+        // Update accumulator
+        vec_t acc[Details::OptimalAccRegisterCount];
 
-        for (IndexType j = 0; j < HalfDimensions / TileHeight; ++j)
+        for (IndexType j = 0; j < HalfDimensions / Details::TileHeight; ++j)
         {
-            // Load accumulator
+            const IndexType offsetRow = j * Details::TileHeight;
+
             const auto accTileIn =
-              reinterpret_cast<vec_t*>(&(st->*accPtr).accumulation[Perspective][j * TileHeight]);
-            for (IndexType k = 0; k < RegisterInfo::OptimalAccRegisterCount; ++k)
+              reinterpret_cast<const vec_t*>(&(st->*accPtr).accumulation[Perspective][offsetRow]);
+            for (std::size_t k = 0; k < array_size(acc); ++k)
                 acc[k] = accTileIn[k];
 
             for (IndexType i = 0; i < N; ++i)
             {
-                // Difference calculation for the deactivated features
                 for (const auto index : removed[i])
                 {
-                    const IndexType offset = HalfDimensions * index + j * TileHeight;
-                    auto            column = reinterpret_cast<const vec_t*>(&weights[offset]);
-                    for (IndexType k = 0; k < RegisterInfo::OptimalAccRegisterCount; ++k)
+                    const IndexType offset = HalfDimensions * index + offsetRow;
+                    const auto      column = reinterpret_cast<const vec_t*>(&weights[offset]);
+                    for (std::size_t k = 0; k < array_size(acc); ++k)
                         acc[k] = vsub_16(acc[k], column[k]);
                 }
 
-                // Difference calculation for the activated features
                 for (const auto index : added[i])
                 {
-                    const IndexType offset = HalfDimensions * index + j * TileHeight;
-                    auto            column = reinterpret_cast<const vec_t*>(&weights[offset]);
-                    for (IndexType k = 0; k < RegisterInfo::OptimalAccRegisterCount; ++k)
+                    const IndexType offset = HalfDimensions * index + offsetRow;
+                    const auto      column = reinterpret_cast<const vec_t*>(&weights[offset]);
+                    for (std::size_t k = 0; k < array_size(acc); ++k)
                         acc[k] = vadd_16(acc[k], column[k]);
                 }
 
-                // Store accumulator
                 auto accTileOut = reinterpret_cast<vec_t*>(
-                  &(states_to_update[i]->*accPtr).accumulation[Perspective][j * TileHeight]);
-                for (IndexType k = 0; k < RegisterInfo::OptimalAccRegisterCount; ++k)
+                  &(states_to_update[i]->*accPtr).accumulation[Perspective][offsetRow]);
+                for (std::size_t k = 0; k < array_size(acc); ++k)
                     accTileOut[k] = acc[k];
             }
         }
 
-        for (IndexType j = 0; j < PSQTBuckets / PsqtTileHeight; ++j)
+        // Update PSQT
+        psqt_vec_t psqt[Details::OptimalPSQTRegisterCount];
+
+        for (IndexType j = 0; j < PSQTBuckets / Details::PsqtTileHeight; ++j)
         {
-            // Load accumulator
+            const IndexType offsetRow = j * Details::PsqtTileHeight;
+
             auto accTilePsqtIn = reinterpret_cast<const psqt_vec_t*>(
-              &(st->*accPtr).psqtAccumulation[Perspective][j * PsqtTileHeight]);
-            for (std::size_t k = 0; k < RegisterInfo::OptimalPSQTRegisterCount; ++k)
+              &(st->*accPtr).psqtAccumulation[Perspective][offsetRow]);
+            for (std::size_t k = 0; k < array_size(psqt); ++k)
                 psqt[k] = accTilePsqtIn[k];
 
             for (IndexType i = 0; i < N; ++i)
             {
-                // Difference calculation for the deactivated features
                 for (const auto index : removed[i])
                 {
-                    const IndexType offset = PSQTBuckets * index + j * PsqtTileHeight;
+                    const IndexType offset = PSQTBuckets * index + offsetRow;
                     auto columnPsqt = reinterpret_cast<const psqt_vec_t*>(&psqtWeights[offset]);
-                    for (std::size_t k = 0; k < RegisterInfo::OptimalPSQTRegisterCount; ++k)
+                    for (std::size_t k = 0; k < array_size(psqt); ++k)
                         psqt[k] = vsub_32(psqt[k], columnPsqt[k]);
                 }
 
-                // Difference calculation for the activated features
                 for (const auto index : added[i])
                 {
-                    const IndexType offset = PSQTBuckets * index + j * PsqtTileHeight;
+                    const IndexType offset = PSQTBuckets * index + offsetRow;
                     auto columnPsqt = reinterpret_cast<const psqt_vec_t*>(&psqtWeights[offset]);
-                    for (std::size_t k = 0; k < RegisterInfo::OptimalPSQTRegisterCount; ++k)
+                    for (std::size_t k = 0; k < array_size(psqt); ++k)
                         psqt[k] = vsub_32(psqt[k], columnPsqt[k]);
                 }
 
-                // Store accumulator
                 auto accTilePsqtOut = reinterpret_cast<psqt_vec_t*>(
-                  &(states_to_update[i]->*accPtr)
-                     .psqtAccumulation[Perspective][j * PsqtTileHeight]);
-                for (std::size_t k = 0; k < RegisterInfo::OptimalPSQTRegisterCount; ++k)
-                    vec_store_psqt(&accTilePsqtOut[k], psqt[k]);
+                  &(states_to_update[i]->*accPtr).psqtAccumulation[Perspective][offsetRow]);
+                for (std::size_t k = 0; k < array_size(psqt); ++k)
+                    accTilePsqtOut[k] = psqt[k];
             }
         }
     }
@@ -308,15 +313,102 @@ void FeatureTransformer<TransformedFeatureDimensions, accPtr>::
     Accumulator<TransformedFeatureDimensions>&                accumulator,
     typename AccumulatorCaches::Cache<HalfDimensions>::Entry& entry,
     FeatureSet::IndexList                                     removed,
-    FeatureSet::IndexList                                     added) const {}
+    FeatureSet::IndexList                                     added) const {
+    using vec_t      = typename Details::vec_t;
+    using psqt_vec_t = typename Details::psqt_vec_t;
+
+    vec_t acc[Details::OptimalAccRegisterCount];
+
+    for (IndexType j = 0; j < HalfDimensions / Details::TileHeight; ++j)
+    {
+        const IndexType offsetRow = j * Details::TileHeight;
+
+        const auto accTile =
+          reinterpret_cast<vec_t*>(&accumulator.accumulation[Perspective][offsetRow]);
+        const auto entryTile = reinterpret_cast<vec_t*>(&entry.accumulation[offsetRow]);
+
+        for (IndexType k = 0; k < array_size(acc); ++k)
+            acc[k] = entryTile[k];
+
+        std::size_t i = 0;
+        for (; i < std::min(removed.size(), added.size()); ++i)
+        {
+            const IndexType offsetR = HalfDimensions * removed[i] + offsetRow;
+            const auto      columnR = reinterpret_cast<const vec_t*>(&weights[offsetR]);
+            const IndexType offsetA = HalfDimensions * added[i] + offsetRow;
+            const auto      columnA = reinterpret_cast<const vec_t*>(&weights[offsetA]);
+
+            for (std::size_t k = 0; k < array_size(acc); ++k)
+                acc[k] = vadd_16(acc[k], vsub_16(columnA[k], columnR[k]));
+        }
+        for (; i < removed.size(); ++i)
+        {
+            const IndexType offset = HalfDimensions * removed[i] + offsetRow;
+            const auto      column = reinterpret_cast<const vec_t*>(&weights[offset]);
+
+            for (std::size_t k = 0; k < array_size(acc); ++k)
+                acc[k] = vsub_16(acc[k], column[k]);
+        }
+        for (; i < added.size(); ++i)
+        {
+            const IndexType offset = HalfDimensions * added[i] + offsetRow;
+            const auto      column = reinterpret_cast<const vec_t*>(&weights[offset]);
+
+            for (std::size_t k = 0; k < array_size(acc); ++k)
+                acc[k] = vadd_16(acc[k], column[k]);
+        }
+
+        for (IndexType k = 0; k < array_size(acc); k++)
+            entryTile[k] = acc[k];
+        for (IndexType k = 0; k < array_size(acc); k++)
+            accTile[k] = acc[k];
+    }
+
+    psqt_vec_t psqt[Details::OptimalPSQTRegisterCount];
+
+    for (IndexType j = 0; j < PSQTBuckets / Details::PsqtTileHeight; ++j)
+    {
+        const IndexType offsetRow = j * Details::PsqtTileHeight;
+
+        const auto accTilePsqt =
+          reinterpret_cast<psqt_vec_t*>(&accumulator.psqtAccumulation[Perspective][offsetRow]);
+        const auto entryTilePsqt =
+          reinterpret_cast<psqt_vec_t*>(&entry.psqtAccumulation[offsetRow]);
+
+        for (std::size_t k = 0; k < array_size(psqt); ++k)
+            psqt[k] = entryTilePsqt[k];
+
+        for (std::size_t i = 0; i < removed.size(); ++i)
+        {
+            const IndexType offset     = PSQTBuckets * removed[i] + offsetRow;
+            const auto      columnPsqt = reinterpret_cast<const psqt_vec_t*>(&psqtWeights[offset]);
+
+            for (std::size_t k = 0; k < array_size(psqt); ++k)
+                psqt[k] = vsub_32(psqt[k], columnPsqt[k]);
+        }
+        for (std::size_t i = 0; i < added.size(); ++i)
+        {
+            const IndexType offset     = PSQTBuckets * added[i] + offsetRow;
+            const auto      columnPsqt = reinterpret_cast<const psqt_vec_t*>(&psqtWeights[offset]);
+
+            for (std::size_t k = 0; k < array_size(psqt); ++k)
+                psqt[k] = vadd_32(psqt[k], columnPsqt[k]);
+        }
+
+        for (std::size_t k = 0; k < array_size(psqt); ++k)
+            entryTilePsqt[k] = psqt[k];
+        for (std::size_t k = 0; k < array_size(psqt); ++k)
+            accTilePsqt[k] = psqt[k];
+    }
+}
 
 template<IndexType                                 TransformedFeatureDimensions,
          Accumulator<TransformedFeatureDimensions> StateInfo::*accPtr>
 void FeatureTransformer<TransformedFeatureDimensions, accPtr>::convert_accumulators(
   const Position& pos, OutputType* output) const {
-    using vec_t = typename RegisterInfo::vec_t;
+    using vec_t = typename Details::vec_t;
 
-    static constexpr IndexType OutputChunkSize = RegisterInfo::AccRegisterSize / sizeof(OutputType);
+    static constexpr IndexType OutputChunkSize = Details::AccRegisterSize / sizeof(OutputType);
     static_assert((HalfDimensions / 2) % OutputChunkSize == 0);
 
     static constexpr IndexType NumOutputChunks = HalfDimensions / 2 / OutputChunkSize;
@@ -328,7 +420,7 @@ void FeatureTransformer<TransformedFeatureDimensions, accPtr>::convert_accumulat
     {
         const auto in0 = reinterpret_cast<const vec_t*>(&(accumulation[perspectives[p]][0]));
         const auto in1 =
-        reinterpret_cast<const vec_t*>(&(accumulation[perspectives[p]][HalfDimensions / 2]));
+          reinterpret_cast<const vec_t*>(&(accumulation[perspectives[p]][HalfDimensions / 2]));
         const auto out = reinterpret_cast<vec_t*>(&output[(HalfDimensions / 2) * p]);
 
         for (IndexType j = 0; j < NumOutputChunks; ++j)
@@ -347,18 +439,13 @@ void FeatureTransformer<TransformedFeatureDimensions, accPtr>::convert_accumulat
 
             const vec_t sum0a = vsll_16(vmax_s16(vmin_s16(in0[j * 2 + 0], Ones), Zeroes), 7);
             const vec_t sum0b = vsll_16(vmax_s16(vmin_s16(in0[j * 2 + 1], Ones), Zeroes), 7);
-            const vec_t sum1a = vec_min_16(in1[j * 2 + 0], Ones);
-            const vec_t sum1b = vec_min_16(in1[j * 2 + 1], Ones);
+            const vec_t sum1a = vmin_s16(in1[j * 2 + 0], Ones);
+            const vec_t sum1b = vmin_s16(in1[j * 2 + 1], Ones);
 
             const vec_t pa = vmulhi_s16(sum0a, sum1a);
             const vec_t pb = vmulhi_s16(sum0b, sum1b);
 
-            if constexpr (RegisterInfo::AccRegisterSize == 64)
-                out[j] = _mm512_packus_epi16(pa, pb);
-            else if constexpr (RegisterInfo::AccRegisterSize == 32)
-                out[j] = _mm256_packus_epi16(pa, pb);
-            else
-                out[j] = _mm_packus_epi16(pa, pb);
+            out[j] = vpackus_s16(pa, pb);
         }
     }
 }

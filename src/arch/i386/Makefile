@@ -30,10 +30,6 @@ x86 options:
 If LIMIT_AVX512 is set, use EVEX encoded 256-bit width registers intstead of
 512-bit registers. This option is only available for AVX-512 with VL.
 
-    SIMD_REGISTER_COUNT
-
-Override how many XMM registers are present in the target architecture.
-
 endef
 export HELP_STRING_I386
 
@@ -47,14 +43,6 @@ ifeq ($(ARCH),x86-64-vnni256)
 endif
 
 ifneq ($(filter $(COMP),gcc clang icx),)
-
-ifneq ($(filter x86-64%,$(ARCH)),)
-    BITS := 64
-else
-    BITS := 32
-endif
-
-SF_CXXFLAGS += -m$(BITS)
 
 ifeq ($(ARCH),x86-64-avx512-vnni)
     SF_CXXFLAGS += -m64 -mmmx -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 \
@@ -108,9 +96,7 @@ else ifeq ($(ARCH),x86-32)
     SF_CXXFLAGS += -m32
 endif
 
-ifneq ($(SIMD_REGISTER_COUNT),)
-    SF_CXXFLAGS += -DSIMD_REGISTER_COUNT=$(SIMD_REGISTER_COUNT)
-endif
+endif   # gcc clang icx
 
 .PHONY: help-arch config-sanity-arch
 
@@ -122,6 +108,7 @@ config-sanity-arch:
 	   "$(ARCH)" = "x86-64-avx512-vl" -o \
 	   "$(ARCH)" = "x86-64-avx512" -o \
 	   "$(ARCH)" = "x86-64-avxvnni" -o \
+	   "$(ARCH)" = "x86-64-bmi2" -o \
 	   "$(ARCH)" = "x86-64-avx2" -o \
 	   "$(ARCH)" = "x86-64-bmi" -o \
 	   "$(ARCH)" = "x86-64-avx" -o \

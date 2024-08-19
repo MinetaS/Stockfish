@@ -35,6 +35,11 @@
 
 namespace Stockfish {
 
+template<typename T, std::size_t N>
+constexpr std::size_t array_size(T (&)[N]) {
+    return N;
+}
+
 std::string engine_info(bool to_uci = false);
 std::string compiler_info();
 

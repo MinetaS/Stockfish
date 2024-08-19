@@ -37,19 +37,20 @@ constexpr std::uint32_t Version = 0x7AF32F20u;
 
 using IndexType = std::uint32_t;
 
-using FTBiasType             = std::int16_t;
-using FTPSQTWeightType       = std::int32_t;
-using TransformedFeatureType = std::uint8_t;
-
-// Constant used in evaluation value calculation
-constexpr int OutputScale     = 16;
-constexpr int WeightScaleBits = 6;
+// Types used in the feature transformer and accumulator cache entries
+using FeatureTransformerBiasType       = std::int16_t;
+using FeatureTransformerPSQTWeightType = std::int32_t;
+using TransformedFeatureType           = std::uint8_t;
 
 // Size of cache line (in bytes)
 constexpr std::size_t CacheLineSize = 64;
 
 // Alignment/padding of input/output buffers across layers
 constexpr std::size_t BufferAlignment = 32;
+
+// Constant used in evaluation value calculation
+constexpr int OutputScale     = 16;
+constexpr int WeightScaleBits = 6;
 
 constexpr const char  Leb128MagicString[]   = "COMPRESSED_LEB128";
 constexpr std::size_t Leb128MagicStringSize = sizeof(Leb128MagicString) - 1;

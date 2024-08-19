@@ -78,7 +78,7 @@ class FeatureTransformer {
     }
 
     // Write network parameters
-    bool write_parameters(std::ostream& stream) const {
+    bool write_parameters(std::ostream& stream) {
         permute_weights<true>();
         scale_weights<true>();
 
@@ -115,17 +115,18 @@ class FeatureTransformer {
     }
 
    private:
-    using BiasType       = FTBiasType;
+    using BiasType       = FeatureTransformerBiasType;
     using WeightType     = std::int16_t;
-    using PSQTWeightType = FTPSQTWeightType;
+    using PSQTWeightType = FeatureTransformerPSQTWeightType;
 
-    struct RegisterInfo;
-
-    template<bool Write>
-    inline void permute_weights() const;
+    // Stores constants and types based on the target architecture.
+    struct Details;
 
     template<bool Write>
-    inline void scale_weights() const {
+    inline void permute_weights();
+
+    template<bool Write>
+    inline void scale_weights() {
         for (IndexType j = 0; j < InputDimensions; ++j)
             for (IndexType i = 0; i < HalfDimensions; ++i)
                 weights[i] = Write ? weights[i] / 2 : weights[i] * 2;

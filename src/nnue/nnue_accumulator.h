@@ -53,8 +53,8 @@ struct AccumulatorCaches {
 
     template<IndexType Size>
     struct alignas(CacheLineSize) Cache {
-        using BiasType       = FTBiasType;
-        using PSQTWeightType = FTPSQTWeightType;
+        using BiasType       = FeatureTransformerBiasType;
+        using PSQTWeightType = FeatureTransformerPSQTWeightType;
 
         struct alignas(CacheLineSize) Entry {
             BiasType       accumulation[Size];

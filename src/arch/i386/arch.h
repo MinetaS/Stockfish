@@ -128,6 +128,32 @@ inline T vset_32(std::uint32_t n) {
 }
 
 template<typename T>
+inline T vpackus_s16(T a, T b) {
+#ifdef __AVX512F__
+    if constexpr (sizeof(T) == 64)
+#ifdef __AVX512BW__
+        return _mm512_packus_epi16(a, b);
+#else
+        static_assert(false, "vpackus_s16<__m512i> is not supported without AVX-512 BW.");
+#endif
+#endif
+
+#ifdef __AVX__
+    if constexpr (sizeof(T) == 32)
+#ifdef __AVX2__
+        return _mm256_packus_epi16(a, b);
+#else
+        static_assert(false, "vpackus_s16<__m256i> is not supported without AVX2.");
+#endif
+#endif
+
+#ifdef __SSE2__
+    if constexpr (sizeof(T) == 16)
+        return _mm_packus_epi16(a, b);
+#endif
+}
+
+template<typename T>
 inline T vadd_16(T a, T b) {
 #ifdef __AVX512F__
     if constexpr (sizeof(T) == 64)

@@ -35,7 +35,7 @@ namespace Stockfish::Eval::NNUE {
 template<IndexType                                 TransformedFeatureDimensions,
          Accumulator<TransformedFeatureDimensions> StateInfo::*accPtr>
 template<bool Write>
-void FeatureTransformer<TransformedFeatureDimensions, accPtr>::permute_weights() const {}
+void FeatureTransformer<TransformedFeatureDimensions, accPtr>::permute_weights() {}
 
 template<IndexType                                 TransformedFeatureDimensions,
          Accumulator<TransformedFeatureDimensions> StateInfo::*accPtr>

@@ -98,7 +98,7 @@ bool read_parameters(std::istream& stream, T& reference) {
 
 // Write evaluation function parameters
 template<typename T>
-bool write_parameters(std::ostream& stream, const T& reference) {
+bool write_parameters(std::ostream& stream, T& reference) {
 
     write_little_endian<std::uint32_t>(stream, T::get_hash_value());
     return reference.write_parameters(stream);
@@ -174,7 +174,7 @@ void Network<Arch, Transformer>::load(const std::string& rootDirectory, std::str
 
 
 template<typename Arch, typename Transformer>
-bool Network<Arch, Transformer>::save(const std::optional<std::string>& filename) const {
+bool Network<Arch, Transformer>::save(const std::optional<std::string>& filename) {
     std::string actualFilename;
     std::string msg;
 
@@ -360,7 +360,7 @@ void Network<Arch, Transformer>::initialize() {
 template<typename Arch, typename Transformer>
 bool Network<Arch, Transformer>::save(std::ostream&      stream,
                                       const std::string& name,
-                                      const std::string& netDescription) const {
+                                      const std::string& netDescription) {
     if (name.empty() || name == "None")
         return false;
 
@@ -410,7 +410,7 @@ bool Network<Arch, Transformer>::write_header(std::ostream&      stream,
 
 template<typename Arch, typename Transformer>
 bool Network<Arch, Transformer>::read_parameters(std::istream& stream,
-                                                 std::string&  netDescription) const {
+                                                 std::string&  netDescription) {
     std::uint32_t hashValue;
     if (!read_header(stream, &hashValue, &netDescription))
         return false;
@@ -429,7 +429,7 @@ bool Network<Arch, Transformer>::read_parameters(std::istream& stream,
 
 template<typename Arch, typename Transformer>
 bool Network<Arch, Transformer>::write_parameters(std::ostream&      stream,
-                                                  const std::string& netDescription) const {
+                                                  const std::string& netDescription) {
     if (!write_header(stream, Network::hash, netDescription))
         return false;
     if (!Detail::write_parameters(stream, *featureTransformer))
