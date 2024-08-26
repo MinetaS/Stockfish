@@ -778,7 +778,7 @@ Value Search::Worker::search(
         // Null move dynamic reduction based on depth and eval
         const int   R            = std::min(int(eval - beta) / 202, 6) + depth / 3;
         const Depth nmpReduction = R + 5;
-        const Value nmpBeta      = beta + R * 2;
+        const Value nmpBeta      = beta + R * 20;
 
         ss->currentMove         = Move::null();
         ss->continuationHistory = &thisThread->continuationHistory[0][0][NO_PIECE][0];
