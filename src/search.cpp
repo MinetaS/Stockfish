@@ -774,42 +774,36 @@ Value Search::Worker::search(
     {
         assert(eval - beta >= 0);
 
-        // Null move dynamic heuristic factor based on depth and eval
-        const int R = std::min(int(eval - beta) / 202, 6) + depth / 3;
+        // Null move dynamic reduction based on depth and eval
+        Depth R = std::min(int(eval - beta) / 202, 6) + depth / 3 + 5;
 
-        if ((ss - 1)->statScore < 14374 - 50 * R)
+        ss->currentMove         = Move::null();
+        ss->continuationHistory = &thisThread->continuationHistory[0][0][NO_PIECE][0];
+
+        pos.do_null_move(st, tt);
+
+        Value nullValue = -search<NonPV>(pos, ss + 1, -beta, -beta + 1, depth - R, false);
+
+        pos.undo_null_move();
+
+        // Do not return unproven mate or TB scores
+        if (nullValue >= beta && nullValue < VALUE_TB_WIN_IN_MAX_PLY)
         {
-            const Depth nmpReduction = R + 5;
+            if (thisThread->nmpMinPly || depth < 16)
+                return nullValue;
 
-            ss->currentMove         = Move::null();
-            ss->continuationHistory = &thisThread->continuationHistory[0][0][NO_PIECE][0];
+            assert(!thisThread->nmpMinPly);  // Recursive verification is not allowed
 
-            pos.do_null_move(st, tt);
+            // Do verification search at high depths, with null move pruning disabled
+            // until ply exceeds nmpMinPly.
+            thisThread->nmpMinPly = ss->ply + 3 * (depth - R) / 4;
 
-            Value nullValue =
-              -search<NonPV>(pos, ss + 1, -beta, -beta + 1, depth - nmpReduction, false);
+            Value v = search<NonPV>(pos, ss, beta - 1, beta, depth - R, false);
 
-            pos.undo_null_move();
+            thisThread->nmpMinPly = 0;
 
-            // Do not return unproven mate or TB scores
-            if (nullValue >= beta && nullValue < VALUE_TB_WIN_IN_MAX_PLY)
-            {
-                if (thisThread->nmpMinPly || depth < 16)
-                    return nullValue;
-
-                assert(!thisThread->nmpMinPly);  // Recursive verification is not allowed
-
-                // Do verification search at high depths, with null move pruning disabled
-                // until ply exceeds nmpMinPly.
-                thisThread->nmpMinPly = ss->ply + 3 * (depth - nmpReduction) / 4;
-
-                Value v = search<NonPV>(pos, ss, beta - 1, beta, depth - nmpReduction, false);
-
-                thisThread->nmpMinPly = 0;
-
-                if (v >= beta)
-                    return nullValue;
-            }
+            if (v >= beta)
+                return nullValue;
         }
     }
 
