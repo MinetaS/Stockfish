@@ -1292,7 +1292,7 @@ moves_loop:  // When in check, search starts here
 
                 if (value >= beta)
                 {
-                    if (PvNode && beta - alpha <= 2 && value - beta <= 2)
+                    if (PvNode && beta - alpha <= depth && value - beta <= depth)
                         beta = value + 1;
                     else
                     {
