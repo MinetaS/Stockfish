@@ -307,7 +307,7 @@ void Search::Worker::iterative_deepening() {
             // Start with a small aspiration window and, in the case of a fail
             // high/low, re-search with a bigger window until we don't fail
             // high/low anymore.
-            int failedHighCnt = 0;
+            failedHighCnt = 0;
             while (true)
             {
                 // Adjust the effective depth searched, but ensure at least one
@@ -1155,6 +1155,8 @@ moves_loop:  // When in check, search starts here
 
         // Decrease/increase reduction for moves with a good/bad history (~8 Elo)
         r -= ss->statScore / 10898;
+
+        r += std::max(failedHighCnt - 2, 0);
 
         // Step 17. Late moves reduction / extension (LMR, ~117 Elo)
         if (depth >= 2 && moveCount > 1 + (rootNode && depth < 10))
