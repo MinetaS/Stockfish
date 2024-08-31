@@ -1292,9 +1292,13 @@ moves_loop:  // When in check, search starts here
 
                 if (value >= beta)
                 {
-                    ss->cutoffCnt += !ttData.move + (extension < 2);
-                    assert(value >= beta);  // Fail high
-                    break;
+                    if (PvNode && beta - alpha <= 2 && value - beta <= 2)
+                        beta = value + 1;
+                    else
+                    {
+                        ss->cutoffCnt += !ttData.move + (extension < 2);
+                        break;
+                    }
                 }
                 else
                 {
