@@ -1134,7 +1134,7 @@ moves_loop:  // When in check, search starts here
 
         // Increase reduction for cut nodes (~4 Elo)
         if (cutNode)
-            r += 2 - (ttData.depth >= depth && ss->ttPv);
+            r += 2 - (ttData.depth >= depth && ss->ttPv) + std::max(failedHighCnt - 2, 0);
 
         // Increase reduction if ttMove is a capture (~3 Elo)
         if (ttCapture)
@@ -1155,8 +1155,6 @@ moves_loop:  // When in check, search starts here
 
         // Decrease/increase reduction for moves with a good/bad history (~8 Elo)
         r -= ss->statScore / 10898;
-
-        r += std::max(failedHighCnt - 2, 0);
 
         // Step 17. Late moves reduction / extension (LMR, ~117 Elo)
         if (depth >= 2 && moveCount > 1 + (rootNode && depth < 10))
