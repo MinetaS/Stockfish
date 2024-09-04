@@ -734,15 +734,6 @@ class FeatureTransformer {
         auto& accumulator                 = pos.state()->*accPtr;
         accumulator.computed[Perspective] = true;
 
-        if (removed.size() == 0 && added.size() == 0)
-        {
-            std::memcpy(accumulator.accumulation[Perspective], entry.accumulation,
-                        sizeof(BiasType) * HalfDimensions);
-            std::memcpy(accumulator.psqtAccumulation[Perspective], entry.psqtAccumulation,
-                        sizeof(int32_t) * PSQTBuckets);
-            return;
-        }
-
 #ifdef VECTOR
         vec_t      acc[NumRegs];
         psqt_vec_t psqt[NumPsqtRegs];
@@ -865,6 +856,8 @@ class FeatureTransformer {
 
         for (PieceType pt = PAWN; pt <= KING; ++pt)
             entry.byTypeBB[pt] = pos.pieces(pt);
+
+        entry.key = pos.key();
     }
 
     template<Color Perspective>
@@ -879,6 +872,22 @@ class FeatureTransformer {
         // Fast early exit.
         if ((pos.state()->*accPtr).computed[Perspective])
             return;
+
+        auto& entry = (*cache)[pos.square<KING>(Perspective)][Perspective];
+
+        // If the exact same position has already been computed and cached,
+        // the accumulators can be copied directly from the entry.
+        if (entry.key == pos.key())
+        {
+            auto& accumulator                 = pos.state()->*accPtr;
+            accumulator.computed[Perspective] = true;
+
+            std::memcpy(accumulator.accumulation[Perspective], entry.accumulation,
+                    sizeof(BiasType) * HalfDimensions);
+            std::memcpy(accumulator.psqtAccumulation[Perspective], entry.psqtAccumulation,
+                    sizeof(std::int32_t) * PSQTBuckets);
+            return;
+        }
 
         auto [oldest_st, _] = try_find_computed_accumulator<Perspective>(pos);
 
