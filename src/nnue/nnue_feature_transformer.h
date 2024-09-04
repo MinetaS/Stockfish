@@ -704,8 +704,23 @@ class FeatureTransformer {
                                           AccumulatorCaches::Cache<HalfDimensions>* cache) const {
         assert(cache != nullptr);
 
-        Square                ksq   = pos.square<KING>(Perspective);
-        auto&                 entry = (*cache)[ksq][Perspective];
+        Square ksq   = pos.square<KING>(Perspective);
+        auto&  entry = (*cache)[ksq][Perspective];
+
+        auto& accumulator                 = pos.state()->*accPtr;
+        accumulator.computed[Perspective] = true;
+
+        // Since the exact same position has already been computed and cached,
+        // the accumulators can be copied directly from the entry.
+        if (pos.key() == entry.key)
+        {
+            std::memcpy(accumulator.accumulation[Perspective], entry.accumulation,
+                    sizeof(BiasType) * HalfDimensions);
+            std::memcpy(accumulator.psqtAccumulation[Perspective], entry.psqtAccumulation,
+                    sizeof(int32_t) * PSQTBuckets);
+            return;
+        }
+
         FeatureSet::IndexList removed, added;
 
         for (Color c : {WHITE, BLACK})
@@ -730,9 +745,6 @@ class FeatureTransformer {
                 }
             }
         }
-
-        auto& accumulator                 = pos.state()->*accPtr;
-        accumulator.computed[Perspective] = true;
 
 #ifdef VECTOR
         vec_t      acc[NumRegs];
@@ -856,6 +868,8 @@ class FeatureTransformer {
 
         for (PieceType pt = PAWN; pt <= KING; ++pt)
             entry.byTypeBB[pt] = pos.pieces(pt);
+
+        entry.key = pos.key();
     }
 
     template<Color Perspective>
