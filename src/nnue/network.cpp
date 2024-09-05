@@ -82,6 +82,40 @@ EmbeddedNNUE get_embedded(EmbeddedNNUEType type) {
 
 namespace Stockfish::Eval::NNUE {
 
+// clang-format off
+std::int32_t gBigL1Biases[LayerStacks][decltype(BigNetworkArchitecture::fc_0)::OutputDimensions] = {
+    { -2684, 7895, -6, 708, 6843, -100, 3483, -1489, 3302, -944, -2445, 1705, -1231, 4758, -5838, 1246 },
+    { -2846, 1390, -1762, 2838, -384, 2369, 253, 525, 1352, -661, -984, 5167, 3024, -758, -2553, 691 },
+    { -837, 1910, 449, -468, 583, 2462, -215, 466, 3934, -1540, -3219, 1274, 1022, -707, 2660, 904 },
+    { 577, 183, 1145, 4290, -2356, -128, -1378, 1396, 5405, -2113, -2265, -2564, -3378, -3846, 2157, 115 },
+    { -191, 4973, 1095, 627, -3551, -2123, -1055, 2521, 765, 1947, -1466, -165, -2599, -1511, -4311, 826 },
+    { -264, -1084, 4379, -5117, -4194, -1648, 1042, 3994, 3221, 1521, -2092, 4079, -1167, -1418, 6122, 789 },
+    { -700, -720, 5141, -3246, -4768, -1825, 1422, 608, 905, -781, -3121, 3333, 4825, -2090, -2882, 1186 },
+    { -864, 301, 3064, -2015, -2131, -1115, 1467, 3108, 2178, -961, 666, 986, -1327, -2337, -1242, 162 }
+};
+
+std::int32_t gSmallL1Biases[LayerStacks][decltype(SmallNetworkArchitecture::fc_0)::OutputDimensions] = {
+    { 4520, -224, -745, 2226, -379, 873, -862, 1802, -90, -969, -2685, -6127, 1663, 1524, 1182, 2867 },
+    { 3322, -134, 689, 1822, 3909, 1769, -1781, -1741, 951, 736, 165, -6250, 1622, -3435, 2048, 2256 },
+    { 3874, -1638, 1939, 7323, 305, 3074, -2712, -5057, -927, 4995, -2754, -12267, -2169, -937, 3790, 1843 },
+    { 9299, -1797, 1208, 6096, 2377, 1987, -331, -1677, 273, 3748, -3183, -13408, 70, 3943, -1714, 1009 },
+    { 10780, -2128, 1986, 5180, 382, 1401, 713, -5299, -283, 2682, 341, -14512, 347, 5684, -49, 965 },
+    { 6527, -2984, -25, 6793, -751, 1099, 1796, -2767, -1368, 2182, 119, -9668, 1234, 3580, -26, 851 },
+    { 7046, -2980, -1083, 6516, -1700, 953, 645, -2145, -3258, 1983, -898, -10751, 396, 2700, 0, 1067 },
+    { 4711, -2034, -1082, 3914, 331, 1114, 845, -1524, -2016, 2820, -2159, -7452, 1536, 2796, 1246, 1635 }
+};
+
+std::int32_t gBigFwdOutMultiplier[LayerStacks] = {
+    600, 600, 600, 600, 600, 600, 600, 600
+};
+
+std::int32_t gSmallFwdOutMultiplier[LayerStacks] = {
+    600, 600, 600, 600, 600, 600, 600, 600
+};
+// clang-format on
+
+TUNE(SetRange(-16384, 16384), gBigL1Biases, gSmallL1Biases);
+TUNE(SetRange(0, 1000), gBigFwdOutMultiplier, gSmallFwdOutMultiplier);
 
 namespace Detail {
 
@@ -440,6 +474,24 @@ bool Network<Arch, Transformer>::write_parameters(std::ostream&      stream,
             return false;
     }
     return bool(stream);
+}
+
+template<typename Arch, typename Transformer>
+void Network<Arch, Transformer>::apply_spsa_parameters() const {
+    // Overwrite parameters
+    for (std::size_t i = 0; i < LayerStacks; ++i)
+    {
+        if (embeddedType == EmbeddedNNUEType::BIG)
+        {
+            std::memcpy(network[i].fc_0.biases, gBigL1Biases[i], sizeof(gBigL1Biases[i]));
+            network[i].fwdOutMultiplier = gBigFwdOutMultiplier[i];
+        }
+        else
+        {
+            std::memcpy(network[i].fc_0.biases, gSmallL1Biases[i], sizeof(gSmallL1Biases[i]));
+            network[i].fwdOutMultiplier = gSmallFwdOutMultiplier[i];
+        }
+    }
 }
 
 // Explicit template instantiation
