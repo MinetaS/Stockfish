@@ -62,6 +62,8 @@ struct NetworkArchitecture {
     Layers::ClippedReLU<FC_1_OUTPUTS>                                                  ac_1;
     Layers::AffineTransform<FC_1_OUTPUTS, 1>                                           fc_2;
 
+    std::int32_t fwdOutMultiplier;
+
     // Hash value embedded in the evaluation file
     static constexpr std::uint32_t get_hash_value() {
         // input slice hash
@@ -124,8 +126,8 @@ struct NetworkArchitecture {
 
         // buffer.fc_0_out[FC_0_OUTPUTS] is such that 1.0 is equal to 127*(1<<WeightScaleBits) in
         // quantized form, but we want 1.0 to be equal to 600*OutputScale
-        std::int32_t fwdOut =
-          (buffer.fc_0_out[FC_0_OUTPUTS]) * (600 * OutputScale) / (127 * (1 << WeightScaleBits));
+        std::int32_t fwdOut = (buffer.fc_0_out[FC_0_OUTPUTS]) * (fwdOutMultiplier * OutputScale)
+                            / (127 * (1 << WeightScaleBits));
         std::int32_t outputValue = buffer.fc_2_out[0] + fwdOut;
 
         return outputValue;

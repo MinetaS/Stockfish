@@ -265,7 +265,6 @@ class AffineTransformSparseInput {
 #endif
     }
 
-   private:
     using BiasType   = OutputType;
     using WeightType = std::int8_t;
 
