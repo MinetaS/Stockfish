@@ -61,8 +61,10 @@ class Network {
     void load(const std::string& rootDirectory, std::string evalfilePath);
     bool save(const std::optional<std::string>& filename) const;
 
-    NetworkOutput evaluate(const Position&                         pos,
-                           AccumulatorCaches::Cache<FTDimensions>* cache) const;
+    NetworkOutput
+    evaluate(const Position&                         pos,
+             AccumulatorCaches::Cache<FTDimensions>* cache,
+             AccumulatorUpdateType accUpdateType = AccumulatorUpdateType::kCurrentOnly) const;
 
 
     void hint_common_access(const Position&                         pos,

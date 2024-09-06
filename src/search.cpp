@@ -570,7 +570,7 @@ Value Search::Worker::search(
             || ss->ply >= MAX_PLY)
             return (ss->ply >= MAX_PLY && !ss->inCheck)
                    ? evaluate(networks[numaAccessToken], pos, refreshTable,
-                              thisThread->optimism[us])
+                              AccumulatorUpdateType::kCurrentOnly, thisThread->optimism[us])
                    : value_draw(thisThread->nodes);
 
         // Step 3. Mate distance pruning. Even if we mate at the next move our score
@@ -688,6 +688,11 @@ Value Search::Worker::search(
 
     // Step 6. Static evaluation of the position
     Value unadjustedStaticEval = VALUE_NONE;
+
+    const AccumulatorUpdateType accUpdateType = PvNode || ss->moveCount > 1
+                                                ? AccumulatorUpdateType::kCurrentAndOld
+                                                : AccumulatorUpdateType::kCurrentOnly;
+
     if (ss->inCheck)
     {
         // Skip early pruning when in check
@@ -707,8 +712,8 @@ Value Search::Worker::search(
         // Never assume anything about values stored in TT
         unadjustedStaticEval = ttData.eval;
         if (unadjustedStaticEval == VALUE_NONE)
-            unadjustedStaticEval =
-              evaluate(networks[numaAccessToken], pos, refreshTable, thisThread->optimism[us]);
+            unadjustedStaticEval = evaluate(networks[numaAccessToken], pos, refreshTable,
+                                            accUpdateType, thisThread->optimism[us]);
         else if (PvNode)
             Eval::NNUE::hint_common_parent_position(pos, networks[numaAccessToken], refreshTable);
 
@@ -721,8 +726,8 @@ Value Search::Worker::search(
     }
     else
     {
-        unadjustedStaticEval =
-          evaluate(networks[numaAccessToken], pos, refreshTable, thisThread->optimism[us]);
+        unadjustedStaticEval = evaluate(networks[numaAccessToken], pos, refreshTable, accUpdateType,
+                                        thisThread->optimism[us]);
         ss->staticEval = eval = to_corrected_static_eval(unadjustedStaticEval, *thisThread, pos);
 
         // Static evaluation is saved as it was before adjustment by correction history
@@ -1452,7 +1457,8 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
     // Step 2. Check for an immediate draw or maximum ply reached
     if (pos.is_draw(ss->ply) || ss->ply >= MAX_PLY)
         return (ss->ply >= MAX_PLY && !ss->inCheck)
-               ? evaluate(networks[numaAccessToken], pos, refreshTable, thisThread->optimism[us])
+               ? evaluate(networks[numaAccessToken], pos, refreshTable,
+                          AccumulatorUpdateType::kCurrentOnly, thisThread->optimism[us])
                : VALUE_DRAW;
 
     assert(0 <= ss->ply && ss->ply < MAX_PLY);
@@ -1474,6 +1480,10 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
 
     // Step 4. Static evaluation of the position
     Value unadjustedStaticEval = VALUE_NONE;
+
+    const AccumulatorUpdateType accUpdateType =
+      PvNode ? AccumulatorUpdateType::kCurrentAndOld : AccumulatorUpdateType::kCurrentOnly;
+
     if (ss->inCheck)
         bestValue = futilityBase = -VALUE_INFINITE;
     else
@@ -1483,8 +1493,8 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
             // Never assume anything about values stored in TT
             unadjustedStaticEval = ttData.eval;
             if (unadjustedStaticEval == VALUE_NONE)
-                unadjustedStaticEval =
-                  evaluate(networks[numaAccessToken], pos, refreshTable, thisThread->optimism[us]);
+                unadjustedStaticEval = evaluate(networks[numaAccessToken], pos, refreshTable,
+                                                accUpdateType, thisThread->optimism[us]);
             ss->staticEval = bestValue =
               to_corrected_static_eval(unadjustedStaticEval, *thisThread, pos);
 
@@ -1496,11 +1506,11 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
         else
         {
             // In case of null move search, use previous static eval with opposite sign
-            unadjustedStaticEval =
-              (ss - 1)->currentMove != Move::null()
-                ? evaluate(networks[numaAccessToken], pos, refreshTable, thisThread->optimism[us])
-                : -(ss - 1)->staticEval;
-            ss->staticEval = bestValue =
+            unadjustedStaticEval = (ss - 1)->currentMove != Move::null()
+                                   ? evaluate(networks[numaAccessToken], pos, refreshTable,
+                                              accUpdateType, thisThread->optimism[us])
+                                   : -(ss - 1)->staticEval;
+            ss->staticEval       = bestValue =
               to_corrected_static_eval(unadjustedStaticEval, *thisThread, pos);
         }
 

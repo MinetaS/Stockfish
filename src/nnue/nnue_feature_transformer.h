@@ -322,9 +322,10 @@ class FeatureTransformer {
     std::int32_t transform(const Position&                           pos,
                            AccumulatorCaches::Cache<HalfDimensions>* cache,
                            OutputType*                               output,
-                           int                                       bucket) const {
-        update_accumulator<WHITE>(pos, cache);
-        update_accumulator<BLACK>(pos, cache);
+                           int                                       bucket,
+                           AccumulatorUpdateType                     accUpdateType) const {
+        update_accumulator<WHITE>(pos, cache, accUpdateType);
+        update_accumulator<BLACK>(pos, cache, accUpdateType);
 
         const Color perspectives[2]  = {pos.side_to_move(), ~pos.side_to_move()};
         const auto& psqtAccumulation = (pos.state()->*accPtr).psqtAccumulation;
@@ -452,49 +453,24 @@ class FeatureTransformer {
     }
 
    private:
-    // Look for a usable accumulator of an earlier position. We keep track of
-    // the estimated gain in terms of features to be added/subtracted.
     template<Color Perspective>
-    StateInfo* try_find_computed_accumulator(const Position& pos) const {
-        StateInfo* st   = pos.state();
+    [[nodiscard]] std::pair<StateInfo*, StateInfo*>
+    try_find_computed_accumulator(const Position& pos) const {
+        // Look for a usable accumulator of an earlier position. We keep track
+        // of the estimated gain in terms of features to be added/subtracted.
+        StateInfo *st = pos.state(), *next = nullptr;
         int        gain = FeatureSet::refresh_cost(pos);
-
         while (st->previous && !(st->*accPtr).computed[Perspective])
         {
+            // This governs when a full feature refresh is needed and how many
+            // updates are better than just one full refresh.
             if (FeatureSet::requires_refresh(st, Perspective)
                 || (gain -= FeatureSet::update_cost(st) + 1) < 0)
                 break;
-            st = st->previous;
+            next = st;
+            st   = st->previous;
         }
-        return st;
-    }
-
-    template<Color Perspective>
-    std::pair<StateInfo*, StateInfo*>
-    try_find_computed_accumulator_with_pivot(const Position& pos) const {
-        StateInfo *st = pos.state(), *pivot = nullptr;
-        int        gain  = FeatureSet::refresh_cost(pos) * 2;
-        int        steps = 0;
-
-        while (st->previous && !(st->*accPtr).computed[Perspective])
-        {
-            if (FeatureSet::requires_refresh(st, Perspective)
-                || (gain -= FeatureSet::update_cost(st) + 1) < 0)
-                break;
-
-            st = st->previous;
-            ++steps;
-        }
-
-        if (steps >= 2)
-        {
-            pivot = pos.state();
-            steps = std::min(steps - 1, 3);
-            while (steps--)
-                pivot = pivot->previous;
-        }
-
-        return {st, pivot};
+        return {st, next};
     }
 
     // NOTE: The parameter states_to_update is an array of position states.
@@ -890,7 +866,7 @@ class FeatureTransformer {
         if ((pos.state()->*accPtr).computed[Perspective])
             return;
 
-        StateInfo* oldest_st = try_find_computed_accumulator<Perspective>(pos);
+        auto [oldest_st, _] = try_find_computed_accumulator<Perspective>(pos);
 
         if ((oldest_st->*accPtr).computed[Perspective])
         {
@@ -904,16 +880,22 @@ class FeatureTransformer {
 
     template<Color Perspective>
     void update_accumulator(const Position&                           pos,
-                            AccumulatorCaches::Cache<HalfDimensions>* cache) const {
+                            AccumulatorCaches::Cache<HalfDimensions>* cache,
+                            AccumulatorUpdateType                     accUpdateType) const {
 
-        auto [oldest_st, pivot] = try_find_computed_accumulator_with_pivot<Perspective>(pos);
+        auto [oldest_st, next] = try_find_computed_accumulator<Perspective>(pos);
 
         if ((oldest_st->*accPtr).computed[Perspective])
         {
-            if (oldest_st == pos.state())
+            if (next == nullptr)
                 return;
 
-            if (pivot == nullptr)
+            // Now update the accumulators listed in states_to_update[], where
+            // the last element is a sentinel. Currently we update two accumulators:
+            //     1. for the current position
+            //     2. the next accumulator after the computed one
+            // The heuristic may change in the future.
+            if (next == pos.state() || accUpdateType == AccumulatorUpdateType::kCurrentOnly)
             {
                 StateInfo* states_to_update[1] = {pos.state()};
 
@@ -921,7 +903,7 @@ class FeatureTransformer {
             }
             else
             {
-                StateInfo* states_to_update[2] = {pivot, pos.state()};
+                StateInfo* states_to_update[2] = {next, pos.state()};
 
                 update_accumulator_incremental<Perspective, 2>(pos, oldest_st, states_to_update);
             }

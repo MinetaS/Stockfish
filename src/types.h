@@ -257,6 +257,11 @@ enum Rank : int {
     RANK_NB
 };
 
+enum class AccumulatorUpdateType : int {
+    kCurrentOnly,
+    kCurrentAndOld
+};
+
 // Keep track of what a move changes on the board (used by NNUE)
 struct DirtyPiece {
 
