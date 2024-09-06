@@ -452,24 +452,40 @@ class FeatureTransformer {
     }
 
    private:
-    template<Color Perspective>
-    [[nodiscard]] std::pair<StateInfo*, StateInfo*>
-    try_find_computed_accumulator(const Position& pos) const {
+    template<Color Perspective, bool FindExtra>
+    StateInfo* try_find_computed_accumulator(const Position&              pos,
+                                             [[maybe_unused]] StateInfo** extra = nullptr) const {
         // Look for a usable accumulator of an earlier position. We keep track
         // of the estimated gain in terms of features to be added/subtracted.
-        StateInfo *st = pos.state(), *next = nullptr;
-        int        gain = FeatureSet::refresh_cost(pos);
+        StateInfo* st    = pos.state();
+        int        gain  = FeatureSet::refresh_cost(pos);
+        int        steps = 0;
+
         while (st->previous && !(st->*accPtr).computed[Perspective])
         {
             // This governs when a full feature refresh is needed and how many
             // updates are better than just one full refresh.
             if (FeatureSet::requires_refresh(st, Perspective)
                 || (gain -= FeatureSet::update_cost(st) + 1) < 0)
-                break;
-            next = st;
-            st   = st->previous;
+                return st;
+
+            st = st->previous;
+            ++steps;
         }
-        return {st, next};
+
+        if constexpr (FindExtra)
+        {
+            StateInfo* r = nullptr;
+            if (steps >= 2)
+            {
+                r = pos.state();
+                while (steps > 0)
+                    r = r->previous, steps -= 2;
+            }
+            *extra = r;
+        }
+
+        return st;
     }
 
     // NOTE: The parameter states_to_update is an array of position states.
@@ -482,14 +498,8 @@ class FeatureTransformer {
                                         StateInfo*      computed_st,
                                         StateInfo*      states_to_update[N]) const {
         static_assert(N > 0);
-        assert([&]() {
-            for (size_t i = 0; i < N; ++i)
-            {
-                if (states_to_update[i] == nullptr)
-                    return false;
-            }
-            return true;
-        }());
+        assert(std::all_of(states_to_update, states_to_update + N,
+                           [](const StateInfo* st) { return st != nullptr; }));
 
 #ifdef VECTOR
         // Gcc-10.2 unnecessarily spills AVX2 registers if this array
@@ -871,7 +881,7 @@ class FeatureTransformer {
         if ((pos.state()->*accPtr).computed[Perspective])
             return;
 
-        auto [oldest_st, _] = try_find_computed_accumulator<Perspective>(pos);
+        auto oldest_st = try_find_computed_accumulator<Perspective, false>(pos);
 
         if ((oldest_st->*accPtr).computed[Perspective])
         {
@@ -887,27 +897,23 @@ class FeatureTransformer {
     void update_accumulator(const Position&                           pos,
                             AccumulatorCaches::Cache<HalfDimensions>* cache) const {
 
-        auto [oldest_st, next] = try_find_computed_accumulator<Perspective>(pos);
+        StateInfo* extra;
+        auto       oldest_st = try_find_computed_accumulator<Perspective, true>(pos, &extra);
 
         if ((oldest_st->*accPtr).computed[Perspective])
         {
-            if (next == nullptr)
+            if (oldest_st == pos.state())
                 return;
 
-            // Now update the accumulators listed in states_to_update[], where
-            // the last element is a sentinel. Currently we update two accumulators:
-            //     1. for the current position
-            //     2. the next accumulator after the computed one
-            // The heuristic may change in the future.
-            if (next == pos.state())
+            if (extra == nullptr)
             {
-                StateInfo* states_to_update[1] = {next};
+                StateInfo* states_to_update[1] = {pos.state()};
 
                 update_accumulator_incremental<Perspective, 1>(pos, oldest_st, states_to_update);
             }
             else
             {
-                StateInfo* states_to_update[2] = {next, pos.state()};
+                StateInfo* states_to_update[2] = {extra, pos.state()};
 
                 update_accumulator_incremental<Perspective, 2>(pos, oldest_st, states_to_update);
             }
