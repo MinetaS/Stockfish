@@ -504,66 +504,102 @@ class FeatureTransformer {
             FeatureSet::append_changed_indices<Perspective>(ksq, computed->next->dirtyPiece,
                                                             removed, added);
 
-        assert(removed.size() > 0 && added.size() > 0);
-
-        StateInfo* next = CurrentOnly ? pos.state() : computed->next;
+        StateInfo* const next = CurrentOnly ? pos.state() : computed->next;
         assert(!(next->*accPtr).computed[Perspective]);
 
 #ifdef VECTOR
-        if ((removed.size() == 1 || removed.size() == 2) && added.size() == 1)
+        if ((!CurrentOnly || computed->next == pos.state()) && next->pliesFromNull != 0)
         {
+            assert((added.size() == 1 && removed.size() <= 2)
+                   || (added.size() == 2 && removed.size() == 2)  // castling
+            );
+
             auto accIn =
               reinterpret_cast<const vec_t*>(&(computed->*accPtr).accumulation[Perspective][0]);
             auto accOut = reinterpret_cast<vec_t*>(&(next->*accPtr).accumulation[Perspective][0]);
 
-            const IndexType offsetR0 = HalfDimensions * removed[0];
-            auto            columnR0 = reinterpret_cast<const vec_t*>(&weights[offsetR0]);
-            const IndexType offsetA  = HalfDimensions * added[0];
-            auto            columnA  = reinterpret_cast<const vec_t*>(&weights[offsetA]);
+    #define DEFINE_REMOVE_COLUMN(i) \
+        const auto columnR##i = \
+          reinterpret_cast<const vec_t*>(&weights[HalfDimensions * removed[i]]);
+    #define DEFINE_ADD_COLUMN(i) \
+        const auto columnA##i = reinterpret_cast<const vec_t*>(&weights[HalfDimensions * added[i]]);
 
-            if (removed.size() == 1)
+            DEFINE_REMOVE_COLUMN(0);
+            DEFINE_ADD_COLUMN(0);
+
+            if (added.size() == 1)
             {
-                for (IndexType i = 0; i < HalfDimensions * sizeof(WeightType) / sizeof(vec_t); ++i)
-                    accOut[i] = vec_add_16(vec_sub_16(accIn[i], columnR0[i]), columnA[i]);
+                if (removed.size() == 1)
+                    for (IndexType i = 0; i < HalfDimensions * sizeof(WeightType) / sizeof(vec_t);
+                         ++i)
+                        accOut[i] = vec_add_16(vec_sub_16(accIn[i], columnR0[i]), columnA0[i]);
+                else
+                {
+                    DEFINE_REMOVE_COLUMN(1);
+                    for (IndexType i = 0; i < HalfDimensions * sizeof(WeightType) / sizeof(vec_t);
+                         ++i)
+                        accOut[i] = vec_sub_16(vec_add_16(accIn[i], columnA0[i]),
+                                               vec_add_16(columnR0[i], columnR1[i]));
+                }
             }
             else
             {
-                const IndexType offsetR1 = HalfDimensions * removed[1];
-                auto            columnR1 = reinterpret_cast<const vec_t*>(&weights[offsetR1]);
-
+                DEFINE_REMOVE_COLUMN(1);
+                DEFINE_ADD_COLUMN(1);
                 for (IndexType i = 0; i < HalfDimensions * sizeof(WeightType) / sizeof(vec_t); ++i)
-                    accOut[i] = vec_sub_16(vec_add_16(accIn[i], columnA[i]),
-                                           vec_add_16(columnR0[i], columnR1[i]));
+                    accOut[i] =
+                      vec_sub_16(vec_add_16(vec_add_16(accIn[i], columnA0[i]), columnA1[i]),
+                                 vec_add_16(columnR0[i], columnR1[i]));
             }
+
+    #undef DEFINE_REMOVE_COLUMN
+    #undef DEFINE_ADD_COLUMN
 
             auto accPsqtIn = reinterpret_cast<const psqt_vec_t*>(
               &(computed->*accPtr).psqtAccumulation[Perspective][0]);
             auto accPsqtOut =
               reinterpret_cast<psqt_vec_t*>(&(next->*accPtr).psqtAccumulation[Perspective][0]);
 
-            const IndexType offsetPsqtR0 = PSQTBuckets * removed[0];
-            auto columnPsqtR0 = reinterpret_cast<const psqt_vec_t*>(&psqtWeights[offsetPsqtR0]);
-            const IndexType offsetPsqtA = PSQTBuckets * added[0];
-            auto columnPsqtA = reinterpret_cast<const psqt_vec_t*>(&psqtWeights[offsetPsqtA]);
+    #define DEFINE_REMOVE_PSQT_COLUMN(i) \
+        const auto columnPsqtR##i = \
+          reinterpret_cast<const psqt_vec_t*>(&psqtWeights[PSQTBuckets * removed[i]]);
+    #define DEFINE_ADD_PSQT_COLUMN(i) \
+        const auto columnPsqtA##i = \
+          reinterpret_cast<const psqt_vec_t*>(&psqtWeights[PSQTBuckets * added[i]]);
 
-            if (removed.size() == 1)
+            DEFINE_REMOVE_PSQT_COLUMN(0);
+            DEFINE_ADD_PSQT_COLUMN(0);
+
+            if (added.size() == 1)
             {
-                for (std::size_t i = 0;
-                     i < PSQTBuckets * sizeof(PSQTWeightType) / sizeof(psqt_vec_t); ++i)
-                    accPsqtOut[i] = vec_add_psqt_32(vec_sub_psqt_32(accPsqtIn[i], columnPsqtR0[i]),
-                                                    columnPsqtA[i]);
+                if (removed.size() == 1)
+                    for (IndexType i = 0;
+                         i < PSQTBuckets * sizeof(PSQTWeightType) / sizeof(psqt_vec_t); ++i)
+                        accPsqtOut[i] = vec_add_psqt_32(
+                          vec_sub_psqt_32(accPsqtIn[i], columnPsqtR0[i]), columnPsqtA0[i]);
+                else
+                {
+                    DEFINE_REMOVE_PSQT_COLUMN(1);
+                    for (IndexType i = 0;
+                         i < PSQTBuckets * sizeof(PSQTWeightType) / sizeof(psqt_vec_t); ++i)
+                        accPsqtOut[i] =
+                          vec_sub_psqt_32(vec_add_psqt_32(accPsqtIn[i], columnPsqtA0[i]),
+                                          vec_add_psqt_32(columnPsqtR0[i], columnPsqtR1[i]));
+                }
             }
             else
             {
-                const IndexType offsetPsqtR1 = PSQTBuckets * removed[1];
-                auto columnPsqtR1 = reinterpret_cast<const psqt_vec_t*>(&psqtWeights[offsetPsqtR1]);
-
-                for (std::size_t i = 0;
-                     i < PSQTBuckets * sizeof(PSQTWeightType) / sizeof(psqt_vec_t); ++i)
-                    accPsqtOut[i] =
-                      vec_sub_psqt_32(vec_add_psqt_32(accPsqtIn[i], columnPsqtA[i]),
-                                      vec_add_psqt_32(columnPsqtR0[i], columnPsqtR1[i]));
+                DEFINE_REMOVE_PSQT_COLUMN(1);
+                DEFINE_ADD_PSQT_COLUMN(1);
+                for (IndexType i = 0; i < PSQTBuckets * sizeof(PSQTWeightType) / sizeof(psqt_vec_t);
+                     ++i)
+                    accPsqtOut[i] = vec_sub_psqt_32(
+                      vec_add_psqt_32(vec_add_psqt_32(accPsqtIn[i], columnPsqtA0[i]), columnPsqtA1[i]),
+                      vec_add_psqt_32(columnPsqtR0[i], columnPsqtR1[i]));
             }
+
+    #undef DEFINE_REMOVE_PSQT_COLUMN
+    #undef DEFINE_ADD_PSQT_COLUMN
         }
         else
         {
