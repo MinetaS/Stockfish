@@ -142,7 +142,7 @@ class HalfKAv2_hm {
 
     // Returns whether the change stored in this StateInfo means
     // that a full accumulator refresh is required.
-    static bool requires_refresh(const StateInfo* st, Color perspective);
+    static bool requires_refresh(const StateInfo* st);
 };
 
 }  // namespace Stockfish::Eval::NNUE::Features

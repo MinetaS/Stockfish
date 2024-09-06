@@ -148,7 +148,7 @@ trace(Position& pos, const Eval::NNUE::Networks& networks, Eval::NNUE::Accumulat
                 auto st = pos.state();
 
                 pos.remove_piece(sq);
-                st->accumulatorBig.computed[WHITE] = st->accumulatorBig.computed[BLACK] = false;
+                st->accumulatorBig.computed = false;
 
                 std::tie(psqt, positional) = networks.big.evaluate(pos, &caches.big);
                 Value eval                 = psqt + positional;
@@ -156,7 +156,7 @@ trace(Position& pos, const Eval::NNUE::Networks& networks, Eval::NNUE::Accumulat
                 v                          = base - eval;
 
                 pos.put_piece(pc, sq);
-                st->accumulatorBig.computed[WHITE] = st->accumulatorBig.computed[BLACK] = false;
+                st->accumulatorBig.computed = false;
             }
 
             writeSquare(f, r, pc, v);
