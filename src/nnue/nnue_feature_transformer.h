@@ -452,40 +452,49 @@ class FeatureTransformer {
     }
 
    private:
-    template<Color Perspective, bool FindExtra>
-    StateInfo* try_find_computed_accumulator(const Position&              pos,
-                                             [[maybe_unused]] StateInfo** extra = nullptr) const {
-        // Look for a usable accumulator of an earlier position. We keep track
-        // of the estimated gain in terms of features to be added/subtracted.
-        StateInfo* st    = pos.state();
-        int        gain  = FeatureSet::refresh_cost(pos);
+    // Look for a usable accumulator of an earlier position. We keep track of
+    // the estimated gain in terms of features to be added/subtracted.
+    template<Color Perspective>
+    StateInfo* try_find_computed_accumulator(const Position& pos) const {
+        StateInfo* st   = pos.state();
+        int        gain = FeatureSet::refresh_cost(pos);
+
+        while (st->previous && !(st->*accPtr).computed[Perspective])
+        {
+            if (FeatureSet::requires_refresh(st, Perspective)
+                || (gain -= FeatureSet::update_cost(st) + 1) < 0)
+                break;
+            st = st->previous;
+        }
+        return st;
+    }
+
+    template<Color Perspective>
+    std::pair<StateInfo*, StateInfo*>
+    try_find_computed_accumulator_with_pivot(const Position& pos) const {
+        StateInfo *st = pos.state(), *pivot = nullptr;
+        int        gain  = FeatureSet::refresh_cost(pos) * 2;
         int        steps = 0;
 
         while (st->previous && !(st->*accPtr).computed[Perspective])
         {
-            // This governs when a full feature refresh is needed and how many
-            // updates are better than just one full refresh.
             if (FeatureSet::requires_refresh(st, Perspective)
                 || (gain -= FeatureSet::update_cost(st) + 1) < 0)
-                return st;
+                break;
 
             st = st->previous;
             ++steps;
         }
 
-        if constexpr (FindExtra)
+        if (steps >= 2)
         {
-            StateInfo* r = nullptr;
-            if (steps >= 2)
-            {
-                r = pos.state();
-                while (steps > 0)
-                    r = r->previous, steps -= 2;
-            }
-            *extra = r;
+            pivot = pos.state();
+            steps = std::min(steps - 1, 3);
+            while (steps--)
+                pivot = pivot->previous;
         }
 
-        return st;
+        return {st, pivot};
     }
 
     // NOTE: The parameter states_to_update is an array of position states.
@@ -881,7 +890,7 @@ class FeatureTransformer {
         if ((pos.state()->*accPtr).computed[Perspective])
             return;
 
-        auto oldest_st = try_find_computed_accumulator<Perspective, false>(pos);
+        StateInfo* oldest_st = try_find_computed_accumulator<Perspective>(pos);
 
         if ((oldest_st->*accPtr).computed[Perspective])
         {
@@ -897,15 +906,14 @@ class FeatureTransformer {
     void update_accumulator(const Position&                           pos,
                             AccumulatorCaches::Cache<HalfDimensions>* cache) const {
 
-        StateInfo* extra;
-        auto       oldest_st = try_find_computed_accumulator<Perspective, true>(pos, &extra);
+        auto [oldest_st, pivot] = try_find_computed_accumulator_with_pivot<Perspective>(pos);
 
         if ((oldest_st->*accPtr).computed[Perspective])
         {
             if (oldest_st == pos.state())
                 return;
 
-            if (extra == nullptr)
+            if (pivot == nullptr)
             {
                 StateInfo* states_to_update[1] = {pos.state()};
 
@@ -913,7 +921,7 @@ class FeatureTransformer {
             }
             else
             {
-                StateInfo* states_to_update[2] = {extra, pos.state()};
+                StateInfo* states_to_update[2] = {pivot, pos.state()};
 
                 update_accumulator_incremental<Perspective, 2>(pos, oldest_st, states_to_update);
             }
