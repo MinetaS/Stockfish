@@ -49,6 +49,9 @@ constexpr int       L3Small                           = 32;
 constexpr IndexType PSQTBuckets = 8;
 constexpr IndexType LayerStacks = 8;
 
+constexpr int FwdOutMultipliersBig[LayerStacks]   = {528, 600, 576, 569, 609, 625, 587, 573};
+constexpr int FwdOutMultipliersSmall[LayerStacks] = {574, 551, 548, 645, 554, 669, 635, 524};
+
 template<IndexType L1, int L2, int L3>
 struct NetworkArchitecture {
     static constexpr IndexType TransformedFeatureDimensions = L1;
@@ -124,8 +127,9 @@ struct NetworkArchitecture {
         ac_1.propagate(buffer.fc_1_out, buffer.ac_1_out);
         fc_2.propagate(buffer.ac_1_out, buffer.fc_2_out);
 
-        // buffer.fc_0_out[FC_0_OUTPUTS] is such that 1.0 is equal to 127*(1<<WeightScaleBits) in
-        // quantized form, but we want 1.0 to be equal to 600*OutputScale
+        // buffer.fc_0_out[FC_0_OUTPUTS] is such that 1.0 is equal to
+        // 127 * (1 << WeightScaleBits) in quantized form, but we want 1.0 to
+        // be equal to fwdOutMultiplier * OutputScale.
         std::int32_t fwdOut = (buffer.fc_0_out[FC_0_OUTPUTS]) * (fwdOutMultiplier * OutputScale)
                             / (127 * (1 << WeightScaleBits));
         std::int32_t outputValue = buffer.fc_2_out[0] + fwdOut;

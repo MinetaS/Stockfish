@@ -72,8 +72,6 @@ class Network {
     NnueEvalTrace trace_evaluate(const Position&                         pos,
                                  AccumulatorCaches::Cache<FTDimensions>* cache) const;
 
-    void apply_spsa_parameters() const;
-
    private:
     void load_user_net(const std::string&, const std::string&);
     void load_internal();

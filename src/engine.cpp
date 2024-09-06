@@ -135,8 +135,6 @@ void Engine::search_clear() {
 
     tt.clear(threads);
     threads.clear();
-    networks->big.apply_spsa_parameters();
-    networks->small.apply_spsa_parameters();
 
     // @TODO wont work with multiple instances
     Tablebases::init(options["SyzygyPath"]);  // Free mapped files
