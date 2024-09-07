@@ -470,14 +470,12 @@ class FeatureTransformer {
         return st;
     }
 
-    // NOTE: The parameter states_to_update is an array of position states.
-    //       All states must be sequential, that is states_to_update[i] must
-    //       either be reachable by repeatedly applying ->previous from
-    //       states_to_update[i+1], and computed_st must be reachable by
-    //       repeatedly applying ->previous on states_to_update[0].
+    // It computes the accumulator of the next position, or updates the
+    // current position's accumulator if CurrentOnly is true.
     template<Color Perspective, bool CurrentOnly>
     void update_accumulator_incremental(const Position& pos, StateInfo* computed) const {
         assert((computed->*accPtr).computed[Perspective]);
+        assert(computed->next != nullptr);
 
 #ifdef VECTOR
         // Gcc-10.2 unnecessarily spills AVX2 registers if this array
@@ -486,8 +484,6 @@ class FeatureTransformer {
         psqt_vec_t psqt[NumPsqtRegs];
 #endif
 
-        // Update incrementally going back through states_to_update.
-        // Gather all features to be updated.
         const Square ksq = pos.square<KING>(Perspective);
 
         // The size must be enough to contain the largest possible update.
@@ -503,8 +499,6 @@ class FeatureTransformer {
         else
             FeatureSet::append_changed_indices<Perspective>(ksq, computed->next->dirtyPiece,
                                                             removed, added);
-
-        assert(removed.size() > 0 && added.size() > 0);
 
         StateInfo* next = CurrentOnly ? pos.state() : computed->next;
         assert(!(next->*accPtr).computed[Perspective]);
@@ -859,8 +853,8 @@ class FeatureTransformer {
         StateInfo* oldest = try_find_computed_accumulator<Perspective>(pos);
 
         if ((oldest->*accPtr).computed[Perspective] && oldest != pos.state())
-            // Start from the oldest computed accumulator, compute all the
-            // accumulators until the current position.
+            // Start from the oldest computed accumulator, update all the
+            // accumulators up to the current position.
             update_accumulator_incremental<Perspective, false>(pos, oldest);
         else
             update_accumulator_refresh_cache<Perspective>(pos, cache);
