@@ -49,8 +49,8 @@ constexpr int       L3Small                           = 32;
 constexpr IndexType PSQTBuckets = 8;
 constexpr IndexType LayerStacks = 8;
 
-constexpr int FwdOutMultipliersBig[LayerStacks]   = {528, 600, 576, 569, 609, 625, 587, 573};
-constexpr int FwdOutMultipliersSmall[LayerStacks] = {574, 551, 548, 645, 554, 669, 635, 524};
+constexpr int FwdOutMultipliersBig[LayerStacks]   = {538, 580, 554, 606, 591, 630, 582, 565};
+constexpr int FwdOutMultipliersSmall[LayerStacks] = {526, 599, 564, 641, 528, 705, 656, 546};
 
 template<IndexType L1, int L2, int L3>
 struct NetworkArchitecture {
