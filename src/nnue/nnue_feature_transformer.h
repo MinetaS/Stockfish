@@ -188,18 +188,17 @@ static constexpr int BestRegisterCount() {
 
 
 // Input feature converter
-template<typename Type>
+template<IndexType                                 TransformedFeatureDimensions,
+         Accumulator<TransformedFeatureDimensions> StateInfo::*accPtr>
 class FeatureTransformer {
-    // Number of output dimensions for one side
-    static constexpr IndexType HalfDimensions = Type::L1;
 
-    // A pointer-to-member to the Accumulator in StateInfo struct
-    static constexpr auto accPtr = Type::accPtr;
+    // Number of output dimensions for one side
+    static constexpr IndexType HalfDimensions = TransformedFeatureDimensions;
 
    private:
 #ifdef VECTOR
     static constexpr int NumRegs =
-      BestRegisterCount<vec_t, WeightType, HalfDimensions, NumRegistersSIMD>();
+      BestRegisterCount<vec_t, WeightType, TransformedFeatureDimensions, NumRegistersSIMD>();
     static constexpr int NumPsqtRegs =
       BestRegisterCount<psqt_vec_t, PSQTWeightType, PSQTBuckets, NumRegistersSIMD>();
 

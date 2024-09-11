@@ -43,7 +43,7 @@ struct NetworkType {
     static constexpr int       L2 = _L2;
     static constexpr int       L3 = _L3;
 
-    static constexpr Accumulator<L1> StateInfo::*accPtr = _accPtr;
+    static constexpr Accumulator<TransformedFeatureDimensions> StateInfo::*accPtr = _accPtr;
 };
 
 enum class EmbeddedNNUEType {
@@ -55,7 +55,7 @@ using NetworkOutput = std::tuple<Value, Value>;
 
 template<typename Type>
 class Network {
-    using Transformer = FeatureTransformer<Type>;
+    using Transformer = FeatureTransformer<Type::L1, Type::accPtr>;
     using Cache       = AccumulatorCaches::Cache<Type::L1>;
     using Arch        = NetworkArchitecture<Type>;
 
