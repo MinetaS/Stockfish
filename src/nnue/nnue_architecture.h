@@ -49,9 +49,6 @@ constexpr int       L3Small                           = 32;
 constexpr IndexType PSQTBuckets = 8;
 constexpr IndexType LayerStacks = 8;
 
-constexpr int FwdOutMultipliersBig[LayerStacks]   = {571, 609, 578, 588, 600, 587, 579, 572};
-constexpr int FwdOutMultipliersSmall[LayerStacks] = {620, 588, 720, 578, 639, 592, 598, 630};
-
 template<IndexType L1, int L2, int L3>
 struct NetworkArchitecture {
     static constexpr IndexType TransformedFeatureDimensions = L1;
@@ -64,8 +61,6 @@ struct NetworkArchitecture {
     Layers::AffineTransform<FC_0_OUTPUTS * 2, FC_1_OUTPUTS>                            fc_1;
     Layers::ClippedReLU<FC_1_OUTPUTS>                                                  ac_1;
     Layers::AffineTransform<FC_1_OUTPUTS, 1>                                           fc_2;
-
-    std::int32_t fwdOutMultiplier;
 
     // Hash value embedded in the evaluation file
     static constexpr std::uint32_t get_hash_value() {
@@ -129,9 +124,9 @@ struct NetworkArchitecture {
 
         // buffer.fc_0_out[FC_0_OUTPUTS] is such that 1.0 is equal to
         // 127 * (1 << WeightScaleBits) in quantized form, but we want 1.0 to
-        // be equal to fwdOutMultiplier * OutputScale.
-        std::int32_t fwdOut = (buffer.fc_0_out[FC_0_OUTPUTS]) * (fwdOutMultiplier * OutputScale)
-                            / (127 * (1 << WeightScaleBits));
+        // be equal to 584 * OutputScale.
+        std::int32_t fwdOut =
+          (buffer.fc_0_out[FC_0_OUTPUTS]) * (584 * OutputScale) / (127 * (1 << WeightScaleBits));
         std::int32_t outputValue = buffer.fc_2_out[0] + fwdOut;
 
         return outputValue;

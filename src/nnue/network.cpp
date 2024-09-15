@@ -422,11 +422,6 @@ bool Network<Arch, Transformer>::read_parameters(std::istream& stream,
     {
         if (!Detail::read_parameters(stream, network[i]))
             return false;
-
-        if constexpr (Arch::TransformedFeatureDimensions == TransformedFeatureDimensionsBig)
-            network[i].fwdOutMultiplier = FwdOutMultipliersBig[i];
-        else
-            network[i].fwdOutMultiplier = FwdOutMultipliersSmall[i];
     }
     return stream && stream.peek() == std::ios::traits_type::eof();
 }
