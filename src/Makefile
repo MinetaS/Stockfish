@@ -24,9 +24,41 @@ default: help
 
 VPATH = syzygy:nnue:nnue/features
 
-SRCS    := $(shell find . -name "*.cpp" ! -path "./incbin/*")
-OBJS    := $(notdir $(SRCS:.cpp=.o))
-HEADERS := $(shell find . -name "*.h" ! -path "./incbin/*")
+SRCS := \
+    benchmark.cpp bitboard.cpp engine.cpp evaluate.cpp main.cpp memory.cpp \
+    misc.cpp movegen.cpp movepick.cpp position.cpp score.cpp search.cpp \
+    thread.cpp timeman.cpp tt.cpp tune.cpp uci.cpp ucioption.cpp \
+    nnue/network.cpp nnue/nnue_misc.cpp nnue/features/half_ka_v2_hm.cpp \
+    syzygy/tbprobe.cpp
+
+HEADERS := \
+    benchmark.h bitboard.h common.h engine.h evaluate.h memory.h misc.h \
+    movegen.h movepick.h numa.h perft.h position.h score.h search.h thread.h \
+    thread_win32_osx.h timeman.h tt.h tune.h types.h uci.h ucioption.h \
+    nnue/network.h nnue/nnue_accumulator.h nnue/nnue_architecture.h \
+    nnue/nnue_common.h nnue/nnue_feature_transformer.h nnue/nnue_misc.h \
+    nnue/features/half_ka_v2_hm.h nnue/layers/affine_transform.h \
+    nnue/layers/clipped_relu.h nnue/layers/sqr_clipped_relu.h \
+    syzygy/tbprobe.h \
+    arch/i386/arch.h \
+    arch/i386/nnue/layers/affine_transform.h \
+    arch/i386/nnue/layers/affine_transform_sparse_input.h \
+    arch/i386/nnue/layers/clipped_relu.h \
+    arch/i386/nnue/layers/sqr_clipped_relu.h \
+    arch/i386/nnue/nnue_feature_transformer.h \
+    arch/arm/arch.h \
+    arch/arm/nnue/layers/affine_transform.h \
+    arch/arm/nnue/layers/affine_transform_sparse_input.h \
+    arch/arm/nnue/layers/clipped_relu.h \
+    arch/arm/nnue/layers/sqr_clipped_relu.h \
+    arch/arm/nnue/nnue_feature_transformer.h \
+    arch/generic/arch.h \
+    arch/generic/nnue/layers/affine_transform.h \
+    arch/generic/nnue/layers/clipped_relu.h \
+    arch/generic/nnue/layers/sqr_clipped_relu.h \
+    arch/generic/nnue/nnue_feature_transformer.h
+
+OBJS := $(notdir $(SRCS:.cpp=.o))
 
 INSTALL_PREFIX := /usr/local
 INSTALL_PATH   := $(INSTALL_PREFIX)/bin
@@ -36,8 +68,6 @@ ifeq ($(OS),Windows_NT)
 else
     INSTALL_EXE := stockfish
 endif
-
-KERNEL := $(shell uname -s)
 
 strip:
 	-@test -f stockfish && strip stockfish
@@ -96,7 +126,7 @@ endef
 define get-compiler-macro
 $(shell echo | $(CXX) -dM -x c++ -E - | \
         grep -E "^#define[[:space:]]+$(1)$|([[:space:]]+.*)" | \
-        sed "s/^#define[[:space:]]\+$(1)[[:space:]]\+//")
+        sed "s/^#define[[:space:]]\{1,\}$(1)[[:space:]]\{1,\}\+//")
 endef
 
 ### 1. Detect compiler type
@@ -111,8 +141,13 @@ ifeq ($(call test-compiler-macro,__GNUC__),1)
         $(info Using LLVM C/C++ Compiler (Clang)) $(info )
         COMP := clang
         CLANG_VERSION := $(call get-compiler-macro,__clang_major__)
-        LLVM_PROFDATA := $(shell command -v llvm-profdata-$(CLANG_VERSION) 2> /dev/null || \
-								 command -v llvm-profdata 2> /dev/null)
+        ifneq ($(findstring Apple,$(call get-compiler-macro,__VERSION__)),)
+            CLANG_APPLE := y
+            LLVM_PROFDATA := xcrun llvm-profdata
+        else
+            LLVM_PROFDATA := $(shell command -v llvm-profdata-$(CLANG_VERSION) 2> /dev/null || \
+								     command -v llvm-profdata 2> /dev/null)
+        endif
         profile_make = clang-profile-make
         profile_use  = clang-profile-use
         export LLVM_PROFDATA
@@ -393,7 +428,7 @@ clang-profile-make:
 		CXXFLAGS="-fprofile-generate" LDFLAGS="-fprofile-generate" all
 
 clang-profile-use:
-	$(XCRUN) $(LLVM_PROFDATA) merge -output=stockfish.profdata *.profraw
+	@$(LLVM_PROFDATA) merge -output=stockfish.profdata *.profraw
 	@$(MAKE) --no-print-directory \
 		CXXFLAGS="-fprofile-use=stockfish.profdata" \
 		LDFLAGS="-fprofile-use=stockfish.profdata" \
@@ -401,12 +436,14 @@ clang-profile-use:
 
 icx-profile-make:
 	@$(MAKE) --no-print-directory \
-		CXXFLAGS="-fprofile-instr-generate" LDFLAGS="-fprofile-instr-generate" all
+		CXXFLAGS="-fprofile-generate" LDFLAGS="-fprofile-generate" all
 
 icx-profile-use:
-	@$(XCRUN) llvm-profdata merge -output=stockfish.profdata *.profraw
+	@llvm-profdata merge *.profraw --output stockfish.profdata
 	@$(MAKE) --no-print-directory \
-		CXXFLAGS="-fprofile-instr-use=stockfish.profdata" LDFLAGS="-fprofile-use" all
+		CXXFLAGS="-fprofile-use=stockfish.profdata" \
+		LDFLAGS="-fprofile-use=stockfish.profdata" \
+		all
 
 ifneq ($(filter $(MAKECMDGOALS),$(CXX_REQUIRED_RULES)),)
 -include .depend

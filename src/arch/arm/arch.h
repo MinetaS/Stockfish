@@ -23,8 +23,8 @@
 #error "Not supported in the current architecture."
 #endif
 
-#if __ARM_ARCH >= 8 && (!defined(__ARM_64BIT_STATE) || !defined(__ARM_NEON))
-#error "Invalid AArch64 state."
+#if __ARM_ARCH >= 8 && !defined(__ARM_64BIT_STATE)
+#error "AArch32 state in ARMv8 and above is not supported."
 #endif
 
 #include <cassert>
