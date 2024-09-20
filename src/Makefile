@@ -198,7 +198,7 @@ ifeq ($(COMP),gcc)
                    -Wshadow
 else ifeq ($(COMP),clang)
     SF_CXXFLAGS += -pedantic -Wextra -Wcast-qual -Wconditional-uninitialized \
-                -Wmissing-prototypes -Wshadow
+                   -Wmissing-prototypes -Wshadow
 else ifeq ($(COMP),icx)
     SF_CXXFLAGS += -Wabi -Wmissing-declarations -Wmissing-prototypes -Wshadow
 endif
@@ -274,6 +274,8 @@ ifeq ($(ARCH),)
 endif
 
 ifeq ($(ARCH),native)
+    # -march=native is not available on some architectures.
+    # Need some automatic detection here.
     ARCH_NATIVE := y
     SF_CXXFLAGS += -march=native -DARCH_NATIVE
 else
@@ -281,6 +283,8 @@ else
         ARCH_FAMILY := i386
     else ifneq ($(filter arm%,$(ARCH)),)
         ARCH_FAMILY := arm
+    else ifneq ($(filter ppc%,$(ARCH)),)
+        ARCH_FAMILY := ppc
     else
         ARCH_FAMILY := generic
     endif

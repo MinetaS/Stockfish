@@ -136,7 +136,7 @@ inline unsigned int ArchImpl::popcount(T n) {
         return _mm_popcnt_u32(std::uint32_t(n));
 #else
     if constexpr (!is_64bit() && sizeof(T) == 8)
-        return __popcount_use_table(n);
+        return __popcount_table(n);
     else
         return __popcount_value(n);
 #endif

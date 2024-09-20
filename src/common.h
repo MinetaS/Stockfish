@@ -100,10 +100,9 @@ enum class PrefetchHint;
 
 // This struct is used to provide generalized functionalities that might have
 // different implementations depending on the target architecture. Each
-// function defined in this struct is specialized in arch.h file respectively.
+// member and function defined in this struct is specialized in arch.h file
+// respectively.
 struct ArchImpl {
-    /// Does the struct name fit to its purpose?
-
     static const bool Is64Bit;
 
     static const bool UsePEXT;  // used in Bitboard
@@ -130,7 +129,7 @@ constexpr bool use_pext() { return ArchImpl::UsePEXT; }
 // 32-bit environment. Therefore we provide two versions of it and leave it
 // for each platform to decide which one to use.
 template<typename T>
-inline int __popcount_use_table(T n) {
+inline int __popcount_table(T n) {
     static_assert(std::is_integral_v<T> && sizeof(T) % 2 == 0);
 
     static const std::array<std::uint8_t, 1 << 16> popcntTable = [] {
@@ -195,6 +194,10 @@ inline T pext(T n, T mask) {
 #elif defined(__arm__) || defined(__aarch64__)
 
     #include "arch/arm/arch.h"
+
+#elif defined(__PPC__)
+
+    #include "arch/ppc/arch.h"
 
 #else
 
