@@ -334,6 +334,9 @@ void Position::set_check_info() const {
 // The function is only used when a new position is set up
 void Position::set_state() const {
 
+    st->accumulatorBigPtr   = &st->accumulatorBig;
+    st->accumulatorSmallPtr = &st->accumulatorSmall;
+
     st->key = st->materialKey = 0;
     st->majorPieceKey = st->minorPieceKey = 0;
     st->nonPawnKey[WHITE] = st->nonPawnKey[BLACK] = 0;
@@ -705,6 +708,9 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
     st->accumulatorBig.computed[WHITE]     = st->accumulatorBig.computed[BLACK] =
       st->accumulatorSmall.computed[WHITE] = st->accumulatorSmall.computed[BLACK] = false;
 
+    st->accumulatorBigPtr   = &st->accumulatorBig;
+    st->accumulatorSmallPtr = &st->accumulatorSmall;
+
     auto& dp     = st->dirtyPiece;
     dp.dirty_num = 1;
 
@@ -1023,10 +1029,11 @@ void Position::do_null_move(StateInfo& newSt, TranspositionTable& tt) {
     st->next       = &newSt;
     st             = &newSt;
 
-    st->dirtyPiece.dirty_num               = 0;
-    st->dirtyPiece.piece[0]                = NO_PIECE;  // Avoid checks in UpdateAccumulator()
-    st->accumulatorBig.computed[WHITE]     = st->accumulatorBig.computed[BLACK] =
-      st->accumulatorSmall.computed[WHITE] = st->accumulatorSmall.computed[BLACK] = false;
+    st->accumulatorBigPtr   = st->previous->accumulatorBigPtr;
+    st->accumulatorSmallPtr = st->previous->accumulatorSmallPtr;
+
+    // Needs to be zero, as the update cost model utilizes this value
+    st->dirtyPiece.dirty_num = 0;
 
     if (st->epSquare != SQ_NONE)
     {

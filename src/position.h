@@ -66,6 +66,8 @@ struct StateInfo {
     // Used by NNUE
     Eval::NNUE::Accumulator<Eval::NNUE::TransformedFeatureDimensionsBig>   accumulatorBig;
     Eval::NNUE::Accumulator<Eval::NNUE::TransformedFeatureDimensionsSmall> accumulatorSmall;
+    decltype(StateInfo::accumulatorBig)*                                   accumulatorBigPtr;
+    decltype(StateInfo::accumulatorSmall)*                                 accumulatorSmallPtr;
     DirtyPiece                                                             dirtyPiece;
 };
 
