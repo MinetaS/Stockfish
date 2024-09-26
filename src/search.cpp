@@ -80,16 +80,77 @@ constexpr int futility_move_count(bool improving, Depth depth) {
 // Add correctionHistory value to raw staticEval and guarantee evaluation
 // does not hit the tablebase range.
 Value to_corrected_static_eval(Value v, const Worker& w, const Position& pos) {
-    const Color us    = pos.side_to_move();
-    const auto  pcv   = w.pawnCorrectionHistory[us][pawn_structure_index<Correction>(pos)];
-    const auto  mcv   = w.materialCorrectionHistory[us][material_index(pos)];
-    const auto  macv  = w.majorPieceCorrectionHistory[us][major_piece_index(pos)];
-    const auto  micv  = w.minorPieceCorrectionHistory[us][minor_piece_index(pos)];
-    const auto  wnpcv = w.nonPawnCorrectionHistory[WHITE][us][non_pawn_index<WHITE>(pos)];
-    const auto  bnpcv = w.nonPawnCorrectionHistory[BLACK][us][non_pawn_index<BLACK>(pos)];
-    const auto  cv =
-      (6245 * pcv + 3442 * mcv + 3471 * macv + 5958 * micv + 6566 * (wnpcv + bnpcv)) / 131072;
-    v += cv;
+    // clang-format off
+    static constexpr std::int8_t fc0w[6][8] = {
+        { -5, -4, 0, 15, 5, -11, -4, -5 },
+        { 14, 19, 0, 24, 21, 0, 20, -4 },
+        { 4, -27, 1, 0, -6, -14, -26, -7 },
+        { 25, 4, 0, 18, 4, -14, 5, 1 },
+        { 22, -28, 0, 8, -17, -25, -28, 1 },
+        { 1, 10, 1, -4, 22, -12, 10, -2 }
+    };
+    static constexpr std::int32_t fc0b[8] = {
+        -315, 203, -15, -362, 105, 813, 203, 454
+    };
+    static constexpr std::int8_t fc1w[8][8] = {
+        { 43, 6, 19, 29, 18, 22, -15, 6 },
+        { 6, 9, -18, 7, 23, -37, -4, -4 },
+        { -13, -11, -25, 8, -7, 2, 14, -28 },
+        { 2, 25, 6, -39, 24, -20, 14, -22 },
+        { 8, 6, 14, -30, -3, 22, -3, 19 },
+        { 16, 39, -14, 41, -14, 17, 1, -3 },
+        { 35, 0, -15, 29, -34, -27, -15, -26 },
+        { -25, -30, -2, -22, 24, -19, -17, -5 }
+    };
+    static constexpr std::int32_t fc1b[8] = {
+        -306, 230, 20, -64, -525, -164, 67, -216
+    };
+    static constexpr std::int8_t fc2w[8] = {
+        30, -34, 47, -34, -41, -12, 21, -33
+    };
+    static constexpr std::int32_t fc2b = 214;
+    // clang-format on
+
+    const Color        us    = pos.side_to_move();
+    const std::int32_t in[6] = {w.pawnCorrectionHistory[us][pawn_structure_index<Correction>(pos)],
+                                w.materialCorrectionHistory[us][material_index(pos)],
+                                w.majorPieceCorrectionHistory[us][major_piece_index(pos)],
+                                w.minorPieceCorrectionHistory[us][minor_piece_index(pos)],
+                                w.nonPawnCorrectionHistory[WHITE][us][non_pawn_index<WHITE>(pos)],
+                                w.nonPawnCorrectionHistory[BLACK][us][non_pawn_index<BLACK>(pos)]};
+
+    std::int32_t fc0out[8];
+    std::int32_t fc1out[8];
+    std::int32_t fc2out;
+
+    for (int i = 0; i < 8; ++i)
+    {
+        std::int32_t acc = fc0b[i];
+
+        for (int j = 0; j < 6; ++j)
+            acc += fc0w[j][i] * in[j];
+
+        fc0out[i] = std::clamp(acc / 64, -1024, 1024);
+    }
+
+    for (int i = 0; i < 8; ++i)
+    {
+        std::int32_t acc = fc1b[i];
+
+        for (int j = 0; j < 8; ++j)
+            acc += fc1w[j][i] * fc0out[j];
+
+        fc1out[i] = std::clamp(acc / 64, -1024, 1024);
+    }
+
+    fc2out = fc2b;
+
+    for (int i = 0; i < 8; ++i)
+        fc2out += fc2w[i] * fc1out[i];
+
+    fc2out /= 256;
+
+    v += fc2out;
     return std::clamp(v, VALUE_TB_LOSS_IN_MAX_PLY + 1, VALUE_TB_WIN_IN_MAX_PLY - 1);
 }
 
