@@ -82,33 +82,33 @@ constexpr int futility_move_count(bool improving, Depth depth) {
 Value to_corrected_static_eval(Value v, const Worker& w, const Position& pos) {
     // clang-format off
     static constexpr std::int8_t fc0w[6][8] = {
-        { -8, 26, 2, 0, -4, 25, 0, 0 },
-        { -6, -1, 19, 0, 11, -3, 0, 0 },
-        { -2, 17, 6, 0, -2, -10, 0, 0 },
-        { 16, 8, 14, 0, -7, 10, 0, 0 },
-        { 8, 18, 7, 0, 18, 4, 0, 0 },
-        { 0, -1, 26, 0, 2, -8, 0, 0 }
+        { -5, -4, 0, 15, 5, -11, -4, -5 },
+        { 14, 19, 0, 24, 21, 0, 20, -4 },
+        { 4, -27, 1, 0, -6, -14, -26, -7 },
+        { 25, 4, 0, 18, 4, -14, 5, 1 },
+        { 22, -28, 0, 8, -17, -25, -28, 1 },
+        { 1, 10, 1, -4, 22, -12, 10, -2 }
     };
     static constexpr std::int32_t fc0b[8] = {
-        100, 116, -18, 1, -114, 311, -1, -1
+        -315, 203, -15, -362, 105, 813, 203, 454
     };
     static constexpr std::int8_t fc1w[8][8] = {
-        { 17, 0, 3, 36, -21, -6, 17, -20 },
-        { -30, 0, 9, -17, -31, 8, -24, 13 },
-        { -3, 0, 5, 31, -10, 13, -22, 11 },
-        { -28, 4, -5, -32, 27, 5, -28, 8 },
-        { 5, 0, -1, 12, -29, -15, 10, -12 },
-        { 3, 0, 17, 23, -34, 26, 29, -14 },
-        { -27, 0, 30, -20, -23, -35, -2, 26 },
-        { -29, 0, 28, -16, -21, -11, -17, 6 }
+        { 43, 6, 19, 29, 18, 22, -15, 6 },
+        { 6, 9, -18, 7, 23, -37, -4, -4 },
+        { -13, -11, -25, 8, -7, 2, 14, -28 },
+        { 2, 25, 6, -39, 24, -20, 14, -22 },
+        { 8, 6, 14, -30, -3, 22, -3, 19 },
+        { 16, 39, -14, 41, -14, 17, 1, -3 },
+        { 35, 0, -15, 29, -34, -27, -15, -26 },
+        { -25, -30, -2, -22, 24, -19, -17, -5 }
     };
     static constexpr std::int32_t fc1b[8] = {
-        27, 0, 5, -57, -172, -8, -8, 0
+        -306, 230, 20, -64, -525, -164, 67, -216
     };
     static constexpr std::int8_t fc2w[8] = {
-        -33, 0, -33, 35, -18, 15, -6, 32
+        30, -34, 47, -34, -41, -12, 21, -33
     };
-    static constexpr std::int32_t fc2b = -6;
+    static constexpr std::int32_t fc2b = 214;
     // clang-format on
 
     const Color        us    = pos.side_to_move();
@@ -128,9 +128,9 @@ Value to_corrected_static_eval(Value v, const Worker& w, const Position& pos) {
         std::int32_t acc = fc0b[i];
 
         for (int j = 0; j < 6; ++j)
-            acc += fc0w[j][i] * in[i];
+            acc += fc0w[j][i] * in[j];
 
-        fc0out[i] = std::int8_t(acc / 64);
+        fc0out[i] = std::clamp(acc / 64, -1024, 1024);
     }
 
     for (int i = 0; i < 8; ++i)
@@ -138,9 +138,9 @@ Value to_corrected_static_eval(Value v, const Worker& w, const Position& pos) {
         std::int32_t acc = fc1b[i];
 
         for (int j = 0; j < 8; ++j)
-            acc += fc1w[j][i] * fc0out[i];
+            acc += fc1w[j][i] * fc0out[j];
 
-        fc1out[i] = std::int8_t(acc / 64);
+        fc1out[i] = std::clamp(acc / 64, -1024, 1024);
     }
 
     fc2out = fc2b;
@@ -148,7 +148,7 @@ Value to_corrected_static_eval(Value v, const Worker& w, const Position& pos) {
     for (int i = 0; i < 8; ++i)
         fc2out += fc2w[i] * fc1out[i];
 
-    fc2out = fc2out * 256 / 127 / 64;
+    fc2out /= 256;
 
     v += fc2out;
     return std::clamp(v, VALUE_TB_LOSS_IN_MAX_PLY + 1, VALUE_TB_WIN_IN_MAX_PLY - 1);
