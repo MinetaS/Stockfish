@@ -77,45 +77,42 @@ constexpr int futility_move_count(bool improving, Depth depth) {
     return (3 + depth * depth) / (2 - improving);
 }
 
-// clang-format off
-std::int32_t fc0w[6][8] = {
-    { 9, -2, 0, 16, 21, 0, -6, 34 },
-    { 22, 6, -18, -3, 3, 0, 4, 5 },
-    { 5, 2, 8, 1, -8, 0, 15, 6 },
-    { -20, -3, -12, 0, -19, 0, 23, -8 },
-    { 12, -7, -31, -13, 16, 0, 5, 18 },
-    { 3, -5, -2, 17, -9, 0, 22, -1 }
-};
-std::int32_t fc0b[8] = {
-    16, -15, -10, -31, 24, -4, -6, -15
-};
-std::int32_t fc1w[8][8] = {
-    { -16, 18, -16, 48, -14, 6, -2, 2 },
-    { 27, -29, 1, 4, 30, -15, 6, -11 },
-    { -28, 9, -27, 34, -25, -2, 1, -30 },
-    { 30, 3, 15, 34, -15, 0, 0, 21 },
-    { 34, -11, -4, -11, -13, -24, 8, 14 },
-    { -25, 16, 4, 5, -33, 8, -19, -18 },
-    { 37, 7, 16, -11, 5, -14, 5, -31 },
-    { 4, 45, -4, -4, 22, 10, -3, -12 }
-};
-std::int32_t fc1b[8] = {
-    -9, -13, -8, 147, 7, 0, -2, -21
-};
-std::int32_t fc2w[8] = {
-    10, 32, 42, 7, 18, 0, 0, -5
-};
-std::int32_t fc2b = 5;
-// clang-format on
-
-// SPSA: alpha = 0.821, gamma = 0.123
-//       c_end = 6.35, r_end = 0.004
-TUNE(SetRange(-127, 127), fc0w, fc1w, fc2w);
-TUNE(SetRange(-1024, 1024), fc0b, fc1b, fc2b);
-
 // Add correctionHistory value to raw staticEval and guarantee evaluation
 // does not hit the tablebase range.
 Value to_corrected_static_eval(Value v, const Worker& w, const Position& pos) {
+    // clang-format off
+    static constexpr std::int32_t fc0w[8][6] = {
+        { 1, 19, -2, -23, 13, 5 },
+        { 7, 3, 3, 1, -8, -4 },
+        { -6, -20, -2, -11, -27, -8 },
+        { 17, -5, -3, 4, -9, 14 },
+        { 16, 3, -4, -14, 15, -4 },
+        { 0, 3, 1, -2, -2, -5 },
+        { 2, 11, 14, 22, 8, 16 },
+        { 36, 5, 4, -5, 13, -1 }
+    };
+    static constexpr std::int32_t fc0b[8] = {
+        14, -20, -12, -24, 40, 3, -6, -21
+    };
+    static constexpr std::int32_t fc1w[8][8] = {
+        { -7, 33, -31, 26, 28, -26, 38, -7 },
+        { 21, -28, 9, 10, -9, 15, 7, 43 },
+        { -21, 0, -27, 19, -4, 1, 25, 1 },
+        { 44, 5, 34, 45, -12, 3, -12, -3 },
+        { -16, 30, -32, -9, -11, -34, 1, 16 },
+        { 3, -16, -12, 0, -21, 5, -12, 14 },
+        { -4, 5, 8, -3, 7, -17, 6, -6 },
+        { 5, -20, -31, 27, 16, -20, -30, -8 }
+    };
+    static constexpr std::int32_t fc1b[8] = {
+        -1, -9, -15, 161, -8, -2, 1, -14
+    };
+    static constexpr std::int32_t fc2w[8] = {
+        7, 24, 44, 6, 15, -5, -6, 0
+    };
+    static constexpr std::int32_t fc2b = 11;
+    // clang-format on
+
     const Color        us    = pos.side_to_move();
     const std::int32_t in[6] = {w.pawnCorrectionHistory[us][pawn_structure_index<Correction>(pos)],
                                 w.materialCorrectionHistory[us][material_index(pos)],
@@ -133,7 +130,7 @@ Value to_corrected_static_eval(Value v, const Worker& w, const Position& pos) {
         std::int32_t acc = fc0b[i];
 
         for (int j = 0; j < 6; ++j)
-            acc += fc0w[j][i] * in[j];
+            acc += fc0w[i][j] * in[j];
 
         fc0out[i] = std::clamp(acc / 64, -1024, 1024);
     }
@@ -143,7 +140,7 @@ Value to_corrected_static_eval(Value v, const Worker& w, const Position& pos) {
         std::int32_t acc = fc1b[i];
 
         for (int j = 0; j < 8; ++j)
-            acc += fc1w[j][i] * fc0out[j];
+            acc += fc1w[i][j] * fc0out[j];
 
         fc1out[i] = std::clamp(acc / 64, -1024, 1024);
     }
