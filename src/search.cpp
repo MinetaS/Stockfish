@@ -77,40 +77,45 @@ constexpr int futility_move_count(bool improving, Depth depth) {
     return (3 + depth * depth) / (2 - improving);
 }
 
+// clang-format off
+std::int32_t fc0w[6][8] = {
+    { 9, -2, 0, 16, 21, 0, -6, 34 },
+    { 22, 6, -18, -3, 3, 0, 4, 5 },
+    { 5, 2, 8, 1, -8, 0, 15, 6 },
+    { -20, -3, -12, 0, -19, 0, 23, -8 },
+    { 12, -7, -31, -13, 16, 0, 5, 18 },
+    { 3, -5, -2, 17, -9, 0, 22, -1 }
+};
+std::int32_t fc0b[8] = {
+    16, -15, -10, -31, 24, -4, -6, -15
+};
+std::int32_t fc1w[8][8] = {
+    { -16, 18, -16, 48, -14, 6, -2, 2 },
+    { 27, -29, 1, 4, 30, -15, 6, -11 },
+    { -28, 9, -27, 34, -25, -2, 1, -30 },
+    { 30, 3, 15, 34, -15, 0, 0, 21 },
+    { 34, -11, -4, -11, -13, -24, 8, 14 },
+    { -25, 16, 4, 5, -33, 8, -19, -18 },
+    { 37, 7, 16, -11, 5, -14, 5, -31 },
+    { 4, 45, -4, -4, 22, 10, -3, -12 }
+};
+std::int32_t fc1b[8] = {
+    -9, -13, -8, 147, 7, 0, -2, -21
+};
+std::int32_t fc2w[8] = {
+    10, 32, 42, 7, 18, 0, 0, -5
+};
+std::int32_t fc2b = 5;
+// clang-format on
+
+// SPSA: alpha = 0.821, gamma = 0.123
+//       c_end = 6.35, r_end = 0.004
+TUNE(SetRange(-127, 127), fc0w, fc1w, fc2w);
+TUNE(SetRange(-1024, 1024), fc0b, fc1b, fc2b);
+
 // Add correctionHistory value to raw staticEval and guarantee evaluation
 // does not hit the tablebase range.
 Value to_corrected_static_eval(Value v, const Worker& w, const Position& pos) {
-    // clang-format off
-    static constexpr std::int8_t fc0w[6][8] = {
-        { -5, -4, 0, 15, 5, -11, -4, -5 },
-        { 14, 19, 0, 24, 21, 0, 20, -4 },
-        { 4, -27, 1, 0, -6, -14, -26, -7 },
-        { 25, 4, 0, 18, 4, -14, 5, 1 },
-        { 22, -28, 0, 8, -17, -25, -28, 1 },
-        { 1, 10, 1, -4, 22, -12, 10, -2 }
-    };
-    static constexpr std::int32_t fc0b[8] = {
-        -315, 203, -15, -362, 105, 813, 203, 454
-    };
-    static constexpr std::int8_t fc1w[8][8] = {
-        { 43, 6, 19, 29, 18, 22, -15, 6 },
-        { 6, 9, -18, 7, 23, -37, -4, -4 },
-        { -13, -11, -25, 8, -7, 2, 14, -28 },
-        { 2, 25, 6, -39, 24, -20, 14, -22 },
-        { 8, 6, 14, -30, -3, 22, -3, 19 },
-        { 16, 39, -14, 41, -14, 17, 1, -3 },
-        { 35, 0, -15, 29, -34, -27, -15, -26 },
-        { -25, -30, -2, -22, 24, -19, -17, -5 }
-    };
-    static constexpr std::int32_t fc1b[8] = {
-        -306, 230, 20, -64, -525, -164, 67, -216
-    };
-    static constexpr std::int8_t fc2w[8] = {
-        30, -34, 47, -34, -41, -12, 21, -33
-    };
-    static constexpr std::int32_t fc2b = 214;
-    // clang-format on
-
     const Color        us    = pos.side_to_move();
     const std::int32_t in[6] = {w.pawnCorrectionHistory[us][pawn_structure_index<Correction>(pos)],
                                 w.materialCorrectionHistory[us][material_index(pos)],
