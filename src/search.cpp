@@ -77,32 +77,24 @@ constexpr int futility_move_count(bool improving, Depth depth) {
     return (3 + depth * depth) / (2 - improving);
 }
 
-std::int32_t c_pcv = 6245;
-std::int32_t c_mcv = 3442;
-std::int32_t c_macv = 3471;
-std::int32_t c_micv = 5958;
-std::int32_t c_npcv = 6566;
-
-TUNE(SetRange(0, 16384), c_pcv, c_mcv, c_macv, c_micv, c_npcv);
+constexpr int scale_history_value(int h) {
+    const unsigned int n = std::abs(h);
+    const unsigned int r = (n > 512 ? 512 + (n - 512) / 2 : n);
+    return std::signbit(h) ? -r : r;
+}
 
 // Add correctionHistory value to raw staticEval and guarantee evaluation
 // does not hit the tablebase range.
 Value to_corrected_static_eval(Value v, const Worker& w, const Position& pos) {
-    static constexpr auto history_value = [](int h) {
-        const unsigned int n = std::abs(h);
-        const unsigned int r = (n > 512 ? 512 + (n - 512) / 2 : n);
-        return std::signbit(h) ? -r : r;
-    };
-
     const Color us    = pos.side_to_move();
-    const auto  pcv   = history_value(w.pawnCorrectionHistory[us][pawn_structure_index<Correction>(pos)]);
-    const auto  mcv   = history_value(w.materialCorrectionHistory[us][material_index(pos)]);
-    const auto  macv  = history_value(w.majorPieceCorrectionHistory[us][major_piece_index(pos)]);
-    const auto  micv  = history_value(w.minorPieceCorrectionHistory[us][minor_piece_index(pos)]);
-    const auto  wnpcv = history_value(w.nonPawnCorrectionHistory[WHITE][us][non_pawn_index<WHITE>(pos)]);
-    const auto  bnpcv = history_value(w.nonPawnCorrectionHistory[BLACK][us][non_pawn_index<BLACK>(pos)]);
+    const auto  pcv   = scale_history_value(w.pawnCorrectionHistory[us][pawn_structure_index<Correction>(pos)]);
+    const auto  mcv   = scale_history_value(w.materialCorrectionHistory[us][material_index(pos)]);
+    const auto  macv  = scale_history_value(w.majorPieceCorrectionHistory[us][major_piece_index(pos)]);
+    const auto  micv  = scale_history_value(w.minorPieceCorrectionHistory[us][minor_piece_index(pos)]);
+    const auto  wnpcv = scale_history_value(w.nonPawnCorrectionHistory[WHITE][us][non_pawn_index<WHITE>(pos)]);
+    const auto  bnpcv = scale_history_value(w.nonPawnCorrectionHistory[BLACK][us][non_pawn_index<BLACK>(pos)]);
     const auto  cv =
-      (c_pcv * pcv + c_mcv * mcv + c_macv * macv + c_micv * micv + c_npcv * (wnpcv + bnpcv)) / 131072;
+      (5105 * pcv + 2481 * mcv + 3697 * macv + 6623 * micv + 7064 * (wnpcv + bnpcv)) / 131072;
     v += cv;
     return std::clamp(v, VALUE_TB_LOSS_IN_MAX_PLY + 1, VALUE_TB_WIN_IN_MAX_PLY - 1);
 }
