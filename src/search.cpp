@@ -80,17 +80,17 @@ constexpr int futility_move_count(bool improving, Depth depth) {
 // Add correctionHistory value to raw staticEval and guarantee evaluation
 // does not hit the tablebase range.
 Value to_corrected_static_eval(Value v, const Worker& w, const Position& pos) {
-    const Color us    = pos.side_to_move();
-    const auto  pcv   = w.pawnCorrectionHistory[us][pawn_structure_index<Correction>(pos)];
-    const auto  mcv   = w.materialCorrectionHistory[us][material_index(pos)];
-    const auto  macv  = w.majorPieceCorrectionHistory[us][major_piece_index(pos)];
-    const auto  micv  = w.minorPieceCorrectionHistory[us][minor_piece_index(pos)];
-    const auto  wnpcv = w.nonPawnCorrectionHistory[WHITE][us][non_pawn_index<WHITE>(pos)];
-    const auto  bnpcv = w.nonPawnCorrectionHistory[BLACK][us][non_pawn_index<BLACK>(pos)];
+    const Color        us    = pos.side_to_move();
+    const std::int16_t pcv   = w.pawnCorrectionHistory[us][pawn_structure_index<Correction>(pos)];
+    const std::int16_t mcv   = w.materialCorrectionHistory[us][material_index(pos)];
+    const std::int16_t macv  = w.majorPieceCorrectionHistory[us][major_piece_index(pos)];
+    const std::int16_t micv  = w.minorPieceCorrectionHistory[us][minor_piece_index(pos)];
+    const std::int16_t wnpcv = w.nonPawnCorrectionHistory[WHITE][us][non_pawn_index<WHITE>(pos)];
+    const std::int16_t bnpcv = w.nonPawnCorrectionHistory[BLACK][us][non_pawn_index<BLACK>(pos)];
 
     // gcc cannot optimize std::signbit
-    const bool coherence = pcv < 0 ? (pcv & mcv & macv & micv & wnpcv & bnpcv) >> 31
-                                   : !((pcv | mcv | macv | micv | wnpcv | bnpcv) >> 31);
+    const bool coherence = pcv < 0 ? (pcv & mcv & macv & micv & wnpcv & bnpcv) >> 15
+                                   : !((pcv | mcv | macv | micv | wnpcv | bnpcv) >> 15);
     const auto cv = (6245 * pcv + 3442 * mcv + 3471 * macv + 5958 * micv + 6566 * (wnpcv + bnpcv))
                   / (coherence ? 65536 : 131072);
 
