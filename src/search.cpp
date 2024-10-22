@@ -51,6 +51,16 @@
 
 namespace Stockfish {
 
+Value PawnValue   = 208;
+Value KnightValue = 781;
+Value BishopValue = 825;
+Value RookValue   = 1276;
+Value QueenValue  = 2538;
+
+PieceValueArray PieceValue;
+
+TUNE(PawnValue, KnightValue, BishopValue, RookValue, QueenValue);
+
 namespace TB = Tablebases;
 
 void syzygy_extend_pv(const OptionsMap&            options,
