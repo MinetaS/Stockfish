@@ -119,7 +119,6 @@ void update_all_stats(const Position&      pos,
                       Move                 bestMove,
                       Square               prevSq,
                       ValueList<Move, 32>& quietsSearched,
-                      ValueList<Move, 32>& capturesSearched,
                       Depth                depth);
 
 }  // namespace
@@ -565,10 +564,9 @@ Value Search::Worker::search(
     Depth extension, newDepth;
     Value bestValue, value, eval, maxValue, probCutBeta;
     bool  givesCheck, improving, priorCapture, opponentWorsening;
-    bool  capture, ttCapture;
+    bool  capture, ttCapture, bestMoveCapture;
     Piece movedPiece;
 
-    ValueList<Move, 32> capturesSearched;
     ValueList<Move, 32> quietsSearched;
 
     // Step 1. Initialize node
@@ -613,6 +611,7 @@ Value Search::Worker::search(
     assert(0 <= ss->ply && ss->ply < MAX_PLY);
 
     bestMove            = Move::none();
+    bestMoveCapture     = false;
     (ss + 2)->cutoffCnt = 0;
     Square prevSq = ((ss - 1)->currentMove).is_ok() ? ((ss - 1)->currentMove).to_sq() : SQ_NONE;
     ss->statScore = 0;
@@ -1326,7 +1325,13 @@ moves_loop:  // When in check, search starts here
 
             if (value + inc > alpha)
             {
-                bestMove = move;
+                if (bestMoveCapture)
+                    captureHistory[pos.moved_piece(bestMove)][bestMove.to_sq()]
+                                  [type_of(pos.piece_on(bestMove.to_sq()))]
+                      << -stat_malus(depth);
+
+                bestMove        = move;
+                bestMoveCapture = capture;
 
                 if (PvNode && !rootNode)  // Update pv even in fail-high case
                     update_pv(ss->pv, move, (ss + 1)->pv);
@@ -1351,11 +1356,13 @@ moves_loop:  // When in check, search starts here
 
         // If the move is worse than some previously searched move,
         // remember it, to update its stats later.
-        if (move != bestMove && moveCount <= 32)
+        if (move != bestMove)
         {
             if (capture)
-                capturesSearched.push_back(move);
-            else
+                captureHistory[pos.moved_piece(move)][move.to_sq()]
+                              [type_of(pos.piece_on(move.to_sq()))]
+                  << -stat_malus(depth);
+            else if (quietsSearched.size() < 32)
                 quietsSearched.push_back(move);
         }
     }
@@ -1378,7 +1385,7 @@ moves_loop:  // When in check, search starts here
     // If there is a move that produces search value greater than alpha,
     // we update the stats of searched moves.
     else if (bestMove)
-        update_all_stats(pos, ss, *this, bestMove, prevSq, quietsSearched, capturesSearched, depth);
+        update_all_stats(pos, ss, *this, bestMove, prevSq, quietsSearched, depth);
 
     // Bonus for prior countermove that caused the fail low
     else if (!priorCapture && prevSq != SQ_NONE)
@@ -1794,7 +1801,6 @@ void update_all_stats(const Position&      pos,
                       Move                 bestMove,
                       Square               prevSq,
                       ValueList<Move, 32>& quietsSearched,
-                      ValueList<Move, 32>& capturesSearched,
                       Depth                depth) {
 
     CapturePieceToHistory& captureHistory = workerThread.captureHistory;
@@ -1823,14 +1829,6 @@ void update_all_stats(const Position&      pos,
     // previous ply when it gets refuted.
     if (prevSq != SQ_NONE && ((ss - 1)->moveCount == 1 + (ss - 1)->ttHit) && !pos.captured_piece())
         update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -malus);
-
-    // Decrease stats for all non-best capture moves
-    for (Move move : capturesSearched)
-    {
-        moved_piece = pos.moved_piece(move);
-        captured    = type_of(pos.piece_on(move.to_sq()));
-        captureHistory[moved_piece][move.to_sq()][captured] << -malus;
-    }
 }
 
 
