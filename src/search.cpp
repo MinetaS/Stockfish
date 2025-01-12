@@ -518,9 +518,6 @@ void Search::Worker::clear() {
                 for (auto& h : to)
                     h->fill(-427);
 
-    for (size_t i = 1; i < reductions.size(); ++i)
-        reductions[i] = int(19.43 * std::log(i));
-
     refreshTable.clear(networks[numaAccessToken]);
 }
 
@@ -982,7 +979,7 @@ moves_loop:  // When in check, search starts here
 
         int delta = beta - alpha;
 
-        Depth r = reduction(improving, depth, moveCount, delta);
+        Depth r = reduction(improving, depth, moveCount, ss->ply, delta);
 
         // Step 14. Pruning at shallow depth (~120 Elo).
         // Depth conditions are important for mate finding.
@@ -1710,8 +1707,16 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
     return bestValue;
 }
 
-Depth Search::Worker::reduction(bool i, Depth d, int mn, int delta) const {
-    int reductionScale = reductions[d] * reductions[mn];
+int Search::Worker::reduction(bool i, Depth d, int mn, int ply, int delta) const {
+    // Reduction based on depth and move number
+    static const std::array<int, MAX_MOVES> reductions = [] {
+        std::array<int, MAX_MOVES> r;
+        for (std::size_t i = 1; i < r.size(); ++i)
+            r[i] = int(1943 * std::log(i));
+        return r;
+    }();
+
+    const int reductionScale = reductions[d] * reductions[mn] / 10000;
     return reductionScale - delta * 814 / rootDelta + !i * reductionScale / 3 + 1304;
 }
 

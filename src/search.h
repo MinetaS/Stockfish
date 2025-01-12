@@ -302,7 +302,7 @@ class Worker {
     template<NodeType nodeType>
     Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta);
 
-    Depth reduction(bool i, Depth d, int mn, int delta) const;
+    int reduction(bool i, Depth d, int mn, int ply, int delta) const;
 
     // Pointer to the search manager, only allowed to be called by the main thread
     SearchManager* main_manager() const {
@@ -331,9 +331,6 @@ class Worker {
 
     size_t                    threadIdx;
     NumaReplicatedAccessToken numaAccessToken;
-
-    // Reductions lookup table initialized at startup
-    std::array<int, MAX_MOVES> reductions;  // [depth or moveNumber]
 
     // The main thread has a SearchManager, the others have a NullSearchManager
     std::unique_ptr<ISearchManager> manager;

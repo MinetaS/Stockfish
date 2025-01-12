@@ -70,7 +70,7 @@ Engine::Engine(std::optional<std::string> path) :
              + thread_allocation_information_as_string();
     });
 
-    options["Threads"] << Option(1, 1, 1024, [this](const Option&) {
+    options["Threads"] << Option(1, 1, ThreadsMaxThreshold, [this](const Option&) {
         resize_threads();
         return thread_allocation_information_as_string();
     });

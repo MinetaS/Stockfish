@@ -124,6 +124,8 @@ class Engine {
     std::function<void(std::string_view)> onVerifyNetworks;
 };
 
+constexpr int ThreadsMaxThreshold = 1024;
+
 }  // namespace Stockfish
 
 
