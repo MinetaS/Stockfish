@@ -121,6 +121,9 @@ void update_all_stats(const Position&      pos,
                       ValueList<Move, 32>& capturesSearched,
                       Depth                depth);
 
+int v1 = 2200, v2 = 32000, v3 = 20000;
+TUNE(v1, v2, v3);
+
 }  // namespace
 
 Search::Worker::Worker(SharedState&                    sharedState,
@@ -522,11 +525,11 @@ void Search::Worker::clear() {
         reductions[i] = int(19.43 * std::log(i));
 
     for (std::size_t i = 1; i < compensationsTh.size(); ++i)
-        compensationsTh[i] = int(32 * 2.2 * std::log(i + 1));
+        compensationsTh[i] = int(32 * v1 / 1000.0 * std::log(i + 1));
     for (std::size_t i = 2; i < compensationsMn.size(); ++i)
-        compensationsMn[i] = int(32 * 32.0 / std::log(i + 4));
+        compensationsMn[i] = int(32 * v2 / 1000.0 / std::log(i + 4));
     for (std::size_t i = 2; i < compensationsPly.size(); ++i)
-        compensationsPly[i] = int(32 * 20 / int(std::pow(1.1, i - 2)));
+        compensationsPly[i] = int(32 * v3 / 1000.0 / int(std::pow(1.1, i - 2)));
 
     refreshTable.clear(networks[numaAccessToken]);
 }
