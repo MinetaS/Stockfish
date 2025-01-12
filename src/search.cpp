@@ -518,6 +518,16 @@ void Search::Worker::clear() {
                 for (auto& h : to)
                     h->fill(-427);
 
+    for (size_t i = 1; i < reductions.size(); ++i)
+        reductions[i] = int(19.43 * std::log(i));
+
+    for (std::size_t i = 1; i < compensationsTh.size(); ++i)
+        compensationsTh[i] = int(32 * 2.2 * std::log(i + 1));
+    for (std::size_t i = 2; i < compensationsMn.size(); ++i)
+        compensationsMn[i] = int(32 * 32.0 / std::log(i + 4));
+    for (std::size_t i = 2; i < compensationsPly.size(); ++i)
+        compensationsPly[i] = int(32 * 20 / int(std::pow(1.1, i - 2)));
+
     refreshTable.clear(networks[numaAccessToken]);
 }
 
@@ -1708,16 +1718,12 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
 }
 
 int Search::Worker::reduction(bool i, Depth d, int mn, int ply, int delta) const {
-    // Reduction based on depth and move number
-    static const std::array<int, MAX_MOVES> reductions = [] {
-        std::array<int, MAX_MOVES> r;
-        for (std::size_t i = 1; i < r.size(); ++i)
-            r[i] = int(1943 * std::log(i));
-        return r;
-    }();
-
-    const int reductionScale = reductions[d] * reductions[mn] / 10000;
-    return reductionScale - delta * 814 / rootDelta + !i * reductionScale / 3 + 1304;
+    // 1. Reduction is decreased as thread ID increases (= more compensation)
+    // 2. The compensation decreases as the ply increases
+    // 3. The compensation decreases as the move number increases
+    const int reductionScale = reductions[d] * reductions[mn];
+    const int compensation = compensationsTh[threadIdx] * compensationsMn[mn] * compensationsPly[ply] >> 15;
+    return reductionScale - delta * 814 / rootDelta + !i * reductionScale / 3 + 1304 - compensation;
 }
 
 // elapsed() returns the time elapsed since the search started. If the

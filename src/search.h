@@ -332,6 +332,15 @@ class Worker {
     size_t                    threadIdx;
     NumaReplicatedAccessToken numaAccessToken;
 
+    // Reductions lookup table initialized at startup
+    std::array<int, MAX_MOVES> reductions;  // [depth or moveNumber]
+
+    std::array<int, ThreadsMaxThreshold> compensationsTh;
+    std::array<int, MAX_MOVES> compensationsMn;
+    std::array<int, MAX_PLY> compensationsPly;
+
+    // Reduction compensation in multithreaded search
+
     // The main thread has a SearchManager, the others have a NullSearchManager
     std::unique_ptr<ISearchManager> manager;
 

@@ -108,6 +108,8 @@ using Bitboard = uint64_t;
 constexpr int MAX_MOVES = 256;
 constexpr int MAX_PLY   = 246;
 
+constexpr int ThreadsMaxThreshold = 1024;
+
 enum Color {
     WHITE,
     BLACK,
