@@ -998,7 +998,8 @@ moves_loop:  // When in check, search starts here
         int delta = beta - alpha;
 
         const int reductionBase = reductions[depth] * reductions[moveCount];
-        int r = reductionBase - 32 * moveCount - delta * 735 / rootDelta + !improving * reductionBase * 191 / 512 + 1132;
+        int       r             = reductionBase - 32 * moveCount - delta * 735 / rootDelta
+              + !improving * reductionBase * 191 / 512 + 1132;
 
         // Increase reduction for ttPv nodes (*Scaler)
         // Smaller or even negative value is better for short time controls
@@ -1006,7 +1007,7 @@ moves_loop:  // When in check, search starts here
         if (ss->ttPv)
             r += 1031;
 
-        if (ss->ply > rootDepth)
+        if (ss->ply > rootDepth * 2)
             r -= 32 * depth;
 
         // Step 14. Pruning at shallow depth.
