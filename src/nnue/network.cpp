@@ -38,6 +38,19 @@
 #include "nnue_common.h"
 #include "nnue_misc.h"
 
+#define CONFIG_NNUE_SHARED_MEMORY
+
+#ifdef CONFIG_NNUE_SHARED_MEMORY
+#ifdef __linux__
+
+#include <sys/mman.h>
+
+#else
+#error
+#endif
+
+#endif // CONFIG_NNUE_SHARED_MEMORY
+
 // Macro to embed the default efficiently updatable neural network (NNUE) file
 // data in the engine binary (using incbin.h, by Dale Weiler).
 // This macro invocation will declare the following three variables
