@@ -1855,11 +1855,13 @@ void update_all_stats(const Position&      pos,
 
     if (!pos.capture_stage(bestMove))
     {
-        update_quiet_histories(pos, ss, workerThread, bestMove, bonus * 1059 / 1024);
+        const bool early = pos.count<ALL_PIECES>() >= 24;
+
+        update_quiet_histories(pos, ss, workerThread, bestMove, bonus * (early ? 1165 : 1059) / 1024);
 
         // Decrease stats for all non-best quiet moves
         for (Move move : quietsSearched)
-            update_quiet_histories(pos, ss, workerThread, move, -malus * 1310 / 1024);
+            update_quiet_histories(pos, ss, workerThread, move, -malus * (early ? 1191 : 1310) / 1024);
     }
     else
     {
