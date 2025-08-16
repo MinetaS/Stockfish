@@ -159,8 +159,6 @@ class ThreadPool {
     auto size() const noexcept { return threads.size(); }
     auto empty() const noexcept { return threads.empty(); }
 
-    auto operator[](std::size_t idx) noexcept { return threads[idx].get(); }
-
    private:
     StateListPtr                         setupStates;
     std::vector<std::unique_ptr<Thread>> threads;
