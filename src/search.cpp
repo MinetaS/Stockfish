@@ -406,6 +406,21 @@ void Search::Worker::iterative_deepening() {
                 break;
         }
 
+        if (completedDepth >= 8)
+        {
+            const Thread* const syncThread =
+              std::max_element(
+                threads.begin(), threads.end(),
+                [](const std::unique_ptr<Thread>& a, const std::unique_ptr<Thread>& b) {
+                    return a->worker->completedDepth < b->worker->completedDepth;
+                })
+                ->get();
+
+            if (syncThread->worker->completedDepth > completedDepth)
+                std::memcpy(&mainHistory, &syncThread->worker->mainHistory,
+                            sizeof(ButterflyHistory));
+        }
+
         if (!threads.stop)
             completedDepth = rootDepth;
 
