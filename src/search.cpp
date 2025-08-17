@@ -1116,7 +1116,8 @@ moves_loop:  // When in check, search starts here
             && is_valid(ttData.value) && !is_decisive(ttData.value) && (ttData.bound & BOUND_LOWER)
             && ttData.depth >= depth - 3)
         {
-            Value singularBeta  = ttData.value - (56 + 79 * (ss->ttPv && !PvNode)) * depth / 58;
+            const auto [p0, p1] = std::abs(ttData.value) <= 378 ? std::pair{56, 79} : std::pair{84, 119};
+            Value singularBeta  = ttData.value - (p0 + p1 * (ss->ttPv && !PvNode)) * depth / 58;
             Depth singularDepth = newDepth / 2;
 
             ss->excludedMove = move;
