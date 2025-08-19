@@ -57,10 +57,19 @@ class OptionsMap;
 
 namespace Search {
 
+enum class SearchMode : int {
+    Normal   = 0,
+    NullMove = 1,
+    ProbCut  = 2,
+    LMR      = 3,
+    PostLMR  = 4
+};
+
 // Stack struct keeps track of the information we need to remember from nodes
 // shallower and deeper in the tree during the search. Each search thread has
 // its own array of Stack objects, indexed by the current ply.
 struct Stack {
+    SearchMode                  mode;
     Move*                       pv;
     PieceToHistory*             continuationHistory;
     CorrectionHistory<PieceTo>* continuationCorrectionHistory;
