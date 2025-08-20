@@ -63,114 +63,62 @@ using namespace Search;
 
 namespace {
 
-//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-// clang-format off
-
-// Note
-// Test with MTC [20+0.2] first with less parameter dimension.
-
-#define DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(type, name, value) \
-    type name[5] = {(value), (value), (value), (value), (value)}
-
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v1, 9536);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v2, 8494);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v3, 10132);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v4, 7156);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v5, 165);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v6, 145);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v7, 137);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v8, 130);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v9, 71);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v10, 1043);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v11, -2142);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v12, -40960);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v13, -2023);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v14, 1563);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v15, 583);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v16, 944);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v17, 1438);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v18, 514);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v19, 294);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v20, 91);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v21, 21);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v22, 2094);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v23, 1324);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v24, 390);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v25, 224);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v26, 64);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v27, 418);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v28, 231);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v29, 211);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v30, 130);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v31, 157);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v32, 279);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v33, -4312);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v34, 76);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v35, 47);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v36, 218);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v37, 134);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v38, 90);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v39, 809);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v40, -865);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v41, -228);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v42, 322);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v43, 63);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v44, 508);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v45, 184);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v46, 143);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v47, 92);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v48, 149);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v49, 70);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v50, 144);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v51, 92);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v52, 1365);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v53, 400);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v54, 220);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v55, 1164);
-DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE(int, v56, 964);
-
-#undef DEFINE_ARRAY_REPLICATE_PER_SEARCH_MODE
-
-// All
-TUNE(
-    v1,  v2,  v3,  v4,  v5,  v6,  v7,  v18, v19, v20,
-    v21, v22, v23, v25, v26, v27, v28, v29, v30, v31,
-    v32, v33, v34, v35, v36, v37, v38
-);
-
-// Selective
-TUNE(v8[0], v8[3]);
-TUNE(v9[0], v9[3]);
-TUNE(v10[0], v10[3]);
-TUNE(v11[0], v11[3]);
-TUNE(v12[0], v12[3], v12[4]);
-TUNE(v13[0], v13[3], v13[4]);
-TUNE(v14[0], v14[3], v14[4]);
-TUNE(v15[0], v15[3], v15[4]);
-TUNE(v16[0], v16[3], v16[4]);
-TUNE(v17[0], v17[3]);
-TUNE(v24[0], v24[3], v24[4]);
-TUNE(v39[0], v39[1], v39[3], v39[4]);
-TUNE(v40[0], v40[1], v40[3], v40[4]);
-TUNE(v41[0], v41[2], v41[3], v41[4]);
-TUNE(v42[0], v42[2], v42[3], v42[4]);
-TUNE(v43[0], v43[2], v43[3], v43[4]);
-TUNE(v44[0], v44[2], v44[3], v44[4]);
-TUNE(v45[0], v45[2], v45[3], v45[4]);
-TUNE(v46[0], v46[2], v46[3], v46[4]);
-TUNE(v47[0], v47[2], v47[3], v47[4]);
-TUNE(v48[0], v48[2], v48[3], v48[4]);
-TUNE(v49[0], v49[2], v49[3], v49[4]);
-TUNE(v50[0], v50[2], v50[3], v50[4]);
-TUNE(v51[0], v51[2], v51[3], v51[4]);
-TUNE(v52[0], v52[2], v52[3], v52[4]);
-TUNE(v53[0], v53[2], v53[3], v53[4]);
-TUNE(v54[0], v54[2], v54[3], v54[4]);
-TUNE(v55[0], v55[3], v55[4]);
-TUNE(v56[0], v56[2], v56[3], v56[4]);
-
-// clang-format on
-//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+constexpr int v1[5] = {9206, 9751, 9075, 9316, 9161};
+constexpr int v2[5] = {8794, 8258, 8294, 8414, 8735};
+constexpr int v3[5] = {10614, 10102, 10291, 10869, 10247};
+constexpr int v4[5] = {7383, 7038, 7169, 7428, 6977};
+constexpr int v5[5] = {158, 172, 165, 159, 166};
+constexpr int v6[5] = {149, 131, 143, 143, 137};
+constexpr int v7[5] = {139, 135, 140, 135, 138};
+constexpr int v8[5] = {131, 130, 130, 132, 130};
+constexpr int v9[5] = {66, 71, 71, 66, 71};
+constexpr int v10[5] = {973, 1043, 1043, 1040, 1043};
+constexpr int v11[5] = {-2042, -2142, -2142, -1889, -2142};
+constexpr int v12[5] = {-1194, -1280, -1280, -1219, -1304};
+constexpr int v13[5] = {-2048, -2023, -2023, -2048, -1862};
+constexpr int v14[5] = {1618, 1563, 1563, 1641, 1573};
+constexpr int v15[5] = {585, 583, 583, 569, 559};
+constexpr int v16[5] = {901, 944, 944, 957, 940};
+constexpr int v17[5] = {1484, 1438, 1438, 1407, 1438};
+constexpr int v18[5] = {513, 508, 513, 489, 509};
+constexpr int v19[5] = {309, 306, 303, 296, 291};
+constexpr int v20[5] = {95, 95, 87, 89, 91};
+constexpr int v21[5] = {22, 21, 22, 21, 21};
+constexpr int v22[5] = {2114, 1879, 2173, 2168, 2074};
+constexpr int v23[5] = {1282, 1213, 1367, 1333, 1343};
+constexpr int v24[5] = {426, 390, 390, 345, 404};
+constexpr int v25[5] = {227, 238, 233, 222, 224};
+constexpr int v26[5] = {65, 67, 64, 66, 62};
+constexpr int v27[5] = {435, 410, 412, 416, 399};
+constexpr int v28[5] = {244, 228, 217, 227, 228};
+constexpr int v29[5] = {198, 206, 218, 209, 212};
+constexpr int v30[5] = {129, 127, 128, 122, 124};
+constexpr int v31[5] = {162, 160, 150, 159, 162};
+constexpr int v32[5] = {306, 268, 273, 280, 261};
+constexpr int v33[5] = {-4367, -4267, -4194, -4287, -4064};
+constexpr int v34[5] = {65, 75, 78, 78, 77};
+constexpr int v35[5] = {45, 46, 43, 49, 48};
+constexpr int v36[5] = {216, 213, 211, 221, 229};
+constexpr int v37[5] = {120, 134, 131, 143, 131};
+constexpr int v38[5] = {91, 90, 86, 85, 90};
+constexpr int v39[5] = {799, 840, 809, 781, 831};
+constexpr int v40[5] = {-840, -873, -865, -817, -831};
+constexpr int v41[5] = {-210, -228, -221, -227, -212};
+constexpr int v42[5] = {329, 322, 326, 293, 331};
+constexpr int v43[5] = {61, 63, 69, 62, 66};
+constexpr int v44[5] = {469, 508, 486, 502, 474};
+constexpr int v45[5] = {169, 184, 188, 189, 189};
+constexpr int v46[5] = {147, 143, 138, 142, 147};
+constexpr int v47[5] = {92, 92, 90, 93, 98};
+constexpr int v48[5] = {135, 149, 145, 144, 152};
+constexpr int v49[5] = {72, 70, 71, 72, 75};
+constexpr int v50[5] = {144, 144, 138, 153, 144};
+constexpr int v51[5] = {96, 92, 87, 96, 97};
+constexpr int v52[5] = {1379, 1365, 1383, 1386, 1366};
+constexpr int v53[5] = {415, 400, 392, 403, 407};
+constexpr int v54[5] = {213, 220, 226, 218, 226};
+constexpr int v55[5] = {1173, 1164, 1164, 1197, 1211};
+constexpr int v56[5] = {960, 964, 922, 950, 964};
 
 constexpr int SEARCHEDLIST_CAPACITY = 32;
 using SearchedList                  = ValueList<Move, SEARCHEDLIST_CAPACITY>;
@@ -926,7 +874,7 @@ Value Search::Worker::search(
     // Use static evaluation difference to improve quiet move ordering
     if (((ss - 1)->currentMove).is_ok() && !(ss - 1)->inCheck && !priorCapture)
     {
-        int bonus = std::clamp(v12[searchMode] * int((ss - 1)->staticEval + ss->staticEval) / 4096,
+        int bonus = std::clamp(v12[searchMode] * int((ss - 1)->staticEval + ss->staticEval) / 128,
                                v13[searchMode], v14[searchMode])
                   + v15[searchMode];
         mainHistory[~us][((ss - 1)->currentMove).from_to()] << bonus * v16[searchMode] / 1024;
