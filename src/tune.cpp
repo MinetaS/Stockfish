@@ -59,11 +59,11 @@ void Tune::make_option(OptionsMap* opts, const string& n, int v, const SetRange&
     LastOption = &((*opts)[n]);
 
     // Print formatted parameters, ready to be copy-pasted in Fishtest
-    std::cout << n << ","                                  //
-              << v << ","                                  //
-              << r(v).first << ","                         //
-              << r(v).second << ","                        //
-              << (r(v).second - r(v).first) / 20.0 << ","  //
+    std::cout << n << ","                                                 //
+              << v << ","                                                 //
+              << r(v).first << ","                                        //
+              << r(v).second << ","                                       //
+              << std::max(1.0, (r(v).second - r(v).first) / 20.0) << ","  //
               << "0.0020" << std::endl;
 }
 
