@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <bitset>
 #include <cassert>
 #include <chrono>
 #include <cmath>
@@ -207,7 +208,7 @@ class ParameterStorage {
     ParameterStorage(Search::SearchMode mode) :
         mode_(static_cast<int>(mode)) {}
 
-    constexpr int operator()(int id) { return values[id][mode_]; }
+    inline int operator()(int id) { return values[id][mode_]; }
 
    private:
     const int mode_;
