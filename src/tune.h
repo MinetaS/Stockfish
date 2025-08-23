@@ -77,7 +77,7 @@ struct SetRange {
 // order in which have been defined.
 
 class Tune {
-   public:
+
     using PostUpdate = void();  // Post-update function
 
     Tune() { read_results(); }

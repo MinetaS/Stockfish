@@ -21,7 +21,6 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
-#include <bitset>
 #include <cassert>
 #include <chrono>
 #include <cmath>
@@ -64,279 +63,154 @@ void syzygy_extend_pv(const OptionsMap&         options,
 
 class ParameterStorage {
    public:
-    static constexpr std::size_t kSize = 135;
+    static constexpr std::size_t kSize = 134;
 
-    static inline int values[kSize][5] = {
-      {9536, 9536, 9536, 9536, 9536},       // 0
-      {8494, 8494, 8494, 8494, 8494},       // 1
-      {10132, 10132, 10132, 10132, 10132},  // 2
-      {7156, 7156, 7156, 7156, 7156},       // 3
-      {165, 165, 165, 165, 165},            // 4
-      {145, 145, 145, 145, 145},            // 5
-      {137, 137, 137, 137, 137},            // 6
-      {130, 130, 130, 130, 130},            // 7
-      {71, 71, 71, 71, 71},                 // 8
-      {1043, 1043, 1043, 1043, 1043},       // 9
-      {-2142, -2142, -2142, -2142, -2142},  // 10
-      {-1280, -1280, -1280, -1280, -1280},  // 11
-      {-2023, -2023, -2023, -2023, -2023},  // 12
-      {1563, 1563, 1563, 1563, 1563},       // 13
-      {583, 583, 583, 583, 583},            // 14
-      {944, 944, 944, 944, 944},            // 15
-      {1438, 1438, 1438, 1438, 1438},       // 16
-      {173, 173, 173, 173, 173},            // 17
-      {514, 514, 514, 514, 514},            // 18
-      {294, 294, 294, 294, 294},            // 19
-      {91, 91, 91, 91, 91},                 // 20
-      {21, 21, 21, 21, 21},                 // 21
-      {2094, 2094, 2094, 2094, 2094},       // 22
-      {1324, 1324, 1324, 1324, 1324},       // 23
-      {3168, 3168, 3168, 3168, 3168},       // 24
-      {27165, 27165, 27165, 27165, 27165},  // 25
-      {18, 18, 18, 18, 18},                 // 26
-      {390, 390, 390, 390, 390},            // 27
-      {224, 224, 224, 224, 224},            // 28
-      {64, 64, 64, 64, 64},                 // 29
-      {3427, 3427, 3427, 3427, 3427},       // 30
-      {418, 418, 418, 418, 418},            // 31
-      {946, 946, 946, 946, 946},            // 32
-      {231, 231, 231, 231, 231},            // 33
-      {211, 211, 211, 211, 211},            // 34
-      {130, 130, 130, 130, 130},            // 35
-      {157, 157, 157, 157, 157},            // 36
-      {2260, 2260, 2260, 2260, 2260},       // 37
-      {279, 279, 279, 279, 279},            // 38
-      {-4312, -4312, -4312, -4312, -4312},  // 39
-      {76, 76, 76, 76, 76},                 // 40
-      {5210, 5210, 5210, 5210, 5210},       // 41
-      {47, 47, 47, 47, 47},                 // 42
-      {218, 218, 218, 218, 218},            // 43
-      {134, 134, 134, 134, 134},            // 44
-      {90, 90, 90, 90, 90},                 // 45
-      {11, 11, 11, 11, 11},                 // 46
-      {-27, -27, -27, -27, -27},            // 47
-      {56, 56, 56, 56, 56},                 // 48
-      {81, 81, 81, 81, 81},                 // 49
-      {18677, 18677, 18677, 18677, 18677},  // 50
-      {-4, -4, -4, -4, -4},                 // 51
-      {198, 198, 198, 198, 198},            // 52
-      {212, 212, 212, 212, 212},            // 53
-      {946, 946, 946, 946, 946},            // 54
-      {45, 45, 45, 45, 45},                 // 55
-      {76, 76, 76, 76, 76},                 // 56
-      {308, 308, 308, 308, 308},            // 57
-      {250, 250, 250, 250, 250},            // 58
-      {92, 92, 92, 92, 92},                 // 59
-      {52, 52, 52, 52, 52},                 // 60
-      {2618, 2618, 2618, 2618, 2618},       // 61
-      {991, 991, 991, 991, 991},            // 62
-      {903, 903, 903, 903, 903},            // 63
-      {978, 978, 978, 978, 978},            // 64
-      {1051, 1051, 1051, 1051, 1051},       // 65
-      {650, 650, 650, 650, 650},            // 66
-      {69, 69, 69, 69, 69},                 // 67
-      {35262, 35262, 35262, 35262, 35262},  // 68
-      {3000, 3000, 3000, 3000, 3000},       // 69
-      {1024, 1024, 1024, 1024, 1024},       // 70
-      {1350, 1350, 1350, 1350, 1350},       // 71
-      {935, 935, 935, 935, 935},            // 72
-      {763, 763, 763, 763, 763},            // 73
-      {50, 50, 50, 50, 50},                 // 74
-      {2043, 2043, 2043, 2043, 2043},       // 75
-      {803, 803, 803, 803, 803},            // 76
-      {789, 789, 789, 789, 789},            // 77
-      {1365, 1365, 1365, 1365, 1365},       // 78
-      {1139, 1139, 1139, 1139, 1139},       // 79
-      {1080, 1080, 1080, 1080, 1080},       // 80
-      {3212, 3212, 3212, 3212, 3212},       // 81
-      {4784, 4784, 4784, 4784, 4784},       // 82
-      {809, 809, 809, 809, 809},            // 83
-      {-865, -865, -865, -865, -865},       // 84
-      {-228, -228, -228, -228, -228},       // 85
-      {630, 630, 630, 630, 630},            // 86
-      {322, 322, 322, 322, 322},            // 87
-      {63, 63, 63, 63, 63},                 // 88
-      {508, 508, 508, 508, 508},            // 89
-      {184, 184, 184, 184, 184},            // 90
-      {143, 143, 143, 143, 143},            // 91
-      {92, 92, 92, 92, 92},                 // 92
-      {149, 149, 149, 149, 149},            // 93
-      {70, 70, 70, 70, 70},                 // 94
-      {144, 144, 144, 144, 144},            // 95
-      {92, 92, 92, 92, 92},                 // 96
-      {1365, 1365, 1365, 1365, 1365},       // 97
-      {400, 400, 400, 400, 400},            // 98
-      {220, 220, 220, 220, 220},            // 99
-      {1164, 1164, 1164, 1164, 1164},       // 100
-      {964, 964, 964, 964, 964},            // 101
-      {757, 757, 757, 757, 757},            // 102
-      {218, 218, 218, 218, 218},            // 103
-      {1200, 1200, 1200, 1200, 1200},       // 104
-      {151, 151, 151, 151, 151},            // 105
-      {91, 91, 91, 91, 91},                 // 106
-      {1730, 1730, 1730, 1730, 1730},       // 107
-      {302, 302, 302, 302, 302},            // 108
-      {798, 798, 798, 798, 798},            // 109
-      {175, 175, 175, 175, 175},            // 110
-      {2268, 2268, 2268, 2268, 2268},       // 111
-      {33, 33, 33, 33, 33},                 // 112
-      {757, 757, 757, 757, 757},            // 113
-      {134, 134, 134, 134, 134},            // 114
-      {2129, 2129, 2129, 2129, 2129},       // 115
-      {28, 28, 28, 28, 28},                 // 116
-      {957, 957, 957, 957, 957},            // 117
-      {1208, 1208, 1208, 1208, 1208},       // 118
-      {594, 594, 594, 594, 594},            // 119
-      {1366, 1366, 1366, 1366, 1366},       // 120
-      {1157, 1157, 1157, 1157, 1157},       // 121
-      {648, 648, 648, 648, 648},            // 122
-      {288, 288, 288, 288, 288},            // 123
-      {576, 576, 576, 576, 576},            // 124
-      {140, 140, 140, 140, 140},            // 125
-      {441, 441, 441, 441, 441},            // 126
-      {88, 88, 88, 88, 88},                 // 127
-      {741, 741, 741, 741, 741},            // 128
-      {38, 38, 38, 38, 38},                 // 129
-      {995, 995, 995, 995, 995},            // 130
-      {915, 915, 915, 915, 915},            // 131
-      {704, 704, 704, 704, 704},            // 132
-      {439, 439, 439, 439, 439},            // 133
-      {70, 70, 70, 70, 70},                 // 134
+    static constexpr int values[kSize][5] = {
+      {10273, 9452, 9225, 9758, 9277},      // 0
+      {9145, 8863, 8462, 8803, 7899},       // 1
+      {10635, 10588, 9850, 10399, 10066},   // 2
+      {7497, 6893, 6993, 6915, 7195},       // 3
+      {160, 174, 159, 162, 172},            // 4
+      {140, 143, 140, 144, 157},            // 5
+      {134, 138, 134, 146, 139},            // 6
+      {132, 136, 132, 139, 132},            // 7
+      {68, 72, 68, 72, 68},                 // 8
+      {957, 1063, 957, 1039, 957},          // 9
+      {-2128, -2128, -2128, -2182, -2128},  // 10
+      {-1183, -1183, -1210, -1290, -1336},  // 11
+      {-2091, -2091, -2037, -2121, -1938},  // 12
+      {1495, 1495, 1546, 1574, 1535},       // 13
+      {572, 572, 586, 558, 579},            // 14
+      {949, 949, 935, 899, 965},            // 15
+      {1452, 1452, 1452, 1460, 1452},       // 16
+      {515, 516, 502, 503, 507},            // 17
+      {298, 306, 276, 295, 291},            // 18
+      {89, 89, 92, 93, 87},                 // 19
+      {22, 22, 20, 22, 22},                 // 20
+      {2073, 2172, 2082, 2083, 2045},       // 21
+      {1303, 1387, 1430, 1272, 1335},       // 22
+      {3285, 3253, 3276, 3203, 3175},       // 23
+      {25827, 27771, 27934, 25826, 27410},  // 24
+      {17, 17, 19, 18, 18},                 // 25
+      {398, 398, 370, 392, 393},            // 26
+      {221, 235, 233, 212, 219},            // 27
+      {63, 68, 64, 65, 68},                 // 28
+      {3584, 3530, 3584, 3306, 3584},       // 29
+      {389, 416, 443, 411, 414},            // 30
+      {933, 973, 972, 935, 957},            // 31
+      {226, 237, 233, 223, 237},            // 32
+      {216, 213, 208, 222, 211},            // 33
+      {125, 136, 126, 137, 138},            // 34
+      {159, 156, 153, 154, 158},            // 35
+      {2228, 2336, 2102, 2239, 2327},       // 36
+      {299, 281, 281, 281, 277},            // 37
+      {-4314, -4664, -4643, -4179, -4425},  // 38
+      {80, 71, 75, 73, 71},                 // 39
+      {5141, 5120, 5081, 5703, 4978},       // 40
+      {47, 44, 46, 46, 49},                 // 41
+      {215, 222, 207, 215, 225},            // 42
+      {131, 139, 134, 141, 133},            // 43
+      {92, 93, 86, 83, 92},                 // 44
+      {11, 10, 10, 11, 11},                 // 45
+      {-26, -26, -27, -27, -27},            // 46
+      {55, 57, 55, 58, 56},                 // 47
+      {83, 82, 86, 78, 85},                 // 48
+      {18471, 18151, 18471, 19654, 17862},  // 49
+      {-5, -4, -2, -5, -5},                 // 50
+      {194, 200, 194, 198, 194},            // 51
+      {215, 215, 215, 215, 192},            // 52
+      {929, 908, 929, 922, 940},            // 53
+      {45, 47, 45, 46, 46},                 // 54
+      {76, 73, 76, 75, 76},                 // 55
+      {318, 321, 318, 321, 301},            // 56
+      {253, 250, 253, 258, 250},            // 57
+      {94, 92, 94, 94, 90},                 // 58
+      {52, 53, 52, 55, 53},                 // 59
+      {2781, 2598, 2603, 2469, 2607},       // 60
+      {1022, 990, 978, 977, 993},           // 61
+      {946, 862, 951, 919, 899},            // 62
+      {979, 1038, 1005, 992, 962},          // 63
+      {1045, 1055, 1077, 1049, 1037},       // 64
+      {668, 630, 660, 626, 662},            // 65
+      {68, 71, 70, 71, 69},                 // 66
+      {35846, 33786, 32978, 34092, 35212},  // 67
+      {2848, 2848, 3154, 2884, 2975},       // 68
+      {1026, 1026, 987, 984, 1004},         // 69
+      {1383, 1370, 1383, 1371, 1400},       // 70
+      {960, 964, 978, 934, 905},            // 71
+      {772, 804, 777, 772, 741},            // 72
+      {49, 52, 51, 52, 48},                 // 73
+      {2010, 1962, 2010, 1933, 2039},       // 74
+      {821, 819, 834, 760, 905},            // 75
+      {854, 733, 777, 784, 793},            // 76
+      {1385, 1375, 1370, 1372, 1393},       // 77
+      {1152, 1090, 1129, 1206, 1139},       // 78
+      {1054, 1072, 1162, 1096, 1092},       // 79
+      {3155, 3044, 3263, 3175, 3299},       // 80
+      {4964, 4585, 4997, 4760, 4549},       // 81
+      {791, 797, 791, 817, 823},            // 82
+      {-832, -829, -868, -837, -778},       // 83
+      {-223, -223, -228, -227, -209},       // 84
+      {636, 636, 655, 577, 619},            // 85
+      {342, 342, 302, 347, 318},            // 86
+      {63, 63, 62, 60, 67},                 // 87
+      {533, 533, 523, 512, 540},            // 88
+      {189, 189, 189, 180, 180},            // 89
+      {141, 141, 135, 145, 149},            // 90
+      {94, 94, 92, 92, 92},                 // 91
+      {152, 152, 150, 148, 156},            // 92
+      {72, 72, 73, 70, 74},                 // 93
+      {138, 138, 149, 138, 152},            // 94
+      {89, 89, 91, 91, 98},                 // 95
+      {1294, 1294, 1402, 1318, 1430},       // 96
+      {416, 416, 427, 388, 384},            // 97
+      {212, 212, 226, 219, 224},            // 98
+      {1198, 1198, 1198, 1156, 1165},       // 99
+      {927, 927, 927, 917, 1013},           // 100
+      {758, 786, 725, 758, 743},            // 101
+      {203, 231, 216, 224, 226},            // 102
+      {1206, 1105, 1219, 1246, 1164},       // 103
+      {156, 152, 153, 141, 149},            // 104
+      {87, 89, 94, 91, 88},                 // 105
+      {1770, 1766, 1748, 1626, 1798},       // 106
+      {321, 302, 321, 300, 294},            // 107
+      {744, 821, 783, 806, 812},            // 108
+      {169, 174, 172, 165, 168},            // 109
+      {2309, 2305, 2268, 2227, 2153},       // 110
+      {33, 34, 32, 35, 33},                 // 111
+      {797, 764, 767, 744, 797},            // 112
+      {125, 134, 135, 137, 135},            // 113
+      {2136, 2136, 2104, 2126, 2145},       // 114
+      {27, 30, 27, 27, 27},                 // 115
+      {992, 961, 955, 890, 956},            // 116
+      {1223, 1241, 1218, 1262, 1241},       // 117
+      {585, 585, 585, 585, 591},            // 118
+      {1411, 1391, 1360, 1411, 1419},       // 119
+      {1136, 1208, 1136, 1073, 1212},       // 120
+      {689, 707, 627, 596, 650},            // 121
+      {302, 286, 274, 286, 296},            // 122
+      {613, 551, 553, 569, 606},            // 123
+      {132, 149, 130, 134, 144},            // 124
+      {445, 452, 456, 444, 473},            // 125
+      {88, 89, 91, 93, 89},                 // 126
+      {762, 769, 762, 733, 749},            // 127
+      {40, 38, 40, 39, 39},                 // 128
+      {1018, 1036, 1020, 1007, 1016},       // 129
+      {923, 920, 948, 966, 899},            // 130
+      {704, 707, 680, 725, 697},            // 131
+      {424, 455, 425, 454, 436},            // 132
+      {73, 69, 71, 68, 70},                 // 133
     };
 
    public:
-    ParameterStorage(Search::SearchMode mode) :
+    constexpr explicit ParameterStorage(Search::SearchMode mode) :
         mode_(static_cast<int>(mode)) {}
 
-    inline int operator()(int id) { return values[id][mode_]; }
+    constexpr int operator()(int id) { return values[id][mode_]; }
 
    private:
     const int mode_;
 };
-
-// Global constructor - set up Tune and UCI options
-static int _ = []() {
-    Tune&          tune = Tune::instance();
-    const SetRange r    = SetDefaultRange;
-
-    // Prevent certain parameters from being tuned to avoid misinterpretation.
-    //
-    // Check each parameter usage by calling check_param_usage helper function
-    // below. Current threshold is >0.1% on "bench 1024 1 18".
-    std::bitset<ParameterStorage::kSize * 5> disabled;
-
-    const auto is_disabled = [&](int id, int mode) { return disabled.test(id * 5 + mode); };
-
-    const auto disable_param_mode = [&](int id, auto... modes) {
-        (disabled.set(id * 5 + modes), ...);
-    };
-
-    // TT cutoff history updates
-    disable_param_mode(7, 2, 4);
-    disable_param_mode(8, 2, 4);
-    disable_param_mode(9, 2, 4);
-    disable_param_mode(10, 1, 2, 4);
-
-    // Static evaluation quiet move ordering
-    disable_param_mode(11, 1);
-    disable_param_mode(12, 1);
-    disable_param_mode(13, 1);
-    disable_param_mode(14, 1);
-    disable_param_mode(15, 1);
-    disable_param_mode(16, 1, 2, 4);
-
-    // priorReduction depth adjustment
-    disable_param_mode(17, 0, 1, 2, 4);
-
-    // Null move search conditions
-    disable_param_mode(26, 1);
-    disable_param_mode(27, 1);
-
-    // ProbCut dynamic reduction
-    disable_param_mode(30, 2, 4);
-
-    // Singular extension excludedMove fail low (positive extension)
-    disable_param_mode(50, 2);
-    disable_param_mode(51, 2);
-    disable_param_mode(52, 2);
-    disable_param_mode(53, 2);
-    disable_param_mode(54, 2);
-    disable_param_mode(55, 2);
-    disable_param_mode(56, 2);
-    disable_param_mode(57, 2);
-    disable_param_mode(58, 2);
-    disable_param_mode(59, 2);
-    disable_param_mode(60, 2);
-
-    // LMR cutNode
-    disable_param_mode(69, 1);
-    disable_param_mode(70, 1);
-
-    // LMR ttCapture
-    disable_param_mode(71, 2);
-
-    // LMR cutoffCnt + allNode
-    disable_param_mode(73, 3);
-
-    // LMR TT move
-    disable_param_mode(75, 2);
-
-    // bestMove update at non PV node
-    disable_param_mode(83, 2);
-
-    // Bonus for prior quiet countermove with fail low
-    disable_param_mode(85, 1);
-    disable_param_mode(86, 1);
-    disable_param_mode(87, 1);
-    disable_param_mode(88, 1);
-    disable_param_mode(89, 1);
-    disable_param_mode(90, 1, 2);
-    disable_param_mode(91, 1);
-    disable_param_mode(92, 1);
-    disable_param_mode(93, 1);
-    disable_param_mode(94, 1);
-    disable_param_mode(95, 1);
-    disable_param_mode(96, 1);
-    disable_param_mode(97, 1);
-    disable_param_mode(98, 1);
-    disable_param_mode(99, 1);
-    disable_param_mode(100, 1, 2);
-
-    // Bonus for prior capture countermove with fail low
-    disable_param_mode(101, 1);
-
-    // update_all_stats bestMove == ttMove
-    disable_param_mode(108, 2);
-
-    // update_all_stats refuted quite move penalty
-    disable_param_mode(119, 1, 2);
-
-    // update_quiet_histories low ply
-    disable_param_mode(128, 2);
-    disable_param_mode(129, 2);
-
-    // For this specific parameter, adjust range manually
-    disable_param_mode(51, 0, 1, 2, 3, 4);
-
-    for (std::size_t i = 0; i < ParameterStorage::kSize; ++i)
-        for (std::size_t j = 0; j < 5; ++j)
-            if (!is_disabled(i, j))
-                tune.list.push_back(std::unique_ptr<Tune::EntryBase>(
-                  new Tune::Entry<int>("P_" + std::to_string(i) + "_" + std::to_string(j),
-                                       ParameterStorage::values[i][j], r)));
-
-    SetRange dextMarginConstRange{-30, 30};
-    for (std::size_t j = 0; j < 5; ++j)
-        tune.list.push_back(std::unique_ptr<Tune::EntryBase>(new Tune::Entry<int>(
-          "P_51_" + std::to_string(j), ParameterStorage::values[51][j], dextMarginConstRange)));
-
-    return 0;
-}();
-
-[[maybe_unused]] inline void check_param_usage(SearchMode mode, int slot = 0) {
-    for (int i = 0; i < 5; ++i)
-        dbg_hit_on(static_cast<int>(mode) == i, slot * 5 + i);
-}
 
 namespace {
 
@@ -861,7 +735,7 @@ Value Search::Worker::search(
     // SearchMode (ss->mode) is defined before entering search() calls.
     ParameterStorage P{ss->mode};
 
-#define LINEAR_PARAMETERIZED_INT32_DIVISION(expr, id, shift) \
+#define LINEARIZED_INT32_DIVISION_BY_PARAM(expr, id, shift) \
     int(std::int64_t(P(id)) * (expr) / (1LL << (shift)))
 
     constexpr bool PvNode   = nodeType != NonPV;
@@ -1117,26 +991,26 @@ Value Search::Worker::search(
 
     if (priorReduction >= (depth < 10 ? 2 : 3) && !opponentWorsening)
         depth++;
-    if (priorReduction >= 2 && depth >= 2 && ss->staticEval + (ss - 1)->staticEval > P(17))
+    if (priorReduction >= 2 && depth >= 2 && ss->staticEval + (ss - 1)->staticEval > 177)
         depth--;
 
     // Step 7. Razoring
     // If eval is really low, skip search entirely and return the qsearch value.
     // For PvNodes, we must have a guard against mates being returned.
-    if (!PvNode && eval < alpha - P(18) - P(19) * depth * depth)
+    if (!PvNode && eval < alpha - P(17) - P(18) * depth * depth)
         return qsearch<NonPV>(pos, ss, alpha, beta);
 
     // Step 8. Futility pruning: child node
     // The depth condition is important for mate finding.
     {
         auto futility_margin = [&](Depth d) {
-            Value futilityMult = P(20) - P(21) * (!ss->ttHit);
+            Value futilityMult = P(19) - P(20) * (!ss->ttHit);
 
-            return futilityMult * d                                                  //
-                 - P(22) * improving * futilityMult / 1024                           //
-                 - P(23) * opponentWorsening * futilityMult / 4096                   //
-                 + LINEAR_PARAMETERIZED_INT32_DIVISION((ss - 1)->statScore, 24, 20)  //
-                 + LINEAR_PARAMETERIZED_INT32_DIVISION(std::abs(correctionValue), 25, 32);
+            return futilityMult * d                                                 //
+                 - P(21) * improving * futilityMult / 1024                          //
+                 - P(22) * opponentWorsening * futilityMult / 4096                  //
+                 + LINEARIZED_INT32_DIVISION_BY_PARAM((ss - 1)->statScore, 23, 20)  //
+                 + LINEARIZED_INT32_DIVISION_BY_PARAM(std::abs(correctionValue), 24, 32);
         };
 
         if (!ss->ttPv && depth < 14 && eval - futility_margin(depth) >= beta && eval >= beta
@@ -1145,7 +1019,7 @@ Value Search::Worker::search(
     }
 
     // Step 9. Null move search with verification search
-    if (cutNode && ss->staticEval >= beta - P(26) * depth + P(27) && !excludedMove
+    if (cutNode && ss->staticEval >= beta - P(25) * depth + P(26) && !excludedMove
         && pos.non_pawn_material(us) && ss->ply >= nmpMinPly && !is_loss(beta))
     {
         assert((ss - 1)->currentMove != Move::null());
@@ -1196,7 +1070,7 @@ Value Search::Worker::search(
     // Step 11. ProbCut
     // If we have a good enough capture (or queen promotion) and a reduced search
     // returns a value much above beta, we can (almost) safely prune the previous move.
-    probCutBeta = beta + P(28) - P(29) * improving;
+    probCutBeta = beta + P(27) - P(28) * improving;
     if (depth >= 3
         && !is_decisive(beta)
         // If value from transposition table is lower than probCutBeta, don't attempt
@@ -1206,7 +1080,7 @@ Value Search::Worker::search(
         assert(probCutBeta < VALUE_INFINITE && probCutBeta > beta);
 
         MovePicker mp(pos, ttData.move, probCutBeta - ss->staticEval, &captureHistory);
-        Depth dynamicReduction = LINEAR_PARAMETERIZED_INT32_DIVISION(ss->staticEval - beta, 30, 20);
+        Depth dynamicReduction = LINEARIZED_INT32_DIVISION_BY_PARAM(ss->staticEval - beta, 29, 20);
         Depth probCutDepth     = std::max(depth - 5 - dynamicReduction, 0);
 
         while ((move = mp.next_move()) != Move::none())
@@ -1251,7 +1125,7 @@ Value Search::Worker::search(
 moves_loop:  // When in check, search starts here
 
     // Step 12. A small Probcut idea
-    probCutBeta = beta + P(31);
+    probCutBeta = beta + P(30);
     if ((ttData.bound & BOUND_LOWER) && ttData.depth >= depth - 4 && ttData.value >= probCutBeta
         && !is_decisive(beta) && is_valid(ttData.value) && !is_decisive(ttData.value))
         return probCutBeta;
@@ -1308,14 +1182,14 @@ moves_loop:  // When in check, search starts here
         newDepth = depth - 1;
 
         int   reductionScale = reductions[depth] * reductions[moveCount];
-        Depth r              = reductionScale - (beta - alpha) * P(102) / rootDelta
-                + !improving * reductionScale * P(103) / 512 + P(104);
+        Depth r              = reductionScale - (beta - alpha) * P(101) / rootDelta
+                + !improving * reductionScale * P(102) / 512 + P(103);
 
         // Increase reduction for ttPv nodes (*Scaler)
         // Smaller or even negative value is better for short time controls
         // Bigger value is better for long time controls
         if (ss->ttPv)
-            r += P(32);
+            r += P(31);
 
         // Step 14. Pruning at shallow depth.
         // Depth conditions are important for mate finding.
@@ -1336,8 +1210,8 @@ moves_loop:  // When in check, search starts here
                 // Futility pruning for captures
                 if (!givesCheck && lmrDepth < 7 && !ss->inCheck)
                 {
-                    Value futilityValue = ss->staticEval + P(33) + P(34) * lmrDepth
-                                        + PieceValue[capturedPiece] + P(35) * captHist / 1024;
+                    Value futilityValue = ss->staticEval + P(32) + P(33) * lmrDepth
+                                        + PieceValue[capturedPiece] + P(34) * captHist / 1024;
 
                     if (futilityValue <= alpha)
                         continue;
@@ -1345,8 +1219,8 @@ moves_loop:  // When in check, search starts here
 
                 // SEE based pruning for captures and checks
                 int margin =
-                  std::clamp(P(36) * depth + LINEAR_PARAMETERIZED_INT32_DIVISION(captHist, 37, 16),
-                             0, P(38) * depth);
+                  std::clamp(P(35) * depth + LINEARIZED_INT32_DIVISION_BY_PARAM(captHist, 36, 16),
+                             0, P(37) * depth);
                 if (!pos.see_ge(move, -margin))
                 {
                     bool mayStalemateTrap =
@@ -1368,21 +1242,21 @@ moves_loop:  // When in check, search starts here
                             + pawnHistory[pawn_history_index(pos)][movedPiece][move.to_sq()];
 
                 // Continuation history based pruning
-                if (history < P(39) * depth)
+                if (history < P(38) * depth)
                     continue;
 
-                history += P(40) * mainHistory[us][move.from_to()] / 32;
+                history += P(39) * mainHistory[us][move.from_to()] / 32;
 
-                lmrDepth += LINEAR_PARAMETERIZED_INT32_DIVISION(history, 41, 24);
+                lmrDepth += LINEARIZED_INT32_DIVISION_BY_PARAM(history, 40, 24);
 
-                Value baseFutility  = (bestMove ? P(42) : P(43));
-                Value futilityValue = ss->staticEval + baseFutility + P(44) * lmrDepth
-                                    + P(45) * (ss->staticEval > alpha);
+                Value baseFutility  = (bestMove ? P(41) : P(42));
+                Value futilityValue = ss->staticEval + baseFutility + P(43) * lmrDepth
+                                    + P(44) * (ss->staticEval > alpha);
 
                 // Futility pruning: parent node
                 // (*Scaler): Generally, more frequent futility pruning
                 // scales well with respect to time and threads
-                if (!ss->inCheck && lmrDepth < P(46) && futilityValue <= alpha)
+                if (!ss->inCheck && lmrDepth < P(45) && futilityValue <= alpha)
                 {
                     if (bestValue <= futilityValue && !is_decisive(bestValue)
                         && !is_win(futilityValue))
@@ -1393,7 +1267,7 @@ moves_loop:  // When in check, search starts here
                 lmrDepth = std::max(lmrDepth, 0);
 
                 // Prune moves with negative SEE
-                if (!pos.see_ge(move, P(47) * lmrDepth * lmrDepth))
+                if (!pos.see_ge(move, P(46) * lmrDepth * lmrDepth))
                     continue;
             }
         }
@@ -1414,7 +1288,7 @@ moves_loop:  // When in check, search starts here
             && ttData.depth >= depth - 3)
         {
             Value singularBeta =
-              ttData.value - (P(48) + P(49) * (ss->ttPv && !PvNode)) * depth / 60;
+              ttData.value - (P(47) + P(48) * (ss->ttPv && !PvNode)) * depth / 60;
             Depth singularDepth = newDepth / 2;
 
             ss->excludedMove = move;
@@ -1424,11 +1298,11 @@ moves_loop:  // When in check, search starts here
             if (value < singularBeta)
             {
                 int corrValAdj =
-                  LINEAR_PARAMETERIZED_INT32_DIVISION(std::abs(correctionValue), 50, 32);
-                int doubleMargin = P(51) + P(52) * PvNode - P(53) * !ttCapture - corrValAdj
-                                 - P(54) * ttMoveHistory / 131072 - P(55) * (ss->ply > rootDepth);
-                int tripleMargin = P(56) + P(57) * PvNode - P(58) * !ttCapture + P(59) * ss->ttPv
-                                 - corrValAdj - P(60) * (ss->ply * 2 > rootDepth * 3);
+                  LINEARIZED_INT32_DIVISION_BY_PARAM(std::abs(correctionValue), 51, 32);
+                int doubleMargin = P(50) + P(51) * PvNode - P(52) * !ttCapture - corrValAdj
+                                 - P(53) * ttMoveHistory / 131072 - P(54) * (ss->ply > rootDepth);
+                int tripleMargin = P(55) + P(56) * PvNode - P(57) * !ttCapture + P(58) * ss->ttPv
+                                 - corrValAdj - P(59) * (ss->ply * 2 > rootDepth * 3);
 
                 extension =
                   1 + (value < singularBeta - doubleMargin) + (value < singularBeta - tripleMargin);
@@ -1471,35 +1345,35 @@ moves_loop:  // When in check, search starts here
 
         // Decrease reduction for PvNodes (*Scaler)
         if (ss->ttPv)
-            r -= P(61) + PvNode * P(62) + (ttData.value > alpha) * P(63)
-               + (ttData.depth >= depth) * (P(64) + cutNode * P(65));
+            r -= P(60) + PvNode * P(61) + (ttData.value > alpha) * P(62)
+               + (ttData.depth >= depth) * (P(63) + cutNode * P(64));
 
         // These reduction adjustments have no proven non-linear scaling
 
-        r += P(66);  // Base reduction offset to compensate for other tweaks
-        r -= moveCount * P(67);
-        r -= LINEAR_PARAMETERIZED_INT32_DIVISION(std::abs(correctionValue), 68, 30);
+        r += P(65);  // Base reduction offset to compensate for other tweaks
+        r -= moveCount * P(66);
+        r -= LINEARIZED_INT32_DIVISION_BY_PARAM(std::abs(correctionValue), 67, 30);
 
         // Increase reduction for cut nodes
         if (cutNode)
-            r += P(69) + P(70) * !ttData.move;
+            r += P(68) + P(69) * !ttData.move;
 
         // Increase reduction if ttMove is a capture
         if (ttCapture)
-            r += P(71);
+            r += P(70);
 
         // Increase reduction if next ply has a lot of fail high
         if ((ss + 1)->cutoffCnt > 2)
-            r += P(72) + allNode * P(73);
+            r += P(71) + allNode * P(72);
 
-        r += (ss + 1)->quietMoveStreak * P(74);
+        r += (ss + 1)->quietMoveStreak * P(73);
 
         // For first picked move (ttMove) reduce reduction
         if (move == ttData.move)
-            r -= P(75);
+            r -= P(74);
 
         if (capture)
-            ss->statScore = P(76) * int(PieceValue[pos.captured_piece()]) / 128
+            ss->statScore = P(75) * int(PieceValue[pos.captured_piece()]) / 128
                           + captureHistory[movedPiece][move.to_sq()][type_of(pos.captured_piece())];
         else
             ss->statScore = 2 * mainHistory[us][move.from_to()]
@@ -1507,7 +1381,7 @@ moves_loop:  // When in check, search starts here
                           + (*contHist[1])[movedPiece][move.to_sq()];
 
         // Decrease/increase reduction for moves with a good/bad history
-        r -= ss->statScore * P(77) / 8192;
+        r -= ss->statScore * P(76) / 8192;
 
         // Step 17. Late moves reduction / extension (LMR)
         if (depth >= 2 && moveCount > 1)
@@ -1544,7 +1418,7 @@ moves_loop:  // When in check, search starts here
                 }
 
                 // Post LMR continuation history updates
-                update_continuation_histories(ss, movedPiece, move.to_sq(), P(78));
+                update_continuation_histories(ss, movedPiece, move.to_sq(), P(77));
             }
         }
 
@@ -1553,15 +1427,15 @@ moves_loop:  // When in check, search starts here
         {
             // Increase reduction if ttMove is not present
             if (!ttData.move)
-                r += P(79);
+                r += P(78);
 
             if (depth < 5)
-                r += P(80);
+                r += P(79);
 
             // Note that if expected reduction is high, we reduce search depth here
             (ss + 1)->mode = SearchMode::Normal;
             value          = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha,
-                                            newDepth - (r > P(81)) - (r > P(82) && newDepth > 2), !cutNode);
+                                            newDepth - (r > P(80)) - (r > P(81) && newDepth > 2), !cutNode);
         }
 
         // For PV nodes only, do a full PV search on the first move or after a fail high,
@@ -1707,32 +1581,32 @@ moves_loop:  // When in check, search starts here
         update_all_stats(pos, ss, *this, bestMove, prevSq, quietsSearched, capturesSearched, depth,
                          ttData.move);
         if (!PvNode)
-            ttMoveHistory << (bestMove == ttData.move ? P(83) : P(84));
+            ttMoveHistory << (bestMove == ttData.move ? P(82) : P(83));
     }
 
     // Bonus for prior quiet countermove that caused the fail low
     else if (!priorCapture && prevSq != SQ_NONE)
     {
-        int bonusScale = P(85);
+        int bonusScale = P(84);
         bonusScale +=
-          std::min(LINEAR_PARAMETERIZED_INT32_DIVISION(-(ss - 1)->statScore, 86, 16), P(87));
-        bonusScale += std::min(P(88) * depth, P(89));
-        bonusScale += P(90) * ((ss - 1)->moveCount > 8);
-        bonusScale += P(91) * (!ss->inCheck && bestValue <= ss->staticEval - P(92));
-        bonusScale += P(93) * (!(ss - 1)->inCheck && bestValue <= -(ss - 1)->staticEval - P(94));
+          std::min(LINEARIZED_INT32_DIVISION_BY_PARAM(-(ss - 1)->statScore, 85, 16), P(86));
+        bonusScale += std::min(P(87) * depth, P(88));
+        bonusScale += P(89) * ((ss - 1)->moveCount > 8);
+        bonusScale += P(90) * (!ss->inCheck && bestValue <= ss->staticEval - P(91));
+        bonusScale += P(92) * (!(ss - 1)->inCheck && bestValue <= -(ss - 1)->staticEval - P(93));
 
         bonusScale = std::max(bonusScale, 0);
 
-        const int scaledBonus = std::min(P(95) * depth - P(96), P(97)) * bonusScale;
+        const int scaledBonus = std::min(P(94) * depth - P(95), P(96)) * bonusScale;
 
         update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq,
-                                      scaledBonus * P(98) / 32768);
+                                      scaledBonus * P(97) / 32768);
 
-        mainHistory[~us][((ss - 1)->currentMove).from_to()] << scaledBonus * P(99) / 32768;
+        mainHistory[~us][((ss - 1)->currentMove).from_to()] << scaledBonus * P(98) / 32768;
 
         if (type_of(pos.piece_on(prevSq)) != PAWN && ((ss - 1)->currentMove).type_of() != PROMOTION)
             pawnHistory[pawn_history_index(pos)][pos.piece_on(prevSq)][prevSq]
-              << scaledBonus * P(100) / 32768;
+              << scaledBonus * P(99) / 32768;
     }
 
     // Bonus for prior capture countermove that caused the fail low
@@ -1740,7 +1614,7 @@ moves_loop:  // When in check, search starts here
     {
         Piece capturedPiece = pos.captured_piece();
         assert(capturedPiece != NO_PIECE);
-        captureHistory[pos.piece_on(prevSq)][prevSq][type_of(capturedPiece)] << P(101);
+        captureHistory[pos.piece_on(prevSq)][prevSq][type_of(capturedPiece)] << P(100);
     }
 
     if (PvNode)
@@ -1774,6 +1648,8 @@ moves_loop:  // When in check, search starts here
     assert(bestValue > -VALUE_INFINITE && bestValue < VALUE_INFINITE);
 
     return bestValue;
+
+#undef LINEARIZED_INT32_DIVISION_BY_PARAM
 }
 
 
@@ -2121,17 +1997,17 @@ void update_all_stats(const Position& pos,
     Piece                  movedPiece     = pos.moved_piece(bestMove);
     PieceType              capturedPiece;
 
-    int bonus        = std::min(P(105) * depth - P(106), P(107)) + P(108) * (bestMove == ttMove);
-    int quietMalus   = std::min(P(109) * depth - P(110), P(111)) - P(112) * quietsSearched.size();
-    int captureMalus = std::min(P(113) * depth - P(114), P(115)) - P(116) * capturesSearched.size();
+    int bonus        = std::min(P(104) * depth - P(105), P(106)) + P(107) * (bestMove == ttMove);
+    int quietMalus   = std::min(P(108) * depth - P(109), P(110)) - P(111) * quietsSearched.size();
+    int captureMalus = std::min(P(112) * depth - P(113), P(114)) - P(115) * capturesSearched.size();
 
     if (!pos.capture_stage(bestMove))
     {
-        update_quiet_histories(pos, ss, workerThread, bestMove, bonus * P(117) / 1024);
+        update_quiet_histories(pos, ss, workerThread, bestMove, bonus * P(116) / 1024);
 
         // Decrease stats for all non-best quiet moves
         for (Move move : quietsSearched)
-            update_quiet_histories(pos, ss, workerThread, move, -quietMalus * P(118) / 1024);
+            update_quiet_histories(pos, ss, workerThread, move, -quietMalus * P(117) / 1024);
     }
     else
     {
@@ -2144,14 +2020,14 @@ void update_all_stats(const Position& pos,
     // previous ply when it gets refuted.
     if (prevSq != SQ_NONE && ((ss - 1)->moveCount == 1 + (ss - 1)->ttHit) && !pos.captured_piece())
         update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq,
-                                      -captureMalus * P(119) / 1024);
+                                      -captureMalus * P(118) / 1024);
 
     // Decrease stats for all non-best capture moves
     for (Move move : capturesSearched)
     {
         movedPiece    = pos.moved_piece(move);
         capturedPiece = type_of(pos.piece_on(move.to_sq()));
-        captureHistory[movedPiece][move.to_sq()][capturedPiece] << -captureMalus * P(120) / 1024;
+        captureHistory[movedPiece][move.to_sq()][capturedPiece] << -captureMalus * P(119) / 1024;
     }
 }
 
@@ -2162,7 +2038,7 @@ void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus) {
     ParameterStorage P{ss->mode};
 
     const std::array<ConthistBonus, 6> conthist_bonuses = {
-      {{1, P(121)}, {2, P(122)}, {3, P(123)}, {4, P(124)}, {5, P(125)}, {6, P(126)}}};
+      {{1, P(120)}, {2, P(121)}, {3, P(122)}, {4, P(123)}, {5, P(124)}, {6, P(125)}}};
 
     for (const auto [i, weight] : conthist_bonuses)
     {
@@ -2170,7 +2046,7 @@ void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus) {
         if (ss->inCheck && i > 2)
             break;
         if (((ss - i)->currentMove).is_ok())
-            (*(ss - i)->continuationHistory)[pc][to] << (bonus * weight / 1024) + P(127) * (i < 2);
+            (*(ss - i)->continuationHistory)[pc][to] << (bonus * weight / 1024) + P(126) * (i < 2);
     }
 }
 
@@ -2185,14 +2061,14 @@ void update_quiet_histories(
     workerThread.mainHistory[us][move.from_to()] << bonus;  // Untuned to prevent duplicate effort
 
     if (ss->ply < LOW_PLY_HISTORY_SIZE)
-        workerThread.lowPlyHistory[ss->ply][move.from_to()] << (bonus * P(128) / 1024) + P(129);
+        workerThread.lowPlyHistory[ss->ply][move.from_to()] << (bonus * P(127) / 1024) + P(128);
 
     update_continuation_histories(ss, pos.moved_piece(move), move.to_sq(),
-                                  bonus * (bonus > 0 ? P(130) : P(131)) / 1024);
+                                  bonus * (bonus > 0 ? P(129) : P(130)) / 1024);
 
     int pIndex = pawn_history_index(pos);
     workerThread.pawnHistory[pIndex][pos.moved_piece(move)][move.to_sq()]
-      << (bonus * (bonus > 0 ? P(132) : P(133)) / 1024) + P(134);
+      << (bonus * (bonus > 0 ? P(131) : P(132)) / 1024) + P(133);
 }
 
 }
