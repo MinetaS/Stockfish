@@ -1144,9 +1144,9 @@ moves_loop:  // When in check, search starts here
             // subtree by returning a softbound.
             else if (value >= beta && !is_decisive(value))
             {
-                if (ttData.depth <= newDepth)
-                    ttWriter.write(posKey, value_to_tt(value, ss->ply), ss->ttPv, BOUND_LOWER,
-                                   newDepth + 1, move, unadjustedStaticEval, tt.generation());
+                if ((move = mp.next_move()) != Move::none())
+                    mainHistory[us][move.from_to()] << std::min(120 + 19 * singularDepth, 350);
+
                 return value;
             }
 
