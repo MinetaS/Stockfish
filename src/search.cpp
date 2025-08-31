@@ -1140,7 +1140,7 @@ moves_loop:  // When in check, search starts here
             // subtree by returning a softbound.
             else if (value >= beta && !is_decisive(value))
             {
-                if ((move = mp.next_move()) != Move::none())
+                if ((move = mp.next_move()) != Move::none() && pos.legal(move))
                     mainHistory[us][move.from_to()] << std::min(120 + 19 * singularDepth, 350);
 
                 return value;
