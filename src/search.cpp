@@ -1494,6 +1494,7 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
     Value bestValue, value, futilityBase;
     bool  pvHit, givesCheck, capture;
     int   moveCount;
+    Piece movedPiece;
 
     // Step 1. Initialize node
     if (PvNode)
@@ -1607,6 +1608,8 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
         // Step 6. Pruning
         if (!is_loss(bestValue))
         {
+            movedPiece = pos.moved_piece(move);
+
             // Futility pruning and moveCount pruning
             if (!givesCheck && move.to_sq() != prevSq && !is_loss(futilityBase)
                 && move.type_of() != PROMOTION)
@@ -1615,6 +1618,13 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
                     continue;
 
                 Value futilityValue = futilityBase + PieceValue[pos.piece_on(move.to_sq())];
+
+                if (capture)
+                {
+                    Piece capturedPiece = pos.piece_on(move.to_sq());
+                    futilityValue +=
+                      96 * captureHistory[movedPiece][move.to_sq()][type_of(capturedPiece)] / 1024;
+                }
 
                 // If static eval + value of piece we are going to capture is
                 // much lower than alpha, we can prune this move.
@@ -1635,8 +1645,8 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
 
             // Continuation history based pruning
             if (!capture
-                && (*contHist[0])[pos.moved_piece(move)][move.to_sq()]
-                       + pawnHistory[pawn_history_index(pos)][pos.moved_piece(move)][move.to_sq()]
+                && (*contHist[0])[movedPiece][move.to_sq()]
+                       + pawnHistory[pawn_history_index(pos)][movedPiece][move.to_sq()]
                      <= 5475)
                 continue;
 
