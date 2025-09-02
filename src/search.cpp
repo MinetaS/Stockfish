@@ -612,18 +612,19 @@ Value Search::Worker::search(
     bool  givesCheck, improving, priorCapture, opponentWorsening;
     bool  capture, ttCapture;
     int   priorReduction;
-    Piece movedPiece;
+    Piece priorCapturedPiece, movedPiece;
 
     SearchedList capturesSearched;
     SearchedList quietsSearched;
 
     // Step 1. Initialize node
-    ss->inCheck   = pos.checkers();
-    priorCapture  = pos.captured_piece();
-    Color us      = pos.side_to_move();
-    ss->moveCount = 0;
-    bestValue     = -VALUE_INFINITE;
-    maxValue      = VALUE_INFINITE;
+    ss->inCheck        = pos.checkers();
+    priorCapturedPiece = pos.captured_piece();
+    priorCapture       = bool(priorCapturedPiece);
+    Color us           = pos.side_to_move();
+    ss->moveCount      = 0;
+    bestValue          = -VALUE_INFINITE;
+    maxValue           = VALUE_INFINITE;
 
     // Check for the available remaining time
     if (is_mainthread())
@@ -1049,8 +1050,12 @@ moves_loop:  // When in check, search starts here
                 }
 
                 // SEE based pruning for captures and checks
-                int margin = std::max(157 * depth + captHist / 29, 0);
-                if (!pos.see_ge(move, -margin))
+                int margin = -std::max(157 * depth + captHist / 29, 0);
+
+                if (priorCapture && prevSq == move.to_sq())
+                    margin -= PieceValue[priorCapturedPiece];
+
+                if (!pos.see_ge(move, margin))
                 {
                     bool mayStalemateTrap =
                       depth > 2 && alpha < 0 && pos.non_pawn_material(us) == PieceValue[movedPiece];
