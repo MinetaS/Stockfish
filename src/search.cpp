@@ -1007,7 +1007,8 @@ moves_loop:  // When in check, search starts here
         if (rootNode && !std::count(rootMoves.begin() + pvIdx, rootMoves.begin() + pvLast, move))
             continue;
 
-        ss->moveCount = ++moveCount;
+        ss->moveCount        = ++moveCount;
+        ss->pendingExtension = false;
 
         if (rootNode && is_mainthread() && nodes > 10000000)
         {
@@ -1136,8 +1137,13 @@ moves_loop:  // When in check, search starts here
                 int tripleMargin = 76 + 308 * PvNode - 250 * !ttCapture + 92 * ss->ttPv - corrValAdj
                                  - (ss->ply * 2 > rootDepth * 3) * 52;
 
-                extension =
-                  1 + (value < singularBeta - doubleMargin) + (value < singularBeta - tripleMargin);
+                const bool ext2 = value < singularBeta - doubleMargin;
+                const bool ext3 = value < singularBeta - tripleMargin;
+
+                if (ext2 && ext3)
+                    ss->pendingExtension = true;
+
+                extension = 1 + (ext2 || ext3 || (ss - 2)->pendingExtension);
 
                 depth++;
             }
