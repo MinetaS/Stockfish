@@ -1200,10 +1200,6 @@ moves_loop:  // When in check, search starts here
 
         r += (ss + 1)->quietMoveStreak * 50;
 
-        // For first picked move (ttMove) reduce reduction
-        if (move == ttData.move)
-            r -= 2018;
-
         if (capture)
             ss->statScore = 803 * int(PieceValue[pos.captured_piece()]) / 128
                           + captureHistory[movedPiece][move.to_sq()][type_of(pos.captured_piece())];
@@ -1214,6 +1210,10 @@ moves_loop:  // When in check, search starts here
 
         // Decrease/increase reduction for moves with a good/bad history
         r -= ss->statScore * 794 / 8192;
+
+        // For first picked move (ttMove) reduce reduction
+        if (move == ttData.move)
+            r -= 1099 + std::max(r, 0) / 2;
 
         // Step 17. Late moves reduction / extension (LMR)
         if (depth >= 2 && moveCount > 1)
