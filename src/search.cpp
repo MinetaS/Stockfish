@@ -994,9 +994,6 @@ moves_loop:  // When in check, search starts here
     {
         assert(move.is_ok());
 
-        if (move == excludedMove)
-            continue;
-
         // Check for legality
         if (!pos.legal(move))
             continue;
@@ -1008,6 +1005,9 @@ moves_loop:  // When in check, search starts here
             continue;
 
         ss->moveCount = ++moveCount;
+
+        if (move == excludedMove)
+            continue;
 
         if (rootNode && is_mainthread() && nodes > 10000000)
         {
