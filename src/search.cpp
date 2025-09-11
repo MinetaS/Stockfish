@@ -1047,7 +1047,7 @@ moves_loop:  // When in check, search starts here
                 mp.skip_quiet_moves();
 
             // Reduced depth of the next LMR search
-            int lmrDepth = newDepth - r / 1024;
+            int lmrDepth = newDepth - r / 1024 - (moveCount > 1 && singular && cutNode);
 
             if (capture || givesCheck)
             {
@@ -1205,8 +1205,6 @@ moves_loop:  // When in check, search starts here
         // For first picked move (ttMove) reduce reduction
         if (move == ttData.move)
             r -= 2018;
-        else if (singular && cutNode)
-            r += 1000;
 
         if (capture)
             ss->statScore = 803 * int(PieceValue[pos.captured_piece()]) / 128
