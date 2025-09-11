@@ -1205,7 +1205,7 @@ moves_loop:  // When in check, search starts here
         // For first picked move (ttMove) reduce reduction
         if (move == ttData.move)
             r -= 2018;
-        else if (singular)
+        else if (singular && cutNode)
             r += 1000;
 
         if (capture)
