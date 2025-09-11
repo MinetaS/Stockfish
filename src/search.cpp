@@ -1038,9 +1038,6 @@ moves_loop:  // When in check, search starts here
         if (ss->ttPv)
             r += 946;
 
-        if (move != ttData.move && singular && cutNode)
-            r += 1024;
-
         // Step 14. Pruning at shallow depth.
         // Depth conditions are important for mate finding.
         if (!rootNode && pos.non_pawn_material(us) && !is_loss(bestValue))
@@ -1208,6 +1205,8 @@ moves_loop:  // When in check, search starts here
         // For first picked move (ttMove) reduce reduction
         if (move == ttData.move)
             r -= 2018;
+        else if (singular)
+            r += 1000;
 
         if (capture)
             ss->statScore = 803 * int(PieceValue[pos.captured_piece()]) / 128
