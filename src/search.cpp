@@ -987,7 +987,7 @@ moves_loop:  // When in check, search starts here
     value = bestValue;
 
     int  moveCount = 0;
-    bool singular = false;
+    bool singular  = false;
 
     // Step 13. Loop through all pseudo-legal moves until no moves remain
     // or a beta cutoff occurs.
@@ -1038,7 +1038,7 @@ moves_loop:  // When in check, search starts here
         if (ss->ttPv)
             r += 946;
 
-        if (singular && move != ttData.move)
+        if (move != ttData.move && singular && cutNode)
             r += 1024;
 
         // Step 14. Pruning at shallow depth.
