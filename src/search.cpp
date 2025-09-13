@@ -75,7 +75,11 @@ using SearchedList                  = ValueList<Move, SEARCHEDLIST_CAPACITY>;
 // (*Scaler) All tuned parameters at time controls shorter than
 // optimized for require verifications at longer time controls
 
+template<bool InQSearch = false>
 int correction_value(const Worker& w, const Position& pos, const Stack* const ss) {
+    constexpr std::array<int, 4> C =
+      !InQSearch ? std::array{9536, 8494, 10132, 7156} : std::array{4768, 5047, 4666, 3178};
+
     const Color us    = pos.side_to_move();
     const auto  m     = (ss - 1)->currentMove;
     const auto  pcv   = w.pawnCorrectionHistory[pawn_correction_history_index(pos)][us];
@@ -86,7 +90,7 @@ int correction_value(const Worker& w, const Position& pos, const Stack* const ss
       m.is_ok() ? (*(ss - 2)->continuationCorrectionHistory)[pos.piece_on(m.to_sq())][m.to_sq()]
                  : 8;
 
-    return 9536 * pcv + 8494 * micv + 10132 * (wnpcv + bnpcv) + 7156 * cntcv;
+    return C[0] * pcv + C[1] * micv + C[2] * (wnpcv + bnpcv) + C[3] * cntcv;
 }
 
 // Add correctionHistory value to raw staticEval and guarantee evaluation
@@ -1534,7 +1538,7 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
         bestValue = futilityBase = -VALUE_INFINITE;
     else
     {
-        const auto correctionValue = correction_value(*this, pos, ss);
+        const auto correctionValue = correction_value<true>(*this, pos, ss);
 
         if (ss->ttHit)
         {
