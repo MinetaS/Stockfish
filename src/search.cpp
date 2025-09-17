@@ -63,6 +63,15 @@ using namespace Search;
 
 namespace {
 
+int v1 = 256;
+int v2 = 0;
+int v3 = 256;
+int v4 = -1000;
+int v5 = 1024;
+
+TUNE(v1, v3, v4, v5);
+TUNE(SetRange(-5000, 5000), v2);
+
 constexpr int SEARCHEDLIST_CAPACITY = 32;
 using SearchedList                  = ValueList<Move, SEARCHEDLIST_CAPACITY>;
 
@@ -1056,7 +1065,7 @@ moves_loop:  // When in check, search starts here
                 int margin = 157 * depth + captHist / 29;
 
                 if (givesCheck)
-                    margin -= checkHistory[~us][pos.square<KING>(~us)] / 64;
+                    margin -= checkHistory[~us][pos.square<KING>(~us)] * v1 / 16384;
 
                 margin = std::max(margin, 0);
 
@@ -1205,6 +1214,9 @@ moves_loop:  // When in check, search starts here
             ss->statScore = 2 * mainHistory[us][move.from_to()]
                           + (*contHist[0])[movedPiece][move.to_sq()]
                           + (*contHist[1])[movedPiece][move.to_sq()];
+
+        if (givesCheck)
+            ss->statScore += v2 + checkHistory[~us][pos.square<KING>(~us)] * v3 / 256;
 
         // Decrease/increase reduction for moves with a good/bad history
         r -= ss->statScore * 794 / 8192;
@@ -1434,10 +1446,7 @@ moves_loop:  // When in check, search starts here
         }
 
         if (ss->inCheck)
-        {
-            const Square kingSq = pos.square<KING>(us);
-            checkHistory[us][kingSq] << std::max(-700 - 100 * moveCount, -1500);
-        }
+            checkHistory[us][pos.square<KING>(us)] << v4;
     }
 
     if (PvNode)
@@ -1827,7 +1836,7 @@ void update_all_stats(const Position& pos,
     if (ss->inCheck)
     {
         const Square kingSq = pos.square<KING>(pos.side_to_move());
-        checkHistory[pos.side_to_move()][kingSq] << bonus;
+        checkHistory[pos.side_to_move()][kingSq] << bonus * v5 / 1024;
     }
 
     if (!pos.capture_stage(bestMove))
