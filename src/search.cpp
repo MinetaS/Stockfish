@@ -1053,7 +1053,13 @@ moves_loop:  // When in check, search starts here
 
                 // SEE based pruning for captures and checks
                 // Avoid pruning sacrifices of our last piece for stalemate
-                int margin = std::max(157 * depth + captHist / 29, 0);
+                int margin = 157 * depth + captHist / 29;
+
+                if (givesCheck)
+                    margin -= checkHistory[~us][pos.square<KING>(~us)] / 64;
+
+                margin = std::max(margin, 0);
+
                 if ((alpha >= VALUE_DRAW || pos.non_pawn_material(us) != PieceValue[movedPiece])
                     && !pos.see_ge(move, -margin))
                     continue;
@@ -1393,37 +1399,45 @@ moves_loop:  // When in check, search starts here
         if (!PvNode)
             ttMoveHistory << (bestMove == ttData.move ? 809 : -865);
     }
-
-    // Bonus for prior quiet countermove that caused the fail low
-    else if (!priorCapture && prevSq != SQ_NONE)
+    else if (prevSq != SQ_NONE)
     {
-        int bonusScale = -228;
-        bonusScale -= (ss - 1)->statScore / 104;
-        bonusScale += std::min(63 * depth, 508);
-        bonusScale += 184 * ((ss - 1)->moveCount > 8);
-        bonusScale += 143 * (!ss->inCheck && bestValue <= ss->staticEval - 92);
-        bonusScale += 149 * (!(ss - 1)->inCheck && bestValue <= -(ss - 1)->staticEval - 70);
+        // Bonus for prior quiet countermove that caused the fail low
+        if (!priorCapture)
+        {
+            int bonusScale = -228;
+            bonusScale -= (ss - 1)->statScore / 104;
+            bonusScale += std::min(63 * depth, 508);
+            bonusScale += 184 * ((ss - 1)->moveCount > 8);
+            bonusScale += 143 * (!ss->inCheck && bestValue <= ss->staticEval - 92);
+            bonusScale += 149 * (!(ss - 1)->inCheck && bestValue <= -(ss - 1)->staticEval - 70);
 
-        bonusScale = std::max(bonusScale, 0);
+            bonusScale = std::max(bonusScale, 0);
 
-        const int scaledBonus = std::min(144 * depth - 92, 1365) * bonusScale;
+            const int scaledBonus = std::min(144 * depth - 92, 1365) * bonusScale;
 
-        update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq,
-                                      scaledBonus * 400 / 32768);
+            update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq,
+                                        scaledBonus * 400 / 32768);
 
-        mainHistory[~us][((ss - 1)->currentMove).from_to()] << scaledBonus * 220 / 32768;
+            mainHistory[~us][((ss - 1)->currentMove).from_to()] << scaledBonus * 220 / 32768;
 
-        if (type_of(pos.piece_on(prevSq)) != PAWN && ((ss - 1)->currentMove).type_of() != PROMOTION)
-            pawnHistory[pawn_history_index(pos)][pos.piece_on(prevSq)][prevSq]
-              << scaledBonus * 1164 / 32768;
-    }
+            if (type_of(pos.piece_on(prevSq)) != PAWN && ((ss - 1)->currentMove).type_of() != PROMOTION)
+                pawnHistory[pawn_history_index(pos)][pos.piece_on(prevSq)][prevSq]
+                << scaledBonus * 1164 / 32768;
+        }
 
-    // Bonus for prior capture countermove that caused the fail low
-    else if (priorCapture && prevSq != SQ_NONE)
-    {
-        Piece capturedPiece = pos.captured_piece();
-        assert(capturedPiece != NO_PIECE);
-        captureHistory[pos.piece_on(prevSq)][prevSq][type_of(capturedPiece)] << 964;
+        // Bonus for prior capture countermove that caused the fail low
+        else
+        {
+            Piece capturedPiece = pos.captured_piece();
+            assert(capturedPiece != NO_PIECE);
+            captureHistory[pos.piece_on(prevSq)][prevSq][type_of(capturedPiece)] << 964;
+        }
+
+        if (ss->inCheck)
+        {
+            const Square kingSq = pos.square<KING>(us);
+            checkHistory[us][kingSq] << std::max(-700 - 100 * moveCount, -1500);
+        }
     }
 
     if (PvNode)
@@ -1802,12 +1816,19 @@ void update_all_stats(const Position& pos,
                       Depth           depth,
                       Move            ttMove) {
 
+    CheckHistory&          checkHistory   = workerThread.checkHistory;
     CapturePieceToHistory& captureHistory = workerThread.captureHistory;
     Piece                  movedPiece     = pos.moved_piece(bestMove);
     PieceType              capturedPiece;
 
     int bonus = std::min(151 * depth - 91, 1730) + 302 * (bestMove == ttMove);
     int malus = std::min(951 * depth - 156, 2468) - 30 * quietsSearched.size();
+
+    if (ss->inCheck)
+    {
+        const Square kingSq = pos.square<KING>(pos.side_to_move());
+        checkHistory[pos.side_to_move()][kingSq] << bonus;
+    }
 
     if (!pos.capture_stage(bestMove))
     {
