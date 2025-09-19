@@ -1814,8 +1814,8 @@ void update_all_stats(const Position& pos,
         update_quiet_histories(pos, ss, workerThread, bestMove, bonus * 957 / 1024);
 
         // Decrease stats for all non-best quiet moves
-        for (Move move : quietsSearched)
-            update_quiet_histories(pos, ss, workerThread, move, -malus);
+        for (int i = 0, v = -malus; i < int(quietsSearched.size()); ++i, v = std::max(v - 50, -2500))
+            update_quiet_histories(pos, ss, workerThread, quietsSearched[i], v);
     }
     else
     {
