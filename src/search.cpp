@@ -409,6 +409,23 @@ void Search::Worker::iterative_deepening() {
                 break;
         }
 
+        if (threads.size() > 1 && completedDepth >= 8)
+        {
+            const Thread* const targetThread =
+              std::max_element(
+                threads.begin(), threads.end(),
+                [](const std::unique_ptr<Thread>& a, const std::unique_ptr<Thread>& b) {
+                    return a->worker->completedDepth < b->worker->completedDepth;
+                })
+                ->get();
+            const ButterflyHistory& targetMainHistory = targetThread->worker->mainHistory;
+
+            if (targetThread->worker->completedDepth > completedDepth)
+                for (Color c : {WHITE, BLACK})
+                    for (int i = 0; i < int(SQUARE_NB) * int(SQUARE_NB); ++i)
+                        mainHistory[c][i] << (mainHistory[c][i] - targetMainHistory[c][i]) / 128;
+        }
+
         if (!threads.stop)
             completedDepth = rootDepth;
 
