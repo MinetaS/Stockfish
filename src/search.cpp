@@ -423,7 +423,7 @@ void Search::Worker::iterative_deepening() {
             if (targetThread->worker->completedDepth > completedDepth)
                 for (Color c : {WHITE, BLACK})
                     for (int i = 0; i < int(SQUARE_NB) * int(SQUARE_NB); ++i)
-                        mainHistory[c][i] << (mainHistory[c][i] - targetMainHistory[c][i]) / 128;
+                        mainHistory[c][i] << (mainHistory[c][i] - targetMainHistory[c][i]);
         }
 
         if (!threads.stop)
