@@ -1260,6 +1260,10 @@ moves_loop:  // When in check, search starts here
             if (move == ttData.move && rootDepth > 8)
                 newDepth = std::max(newDepth, 1);
 
+            // move == ttData.move && depth >= 7 && (ttData.bound & BOUND_LOWER) && ttData.depth >= depth - 3
+            if (extension == 3 && r < -9000)
+                newDepth++;
+
             value = -search<PV>(pos, ss + 1, -beta, -alpha, newDepth, false);
         }
 
