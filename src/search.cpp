@@ -1241,8 +1241,10 @@ moves_loop:  // When in check, search starts here
         else if (!PvNode || moveCount > 1)
         {
             // Increase reduction if ttMove is not present
-            if (!ttData.move && (moveCount != 1 || ttData.depth >= 2))
+            if (!ttData.move)
                 r += 1118;
+            else if (moveCount == 1 && newDepth < 1 && r < 0)
+                newDepth = 1;
 
             // Note that if expected reduction is high, we reduce search depth here
             value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha,
