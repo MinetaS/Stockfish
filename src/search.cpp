@@ -1202,6 +1202,8 @@ moves_loop:  // When in check, search starts here
         // Decrease/increase reduction for moves with a good/bad history
         r -= ss->statScore * 794 / 8192;
 
+        bool lmrSearched = false;
+
         // Step 17. Late moves reduction / extension (LMR)
         if (depth >= 2 && moveCount > 1)
         {
@@ -1234,10 +1236,13 @@ moves_loop:  // When in check, search starts here
                 // Post LMR continuation history updates
                 update_continuation_histories(ss, movedPiece, move.to_sq(), 1365);
             }
+
+            lmrSearched = true;
         }
 
-        // Step 18. Full-depth search when LMR is skipped
-        else if (!PvNode || moveCount > 1)
+        // Step 18. Full-depth search
+        if ((!PvNode && (depth <= 1 || moveCount == 1)) || (depth <= 1 && moveCount > 1)
+            || (lmrSearched && value > alpha))
         {
             // Increase reduction if ttMove is not present
             if (!ttData.move)
