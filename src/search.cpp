@@ -1215,7 +1215,7 @@ moves_loop:  // When in check, search starts here
             lastSearchDepth = std::max(1, std::min(newDepth - r / 1024, newDepth + 2)) + PvNode;
 
             ss->reduction = newDepth - lastSearchDepth;
-            value         = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, lastSearchDepth, true);
+            value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, lastSearchDepth, true);
             ss->reduction = 0;
 
             // Do a full-depth search when reduced LMR search fails high
@@ -1229,17 +1229,19 @@ moves_loop:  // When in check, search starts here
                   lastSearchDepth < newDepth && value > (bestValue + 43 + 2 * newDepth);
                 const bool doShallowerSearch = value < bestValue + 9;
 
-                newDepth += doDeeperSearch - doShallowerSearch;
+                const Depth d = newDepth + doDeeperSearch - doShallowerSearch;
 
-                if (newDepth > lastSearchDepth)
+                if (d > lastSearchDepth)
                 {
-                    lastSearchDepth = newDepth;
-                    value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, newDepth, !cutNode);
+                    lastSearchDepth = d;
+                    value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, d, !cutNode);
                 }
 
                 // Post LMR continuation history updates
                 update_continuation_histories(ss, movedPiece, move.to_sq(), 1365);
             }
+
+            assert(lastSearchDepth > 0);
         }
 
         // Step 18. Full-depth search
@@ -1251,9 +1253,9 @@ moves_loop:  // When in check, search starts here
                 r += 1118;
 
             // Note that if expected reduction is high, we reduce search depth here
-            Depth d = newDepth - (r > 3212) - (r > 4784 && newDepth > 2);
+            const Depth d = newDepth - (r > 3212) - (r > 4784 && newDepth > 2);
 
-            if (d > lastSearchDepth)
+            if (!lastSearchDepth || d > lastSearchDepth)
                 value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, d, !cutNode);
         }
 
