@@ -1202,7 +1202,7 @@ moves_loop:  // When in check, search starts here
         // Decrease/increase reduction for moves with a good/bad history
         r -= ss->statScore * 794 / 8192;
 
-        bool lmrSearched = false;
+        Depth lastSearchDepth = 0;
 
         // Step 17. Late moves reduction / extension (LMR)
         if (depth >= 2 && moveCount > 1)
@@ -1212,10 +1212,10 @@ moves_loop:  // When in check, search starts here
             // beyond the first move depth.
             // To prevent problems when the max value is less than the min value,
             // std::clamp has been replaced by a more robust implementation.
-            Depth d = std::max(1, std::min(newDepth - r / 1024, newDepth + 2)) + PvNode;
+            lastSearchDepth = std::max(1, std::min(newDepth - r / 1024, newDepth + 2)) + PvNode;
 
-            ss->reduction = newDepth - d;
-            value         = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, d, true);
+            ss->reduction = newDepth - lastSearchDepth;
+            value         = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, lastSearchDepth, true);
             ss->reduction = 0;
 
             // Do a full-depth search when reduced LMR search fails high
@@ -1225,32 +1225,36 @@ moves_loop:  // When in check, search starts here
             {
                 // Adjust full-depth search based on LMR results - if the result was
                 // good enough search deeper, if it was bad enough search shallower.
-                const bool doDeeperSearch = d < newDepth && value > (bestValue + 43 + 2 * newDepth);
+                const bool doDeeperSearch =
+                  lastSearchDepth < newDepth && value > (bestValue + 43 + 2 * newDepth);
                 const bool doShallowerSearch = value < bestValue + 9;
 
                 newDepth += doDeeperSearch - doShallowerSearch;
 
-                if (newDepth > d)
+                if (newDepth > lastSearchDepth)
+                {
+                    lastSearchDepth = newDepth;
                     value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, newDepth, !cutNode);
+                }
 
                 // Post LMR continuation history updates
                 update_continuation_histories(ss, movedPiece, move.to_sq(), 1365);
             }
-
-            lmrSearched = true;
         }
 
         // Step 18. Full-depth search
         if ((!PvNode && (depth <= 1 || moveCount == 1)) || (depth <= 1 && moveCount > 1)
-            || (lmrSearched && value > alpha))
+            || (lastSearchDepth && value > alpha))
         {
             // Increase reduction if ttMove is not present
             if (!ttData.move)
                 r += 1118;
 
             // Note that if expected reduction is high, we reduce search depth here
-            value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha,
-                                   newDepth - (r > 3212) - (r > 4784 && newDepth > 2), !cutNode);
+            Depth d = newDepth - (r > 3212) - (r > 4784 && newDepth > 2);
+
+            if (d > lastSearchDepth)
+                value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, d, !cutNode);
         }
 
         // For PV nodes only, do a full PV search on the first move or after a fail high,
