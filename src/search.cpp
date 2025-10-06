@@ -941,14 +941,13 @@ Value Search::Worker::search(
 
             undo_move(pos, move);
 
-            if (value >= probCutBeta)
+            if (value >= probCutBeta && !is_decisive(value))
             {
                 // Save ProbCut data into transposition table
+                value -= probCutBeta - beta;
                 ttWriter.write(posKey, value_to_tt(value, ss->ply), ss->ttPv, BOUND_LOWER,
                                probCutDepth + 1, move, unadjustedStaticEval, tt.generation());
-
-                if (!is_decisive(value))
-                    return value - (probCutBeta - beta);
+                return value;
             }
         }
     }
