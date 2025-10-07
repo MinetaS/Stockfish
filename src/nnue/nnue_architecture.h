@@ -46,20 +46,25 @@ constexpr IndexType TransformedFeatureDimensionsSmall = 128;
 constexpr int       L2Small                           = 15;
 constexpr int       L3Small                           = 32;
 
-constexpr IndexType PSQTBuckets = 8;
-constexpr IndexType LayerStacks = 8;
+constexpr IndexType PSQTBucketsBig = 8;
+constexpr IndexType LayerStacksBig = 8;
+
+constexpr IndexType PSQTBucketsSmall = 16;
+constexpr IndexType LayerStacksSmall = 16;
 
 // If vector instructions are enabled, we update and refresh the
 // accumulator tile by tile such that each tile fits in the CPU's
 // vector registers.
-static_assert(PSQTBuckets % 8 == 0,
+static_assert(PSQTBucketsBig % 8 == 0 && PSQTBucketsSmall % 8 == 0,
               "Per feature PSQT values cannot be processed at granularity lower than 8 at a time.");
 
-template<IndexType L1, int L2, int L3>
+template<IndexType L1, int L2, int L3, int B, int LS>
 struct NetworkArchitecture {
     static constexpr IndexType TransformedFeatureDimensions = L1;
     static constexpr int       FC_0_OUTPUTS                 = L2;
     static constexpr int       FC_1_OUTPUTS                 = L3;
+    static constexpr int       PSQTBuckets                  = B;
+    static constexpr int       LayerStacks                  = LS;
 
     Layers::AffineTransformSparseInput<TransformedFeatureDimensions, FC_0_OUTPUTS + 1> fc_0;
     Layers::SqrClippedReLU<FC_0_OUTPUTS + 1>                                           ac_sqr_0;

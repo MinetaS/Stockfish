@@ -166,7 +166,7 @@ trace(Position& pos, const Eval::NNUE::Networks& networks, Eval::NNUE::Accumulat
        << "|            |   (PSQT)   |  (Layers)  |            |\n"
        << "+------------+------------+------------+------------+\n";
 
-    for (std::size_t bucket = 0; bucket < LayerStacks; ++bucket)
+    for (std::size_t bucket = 0; bucket < LayerStacksBig; ++bucket)
     {
         ss << "|  " << bucket << "        "  //
            << " |  ";

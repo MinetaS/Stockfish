@@ -41,12 +41,12 @@ struct EvalFile {
     std::string netDescription;
 };
 
-
+// NNUE eval trace always uses the big network.
 struct NnueEvalTrace {
-    static_assert(LayerStacks == PSQTBuckets);
+    static_assert(LayerStacksBig == PSQTBucketsBig);
 
-    Value       psqt[LayerStacks];
-    Value       positional[LayerStacks];
+    Value       psqt[LayerStacksBig];
+    Value       positional[LayerStacksBig];
     std::size_t correctBucket;
 };
 

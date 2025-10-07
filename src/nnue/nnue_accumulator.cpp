@@ -37,25 +37,30 @@ using namespace SIMD;
 
 namespace {
 
-template<Color Perspective, IndexType TransformedFeatureDimensions>
-void double_inc_update(const FeatureTransformer<TransformedFeatureDimensions>& featureTransformer,
-                       const Square                                            ksq,
-                       AccumulatorState&                                       middle_state,
-                       AccumulatorState&                                       target_state,
-                       const AccumulatorState&                                 computed);
+template<Color Perspective, IndexType TransformedFeatureDimensions, IndexType PSQTBuckets>
+void double_inc_update(
+  const FeatureTransformer<TransformedFeatureDimensions, PSQTBuckets>& featureTransformer,
+  const Square                                                         ksq,
+  AccumulatorState&                                                    middle_state,
+  AccumulatorState&                                                    target_state,
+  const AccumulatorState&                                              computed);
 
-template<Color Perspective, bool Forward, IndexType TransformedFeatureDimensions>
+template<Color     Perspective,
+         bool      Forward,
+         IndexType TransformedFeatureDimensions,
+         IndexType PSQTBuckets>
 void update_accumulator_incremental(
-  const FeatureTransformer<TransformedFeatureDimensions>& featureTransformer,
-  const Square                                            ksq,
-  AccumulatorState&                                       target_state,
-  const AccumulatorState&                                 computed);
+  const FeatureTransformer<TransformedFeatureDimensions, PSQTBuckets>& featureTransformer,
+  const Square                                                         ksq,
+  AccumulatorState&                                                    target_state,
+  const AccumulatorState&                                              computed);
 
-template<Color Perspective, IndexType Dimensions>
-void update_accumulator_refresh_cache(const FeatureTransformer<Dimensions>& featureTransformer,
-                                      const Position&                       pos,
-                                      AccumulatorState&                     accumulatorState,
-                                      AccumulatorCaches::Cache<Dimensions>& cache);
+template<Color Perspective, IndexType Dimensions, IndexType PSQTBuckets>
+void update_accumulator_refresh_cache(
+  const FeatureTransformer<Dimensions, PSQTBuckets>& featureTransformer,
+  const Position&                                    pos,
+  AccumulatorState&                                  accumulatorState,
+  AccumulatorCaches::Cache<Dimensions, PSQTBuckets>& cache);
 
 }
 
@@ -85,19 +90,21 @@ void AccumulatorStack::pop() noexcept {
     size--;
 }
 
-template<IndexType Dimensions>
-void AccumulatorStack::evaluate(const Position&                       pos,
-                                const FeatureTransformer<Dimensions>& featureTransformer,
-                                AccumulatorCaches::Cache<Dimensions>& cache) noexcept {
+template<IndexType Dimensions, IndexType PSQTBuckets>
+void AccumulatorStack::evaluate(
+  const Position&                                    pos,
+  const FeatureTransformer<Dimensions, PSQTBuckets>& featureTransformer,
+  AccumulatorCaches::Cache<Dimensions, PSQTBuckets>& cache) noexcept {
 
     evaluate_side<WHITE>(pos, featureTransformer, cache);
     evaluate_side<BLACK>(pos, featureTransformer, cache);
 }
 
-template<Color Perspective, IndexType Dimensions>
-void AccumulatorStack::evaluate_side(const Position&                       pos,
-                                     const FeatureTransformer<Dimensions>& featureTransformer,
-                                     AccumulatorCaches::Cache<Dimensions>& cache) noexcept {
+template<Color Perspective, IndexType Dimensions, IndexType PSQTBuckets>
+void AccumulatorStack::evaluate_side(
+  const Position&                                    pos,
+  const FeatureTransformer<Dimensions, PSQTBuckets>& featureTransformer,
+  AccumulatorCaches::Cache<Dimensions, PSQTBuckets>& cache) noexcept {
 
     const auto last_usable_accum = find_last_usable_accumulator<Perspective, Dimensions>();
 
@@ -128,11 +135,11 @@ std::size_t AccumulatorStack::find_last_usable_accumulator() const noexcept {
     return 0;
 }
 
-template<Color Perspective, IndexType Dimensions>
+template<Color Perspective, IndexType Dimensions, IndexType PSQTBuckets>
 void AccumulatorStack::forward_update_incremental(
-  const Position&                       pos,
-  const FeatureTransformer<Dimensions>& featureTransformer,
-  const std::size_t                     begin) noexcept {
+  const Position&                                    pos,
+  const FeatureTransformer<Dimensions, PSQTBuckets>& featureTransformer,
+  const std::size_t                                  begin) noexcept {
 
     assert(begin < accumulators.size());
     assert((accumulators[begin].acc<Dimensions>()).computed[Perspective]);
@@ -165,11 +172,11 @@ void AccumulatorStack::forward_update_incremental(
     assert((latest().acc<Dimensions>()).computed[Perspective]);
 }
 
-template<Color Perspective, IndexType Dimensions>
+template<Color Perspective, IndexType Dimensions, IndexType PSQTBuckets>
 void AccumulatorStack::backward_update_incremental(
-  const Position&                       pos,
-  const FeatureTransformer<Dimensions>& featureTransformer,
-  const std::size_t                     end) noexcept {
+  const Position&                                    pos,
+  const FeatureTransformer<Dimensions, PSQTBuckets>& featureTransformer,
+  const std::size_t                                  end) noexcept {
 
     assert(end < accumulators.size());
     assert(end < size);
@@ -186,13 +193,13 @@ void AccumulatorStack::backward_update_incremental(
 
 // Explicit template instantiations
 template void AccumulatorStack::evaluate<TransformedFeatureDimensionsBig>(
-  const Position&                                            pos,
-  const FeatureTransformer<TransformedFeatureDimensionsBig>& featureTransformer,
-  AccumulatorCaches::Cache<TransformedFeatureDimensionsBig>& cache) noexcept;
+  const Position&                                                            pos,
+  const FeatureTransformer<TransformedFeatureDimensionsBig, PSQTBucketsBig>& featureTransformer,
+  AccumulatorCaches::Cache<TransformedFeatureDimensionsBig, PSQTBucketsBig>& cache) noexcept;
 template void AccumulatorStack::evaluate<TransformedFeatureDimensionsSmall>(
-  const Position&                                              pos,
-  const FeatureTransformer<TransformedFeatureDimensionsSmall>& featureTransformer,
-  AccumulatorCaches::Cache<TransformedFeatureDimensionsSmall>& cache) noexcept;
+  const Position&                                                                pos,
+  const FeatureTransformer<TransformedFeatureDimensionsSmall, PSQTBucketsSmall>& featureTransformer,
+  AccumulatorCaches::Cache<TransformedFeatureDimensionsSmall, PSQTBucketsSmall>& cache) noexcept;
 
 
 namespace {
@@ -214,15 +221,15 @@ void fused_row_reduce(const ElementType* in, ElementType* out, const Ts* const..
           vecIn[i], reinterpret_cast<const typename VectorWrapper::type*>(rows)[i]...);
 }
 
-template<Color Perspective, IndexType Dimensions>
+template<Color Perspective, IndexType Dimensions, IndexType PSQTBuckets>
 struct AccumulatorUpdateContext {
-    const FeatureTransformer<Dimensions>& featureTransformer;
-    const AccumulatorState&               from;
-    AccumulatorState&                     to;
+    const FeatureTransformer<Dimensions, PSQTBuckets>& featureTransformer;
+    const AccumulatorState&                            from;
+    AccumulatorState&                                  to;
 
-    AccumulatorUpdateContext(const FeatureTransformer<Dimensions>& ft,
-                             const AccumulatorState&               accF,
-                             AccumulatorState&                     accT) noexcept :
+    AccumulatorUpdateContext(const FeatureTransformer<Dimensions, PSQTBuckets>& ft,
+                             const AccumulatorState&                            accF,
+                             AccumulatorState&                                  accT) noexcept :
         featureTransformer{ft},
         from{accF},
         to{accT} {}
@@ -249,20 +256,22 @@ struct AccumulatorUpdateContext {
     }
 };
 
-template<Color Perspective, IndexType Dimensions>
-auto make_accumulator_update_context(const FeatureTransformer<Dimensions>& featureTransformer,
-                                     const AccumulatorState&               accumulatorFrom,
-                                     AccumulatorState&                     accumulatorTo) noexcept {
-    return AccumulatorUpdateContext<Perspective, Dimensions>{featureTransformer, accumulatorFrom,
-                                                             accumulatorTo};
+template<Color Perspective, IndexType Dimensions, IndexType PSQTBuckets>
+auto make_accumulator_update_context(
+  const FeatureTransformer<Dimensions, PSQTBuckets>& featureTransformer,
+  const AccumulatorState&                            accumulatorFrom,
+  AccumulatorState&                                  accumulatorTo) noexcept {
+    return AccumulatorUpdateContext<Perspective, Dimensions, PSQTBuckets>{
+      featureTransformer, accumulatorFrom, accumulatorTo};
 }
 
-template<Color Perspective, IndexType TransformedFeatureDimensions>
-void double_inc_update(const FeatureTransformer<TransformedFeatureDimensions>& featureTransformer,
-                       const Square                                            ksq,
-                       AccumulatorState&                                       middle_state,
-                       AccumulatorState&                                       target_state,
-                       const AccumulatorState&                                 computed) {
+template<Color Perspective, IndexType TransformedFeatureDimensions, IndexType PSQTBuckets>
+void double_inc_update(
+  const FeatureTransformer<TransformedFeatureDimensions, PSQTBuckets>& featureTransformer,
+  const Square                                                         ksq,
+  AccumulatorState&                                                    middle_state,
+  AccumulatorState&                                                    target_state,
+  const AccumulatorState&                                              computed) {
 
     assert(computed.acc<TransformedFeatureDimensions>().computed[Perspective]);
     assert(!middle_state.acc<TransformedFeatureDimensions>().computed[Perspective]);
@@ -300,12 +309,15 @@ void double_inc_update(const FeatureTransformer<TransformedFeatureDimensions>& f
     target_state.acc<TransformedFeatureDimensions>().computed[Perspective] = true;
 }
 
-template<Color Perspective, bool Forward, IndexType TransformedFeatureDimensions>
+template<Color     Perspective,
+         bool      Forward,
+         IndexType TransformedFeatureDimensions,
+         IndexType PSQTBuckets>
 void update_accumulator_incremental(
-  const FeatureTransformer<TransformedFeatureDimensions>& featureTransformer,
-  const Square                                            ksq,
-  AccumulatorState&                                       target_state,
-  const AccumulatorState&                                 computed) {
+  const FeatureTransformer<TransformedFeatureDimensions, PSQTBuckets>& featureTransformer,
+  const Square                                                         ksq,
+  AccumulatorState&                                                    target_state,
+  const AccumulatorState&                                              computed) {
 
     assert((computed.acc<TransformedFeatureDimensions>()).computed[Perspective]);
     assert(!(target_state.acc<TransformedFeatureDimensions>()).computed[Perspective]);
@@ -362,11 +374,12 @@ void update_accumulator_incremental(
     (target_state.acc<TransformedFeatureDimensions>()).computed[Perspective] = true;
 }
 
-template<Color Perspective, IndexType Dimensions>
-void update_accumulator_refresh_cache(const FeatureTransformer<Dimensions>& featureTransformer,
-                                      const Position&                       pos,
-                                      AccumulatorState&                     accumulatorState,
-                                      AccumulatorCaches::Cache<Dimensions>& cache) {
+template<Color Perspective, IndexType Dimensions, IndexType PSQTBuckets>
+void update_accumulator_refresh_cache(
+  const FeatureTransformer<Dimensions, PSQTBuckets>& featureTransformer,
+  const Position&                                    pos,
+  AccumulatorState&                                  accumulatorState,
+  AccumulatorCaches::Cache<Dimensions, PSQTBuckets>& cache) {
 
     using Tiling [[maybe_unused]] = SIMDTiling<Dimensions, Dimensions, PSQTBuckets>;
 

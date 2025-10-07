@@ -77,7 +77,7 @@ void permute(T (&data)[N], const std::array<std::size_t, OrderSize>& order) {
 }
 
 // Input feature converter
-template<IndexType TransformedFeatureDimensions>
+template<IndexType TransformedFeatureDimensions, IndexType PSQTBuckets>
 class FeatureTransformer {
 
     // Number of output dimensions for one side
@@ -172,11 +172,11 @@ class FeatureTransformer {
     }
 
     // Convert input features
-    std::int32_t transform(const Position&                           pos,
-                           AccumulatorStack&                         accumulatorStack,
-                           AccumulatorCaches::Cache<HalfDimensions>* cache,
-                           OutputType*                               output,
-                           int                                       bucket) const {
+    std::int32_t transform(const Position&                                        pos,
+                           AccumulatorStack&                                      accumulatorStack,
+                           AccumulatorCaches::Cache<HalfDimensions, PSQTBuckets>* cache,
+                           OutputType*                                            output,
+                           int                                                    bucket) const {
 
         using namespace SIMD;
 

@@ -52,6 +52,8 @@ using NetworkOutput = std::tuple<Value, Value>;
 template<typename Arch, typename Transformer>
 class Network {
     static constexpr IndexType FTDimensions = Arch::TransformedFeatureDimensions;
+    static constexpr IndexType LayerStacks  = Arch::LayerStacks;
+    static constexpr IndexType PSQTBuckets  = Arch::PSQTBuckets;
 
    public:
     Network(EvalFile file, EmbeddedNNUEType type) :
@@ -67,15 +69,15 @@ class Network {
     void load(const std::string& rootDirectory, std::string evalfilePath);
     bool save(const std::optional<std::string>& filename) const;
 
-    NetworkOutput evaluate(const Position&                         pos,
-                           AccumulatorStack&                       accumulatorStack,
-                           AccumulatorCaches::Cache<FTDimensions>* cache) const;
+    NetworkOutput evaluate(const Position&                                      pos,
+                           AccumulatorStack&                                    accumulatorStack,
+                           AccumulatorCaches::Cache<FTDimensions, PSQTBuckets>* cache) const;
 
 
     void verify(std::string evalfilePath, const std::function<void(std::string_view)>&) const;
-    NnueEvalTrace trace_evaluate(const Position&                         pos,
-                                 AccumulatorStack&                       accumulatorStack,
-                                 AccumulatorCaches::Cache<FTDimensions>* cache) const;
+    NnueEvalTrace trace_evaluate(const Position&   pos,
+                                 AccumulatorStack& accumulatorStack,
+                                 AccumulatorCaches::Cache<FTDimensions, PSQTBuckets>* cache) const;
 
    private:
     void load_user_net(const std::string&, const std::string&);
@@ -104,19 +106,27 @@ class Network {
     // Hash value of evaluation function structure
     static constexpr std::uint32_t hash = Transformer::get_hash_value() ^ Arch::get_hash_value();
 
-    template<IndexType Size>
+    template<IndexType Size, IndexType PSQTBuckets>
     friend struct AccumulatorCaches::Cache;
 
     friend class AccumulatorStack;
 };
 
 // Definitions of the network types
-using SmallFeatureTransformer = FeatureTransformer<TransformedFeatureDimensionsSmall>;
-using SmallNetworkArchitecture =
-  NetworkArchitecture<TransformedFeatureDimensionsSmall, L2Small, L3Small>;
+using SmallFeatureTransformer =
+  FeatureTransformer<TransformedFeatureDimensionsSmall, PSQTBucketsSmall>;
+using SmallNetworkArchitecture = NetworkArchitecture<TransformedFeatureDimensionsSmall,
+                                                     L2Small,
+                                                     L3Small,
+                                                     PSQTBucketsSmall,
+                                                     LayerStacksSmall>;
 
-using BigFeatureTransformer  = FeatureTransformer<TransformedFeatureDimensionsBig>;
-using BigNetworkArchitecture = NetworkArchitecture<TransformedFeatureDimensionsBig, L2Big, L3Big>;
+using BigFeatureTransformer  = FeatureTransformer<TransformedFeatureDimensionsBig, PSQTBucketsBig>;
+using BigNetworkArchitecture = NetworkArchitecture<TransformedFeatureDimensionsBig,
+                                                   L2Big,
+                                                   L3Big,
+                                                   PSQTBucketsBig,
+                                                   LayerStacksBig>;
 
 using NetworkBig   = Network<BigNetworkArchitecture, BigFeatureTransformer>;
 using NetworkSmall = Network<SmallNetworkArchitecture, SmallFeatureTransformer>;

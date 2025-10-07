@@ -208,19 +208,21 @@ bool Network<Arch, Transformer>::save(const std::optional<std::string>& filename
 
 
 template<typename Arch, typename Transformer>
-NetworkOutput
-Network<Arch, Transformer>::evaluate(const Position&                         pos,
-                                     AccumulatorStack&                       accumulatorStack,
-                                     AccumulatorCaches::Cache<FTDimensions>* cache) const {
+NetworkOutput Network<Arch, Transformer>::evaluate(
+  const Position&                                      pos,
+  AccumulatorStack&                                    accumulatorStack,
+  AccumulatorCaches::Cache<FTDimensions, PSQTBuckets>* cache) const {
 
     constexpr uint64_t alignment = CacheLineSize;
 
-    alignas(alignment)
-      TransformedFeatureType transformedFeatures[FeatureTransformer<FTDimensions>::BufferSize];
+    alignas(alignment) TransformedFeatureType
+      transformedFeatures[FeatureTransformer<FTDimensions, PSQTBuckets>::BufferSize];
 
     ASSERT_ALIGNED(transformedFeatures, alignment);
 
-    const int  bucket = (pos.count<ALL_PIECES>() - 1) / 4;
+    const int bucket = LayerStacks == LayerStacksBig ? (pos.count<ALL_PIECES>() - 1) / 4
+                                                     : (pos.count<ALL_PIECES>() - 1) / 2;
+
     const auto psqt =
       featureTransformer->transform(pos, accumulatorStack, cache, transformedFeatures, bucket);
     const auto positional = network[bucket].propagate(transformedFeatures);
@@ -270,15 +272,15 @@ void Network<Arch, Transformer>::verify(std::string                             
 
 
 template<typename Arch, typename Transformer>
-NnueEvalTrace
-Network<Arch, Transformer>::trace_evaluate(const Position&                         pos,
-                                           AccumulatorStack&                       accumulatorStack,
-                                           AccumulatorCaches::Cache<FTDimensions>* cache) const {
+NnueEvalTrace Network<Arch, Transformer>::trace_evaluate(
+  const Position&                                      pos,
+  AccumulatorStack&                                    accumulatorStack,
+  AccumulatorCaches::Cache<FTDimensions, PSQTBuckets>* cache) const {
 
     constexpr uint64_t alignment = CacheLineSize;
 
-    alignas(alignment)
-      TransformedFeatureType transformedFeatures[FeatureTransformer<FTDimensions>::BufferSize];
+    alignas(alignment) TransformedFeatureType
+      transformedFeatures[FeatureTransformer<FTDimensions, PSQTBuckets>::BufferSize];
 
     ASSERT_ALIGNED(transformedFeatures, alignment);
 
@@ -433,10 +435,18 @@ bool Network<Arch, Transformer>::write_parameters(std::ostream&      stream,
 
 // Explicit template instantiations
 
-template class Network<NetworkArchitecture<TransformedFeatureDimensionsBig, L2Big, L3Big>,
-                       FeatureTransformer<TransformedFeatureDimensionsBig>>;
+template class Network<NetworkArchitecture<TransformedFeatureDimensionsBig,
+                                           L2Big,
+                                           L3Big,
+                                           PSQTBucketsBig,
+                                           LayerStacksBig>,
+                       FeatureTransformer<TransformedFeatureDimensionsBig, PSQTBucketsBig>>;
 
-template class Network<NetworkArchitecture<TransformedFeatureDimensionsSmall, L2Small, L3Small>,
-                       FeatureTransformer<TransformedFeatureDimensionsSmall>>;
+template class Network<NetworkArchitecture<TransformedFeatureDimensionsSmall,
+                                           L2Small,
+                                           L3Small,
+                                           PSQTBucketsSmall,
+                                           LayerStacksSmall>,
+                       FeatureTransformer<TransformedFeatureDimensionsSmall, PSQTBucketsSmall>>;
 
 }  // namespace Stockfish::Eval::NNUE
