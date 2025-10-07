@@ -34,7 +34,7 @@ namespace Eval {
 // name of the macro or the location where this macro is defined, as it is used
 // in the Makefile/Fishtest.
 #define EvalFileDefaultNameBig "nn-1c0000000000.nnue"
-#define EvalFileDefaultNameSmall "nn-e1e21c0c34ff.nnue"
+#define EvalFileDefaultNameSmall "nn-c98a3dc5ad4b.nnue"
 
 namespace NNUE {
 struct Networks;
