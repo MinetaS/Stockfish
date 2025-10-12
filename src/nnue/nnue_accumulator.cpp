@@ -293,8 +293,11 @@ void double_inc_update(const FeatureTransformer<TransformedFeatureDimensions>& f
     }
     else
     {
-        updateContext.template apply<Add, Sub, Sub, Sub>(added[0], removed[0], removed[1],
-                                                         removed[2]);
+        if (added[0] == removed[1])
+            updateContext.template apply<Sub, Sub>(removed[0], removed[2]);
+        else
+            updateContext.template apply<Add, Sub, Sub, Sub>(added[0], removed[0], removed[1],
+                                                             removed[2]);
     }
 
     target_state.acc<TransformedFeatureDimensions>().computed[Perspective] = true;
