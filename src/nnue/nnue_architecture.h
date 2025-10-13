@@ -61,12 +61,20 @@ struct NetworkArchitecture {
     static constexpr int       FC_0_OUTPUTS                 = L2;
     static constexpr int       FC_1_OUTPUTS                 = L3;
 
-    Layers::AffineTransformSparseInput<TransformedFeatureDimensions, FC_0_OUTPUTS + 1> fc_0;
-    Layers::SqrClippedReLU<FC_0_OUTPUTS + 1>                                           ac_sqr_0;
-    Layers::ClippedReLU<FC_0_OUTPUTS + 1>                                              ac_0;
-    Layers::AffineTransform<FC_0_OUTPUTS * 2, FC_1_OUTPUTS>                            fc_1;
-    Layers::ClippedReLU<FC_1_OUTPUTS>                                                  ac_1;
-    Layers::AffineTransform<FC_1_OUTPUTS, 1>                                           fc_2;
+    static constexpr IndexType SparseLayerThreshold = 256;
+
+    template<IndexType InDim, IndexType OutDim>
+    using L1AffineTransform =
+      std::conditional_t<TransformedFeatureDimensions >= SparseLayerThreshold,
+                         Layers::AffineTransformSparseInput<InDim, OutDim>,
+                         Layers::AffineTransform<InDim, OutDim>>;
+
+    L1AffineTransform<TransformedFeatureDimensions, FC_0_OUTPUTS + 1> fc_0;
+    Layers::SqrClippedReLU<FC_0_OUTPUTS + 1>                          ac_sqr_0;
+    Layers::ClippedReLU<FC_0_OUTPUTS + 1>                             ac_0;
+    Layers::AffineTransform<FC_0_OUTPUTS * 2, FC_1_OUTPUTS>           fc_1;
+    Layers::ClippedReLU<FC_1_OUTPUTS>                                 ac_1;
+    Layers::AffineTransform<FC_1_OUTPUTS, 1>                          fc_2;
 
     // Hash value embedded in the evaluation file
     static constexpr std::uint32_t get_hash_value() {
