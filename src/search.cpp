@@ -342,7 +342,7 @@ void Search::Worker::iterative_deepening() {
             // Start with a small aspiration window and, in the case of a fail
             // high/low, re-search with a bigger window until we don't fail
             // high/low anymore.
-            int failedHighCnt = 0;
+            failedHighCnt = 0;
             while (true)
             {
                 // Adjust the effective depth searched, but ensure at least one
@@ -1110,7 +1110,9 @@ moves_loop:  // When in check, search starts here
             && is_valid(ttData.value) && !is_decisive(ttData.value) && (ttData.bound & BOUND_LOWER)
             && ttData.depth >= depth - 3)
         {
-            Value singularBeta  = ttData.value - (56 + 81 * (ss->ttPv && !PvNode)) * depth / 60;
+            Value singularBeta =
+              ttData.value
+              - (56 - 30 * bool(failedHighCnt) + 81 * (ss->ttPv && !PvNode)) * depth / 60;
             Depth singularDepth = newDepth / 2;
 
             ss->excludedMove = move;
