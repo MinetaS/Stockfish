@@ -418,6 +418,32 @@ void Search::Worker::iterative_deepening() {
         if (!threads.stop)
             completedDepth = rootDepth;
 
+        if (lastBestPV[0] != Move::none() && rootMoves[0].pv[0] != lastBestPV[0]
+            && rootMoves[0].score > lastBestScore + 570)
+        {
+            for (std::size_t ply = 0; ply < lastBestPV.size(); ++ply)
+            {
+                const Color c = ply % 2 == 0 ? us : ~us;
+                const Move m = lastBestPV[ply];
+                const int penalty = -5000 / std::pow(1 + ply, 1.6);
+
+                mainHistory[c][m.from_to()] << penalty;
+                if (ply < LOW_PLY_HISTORY_SIZE)
+                    lowPlyHistory[ply][m.from_to()] << penalty;
+            }
+
+            for (std::size_t ply = 0; ply < rootMoves[0].pv.size(); ++ply)
+            {
+                const Color c = ply % 2 == 0 ? us : ~us;
+                const Move m = rootMoves[0].pv[ply];
+                const int bonus = 2000 / std::pow(1 + ply, 1.6);
+
+                mainHistory[c][m.from_to()] << bonus;
+                if (ply < LOW_PLY_HISTORY_SIZE)
+                    lowPlyHistory[ply][m.from_to()] << bonus;
+            }
+        }
+
         // We make sure not to pick an unproven mated-in score,
         // in case this thread prematurely stopped search (aborted-search).
         if (threads.abortedSearch && rootMoves[0].score != -VALUE_INFINITE
