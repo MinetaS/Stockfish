@@ -342,15 +342,15 @@ void Search::Worker::iterative_deepening() {
             // Start with a small aspiration window and, in the case of a fail
             // high/low, re-search with a bigger window until we don't fail
             // high/low anymore.
-            int failedHighCnt = 0;
+            bool failedHigh = false;
             while (true)
             {
                 // Adjust the effective depth searched, but ensure at least one
                 // effective increment for every four searchAgain steps (see issue #2717).
-                Depth adjustedDepth = std::max(1, rootDepth - (failedHighCnt * 2 - 1)
-                                                    - 3 * (searchAgainCounter + 1) / 4);
-                rootDelta           = beta - alpha;
-                bestValue           = search<Root>(rootPos, ss, alpha, beta, adjustedDepth, false);
+                Depth adjustedDepth =
+                  std::max(1, rootDepth - failedHigh * 2 - 3 * (searchAgainCounter + 1) / 4);
+                rootDelta = beta - alpha;
+                bestValue = search<Root>(rootPos, ss, alpha, beta, adjustedDepth, false);
 
                 // Bring the best move to the front. It is critical that sorting
                 // is done with a stable algorithm because all the values but the
@@ -377,18 +377,17 @@ void Search::Worker::iterative_deepening() {
                 // otherwise exit the loop.
                 if (bestValue <= alpha)
                 {
-                    beta  = alpha;
-                    alpha = std::max(bestValue - delta, -VALUE_INFINITE);
-
-                    failedHighCnt = 0;
+                    beta       = alpha;
+                    alpha      = std::max(bestValue - delta, -VALUE_INFINITE);
+                    failedHigh = false;
                     if (mainThread)
                         mainThread->stopOnPonderhit = false;
                 }
                 else if (bestValue >= beta)
                 {
-                    alpha = std::max(beta - delta, alpha);
-                    beta  = std::min(bestValue + delta, VALUE_INFINITE);
-                    ++failedHighCnt;
+                    alpha      = std::max(beta - delta, alpha);
+                    beta       = std::min(bestValue + delta, VALUE_INFINITE);
+                    failedHigh = true;
                 }
                 else
                     break;
