@@ -107,6 +107,9 @@ class Engine {
     std::string                            thread_allocation_information_as_string() const;
     std::string                            thread_binding_information_as_string() const;
 
+    void tt_load(const std::string& filename);
+    void tt_dump(const std::string& filename);
+
    private:
     const std::string binaryDirectory;
 

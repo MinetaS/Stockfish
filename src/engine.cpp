@@ -32,7 +32,6 @@
 #include "evaluate.h"
 #include "misc.h"
 #include "nnue/network.h"
-#include "nnue/nnue_common.h"
 #include "numa.h"
 #include "perft.h"
 #include "position.h"
@@ -369,4 +368,15 @@ std::string Engine::thread_allocation_information_as_string() const {
 
     return ss.str();
 }
+
+void Engine::tt_load(const std::string& filename) {
+    wait_for_search_finished();
+    tt.load(filename);
 }
+
+void Engine::tt_dump(const std::string& filename) {
+    wait_for_search_finished();
+    tt.dump(filename);
+}
+
+}  // namespace Stockfish

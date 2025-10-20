@@ -162,6 +162,18 @@ void UCIEngine::loop() {
 
             engine.save_network(files);
         }
+        else if (token == "ttload")
+        {
+            std::string filename;
+            if (is >> std::skipws >> filename)
+                engine.tt_load(filename);
+        }
+        else if (token == "ttdump")
+        {
+            std::string filename;
+            if (is >> std::skipws >> filename)
+                engine.tt_dump(filename);
+        }
         else if (token == "--help" || token == "help" || token == "--license" || token == "license")
             sync_cout
               << "\nStockfish is a powerful chess engine for playing and analyzing."

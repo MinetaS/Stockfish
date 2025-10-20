@@ -96,6 +96,9 @@ class TranspositionTable {
     TTEntry* first_entry(const Key key)
       const;  // This is the hash function; its only external use is memory prefetching.
 
+      void load(const std::string& filename);
+      void dump(const std::string& filename) const;
+
    private:
     friend struct TTEntry;
 

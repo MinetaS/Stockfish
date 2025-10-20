@@ -22,6 +22,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <iostream>
 
 #include "memory.h"
@@ -248,6 +249,30 @@ std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key) cons
 
 TTEntry* TranspositionTable::first_entry(const Key key) const {
     return &table[mul_hi64(key, clusterCount)].entry[0];
+}
+
+void TranspositionTable::load(const std::string& filename) {
+    std::ifstream stream(filename, std::ios_base::binary);
+
+    const std::size_t ttSize = clusterCount * sizeof(Cluster);
+    stream.read(reinterpret_cast<char*>(table), ttSize);
+
+    if (!stream.fail() && stream.peek() == std::ios::traits_type::eof())
+        sync_cout << ttSize << " bytes in\t" << filename << sync_endl;
+    else
+        sync_cout << "Failed to load TT data from " << filename << sync_endl;
+}
+
+void TranspositionTable::dump(const std::string& filename) const {
+    std::ofstream stream(filename, std::ios_base::binary);
+
+    const std::size_t ttSize = clusterCount * sizeof(Cluster);
+    stream.write(reinterpret_cast<const char*>(table), ttSize);
+
+    if (!stream.fail())
+        sync_cout << ttSize << " bytes out\t" << filename << sync_endl;
+    else
+        sync_cout << "Dump failed..." << sync_endl;
 }
 
 }  // namespace Stockfish
