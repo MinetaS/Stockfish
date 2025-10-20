@@ -25,10 +25,18 @@
 #include <fstream>
 #include <iostream>
 
+#include "incbin/incbin.h"
 #include "memory.h"
 #include "misc.h"
 #include "syzygy/tbprobe.h"
 #include "thread.h"
+
+#define PRELOAD_TT_FILE "tt.bin"
+INCBIN(EmbeddedTT, PRELOAD_TT_FILE);
+
+// extern unsigned char        gEmbeddedTT;
+// extern unsigned char* const gEmbeddedTTEnd;
+// extern unsigned int         gEmbeddedTTSize;
 
 namespace Stockfish {
 
@@ -184,7 +192,9 @@ void TranspositionTable::clear(ThreadPool& threads) {
             const size_t start  = stride * i;
             const size_t len    = i + 1 != threadCount ? stride : clusterCount - start;
 
-            std::memset(&table[start], 0, len * sizeof(Cluster));
+            // Making load() consistent under testing environments is hard (cwd),
+            // so embed it into the binary and copy from there...
+            std::memcpy(&table[start], &gEmbeddedTTData[start], len * sizeof(Cluster));
         });
     }
 
