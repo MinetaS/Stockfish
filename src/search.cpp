@@ -63,6 +63,45 @@ using namespace Search;
 
 namespace {
 
+#define INT32_DIVCVTMUL(expr, p, shift) \
+    (std::int64_t(expr) * std::int64_t(p) / (INT64_C(1) << (shift)))
+
+int v1 = 2094;
+int v2 = 1324;
+int v3 = 198;
+int v4 = 27165;
+int v5 = 946;
+int v6 = 81;
+int v7 = 92;
+int v8 = 2618;
+int v9 = 991;
+int v10 = 903;
+int v11 = 978;
+int v12 = 1051;
+
+// Set ranges carefully for singular extension params, also c_end needs to
+// be adjusted. Allows up to 10% variation in direction of stc opt
+TUNE(v1, v2, v3, v4, v5);
+TUNE(SetRange(0, 89), v6);
+TUNE(SetRange(0, 101), v7);
+TUNE(v8, v9, v10, v11, v12);
+
+#if 0
+v1,2094,0,4188,209.4,0.0020
+v2,1324,0,2648,132.4,0.0020
+v3,198,0,396,19.8,0.0020
+v4,158105,0,316210,15810.5,0.0020
+v5,27165,0,54330,2716.5,0.0020
+v5,946,0,1892,94.6,0.0020
+v6,81,0,89,4.05,0.0020
+v7,92,0,101,4.6,0.0020
+v8,2618,0,5236,261.8,0.0020
+v9,991,0,1982,99.1,0.0020
+v10,903,0,1806,90.3,0.0020
+v11,978,0,1956,97.8,0.0020
+v12,1051,0,2102,105.1,0.0020
+#endif
+
 constexpr int SEARCHEDLIST_CAPACITY = 32;
 using SearchedList                  = ValueList<Move, SEARCHEDLIST_CAPACITY>;
 
@@ -850,11 +889,11 @@ Value Search::Worker::search(
         auto futility_margin = [&](Depth d) {
             Value futilityMult = 91 - 21 * !ss->ttHit;
 
-            return futilityMult * d                                //
-                 - 2094 * improving * futilityMult / 1024          //
-                 - 1324 * opponentWorsening * futilityMult / 4096  //
-                 + (ss - 1)->statScore / 331                       //
-                 + std::abs(correctionValue) / 158105;
+            return futilityMult * d                              //
+                 - v1 * improving * futilityMult / 1024          //
+                 - v2 * opponentWorsening * futilityMult / 4096  //
+                 + INT32_DIVCVTMUL((ss - 1)->statScore, v3, 16)  //
+                 + INT32_DIVCVTMUL(std::abs(correctionValue), v4, 32);
         };
 
         if (!ss->ttPv && depth < 14 && eval - futility_margin(depth) >= beta && eval >= beta
@@ -1023,7 +1062,7 @@ moves_loop:  // When in check, search starts here
         // Smaller or even negative value is better for short time controls
         // Bigger value is better for long time controls
         if (ss->ttPv)
-            r += 946;
+            r += v5;
 
         // Step 14. Pruning at shallow depth.
         // Depth conditions are important for mate finding.
@@ -1110,7 +1149,7 @@ moves_loop:  // When in check, search starts here
             && is_valid(ttData.value) && !is_decisive(ttData.value) && (ttData.bound & BOUND_LOWER)
             && ttData.depth >= depth - 3)
         {
-            Value singularBeta  = ttData.value - (56 + 81 * (ss->ttPv && !PvNode)) * depth / 60;
+            Value singularBeta  = ttData.value - (56 + v6 * (ss->ttPv && !PvNode)) * depth / 60;
             Depth singularDepth = newDepth / 2;
 
             ss->excludedMove = move;
@@ -1122,7 +1161,7 @@ moves_loop:  // When in check, search starts here
                 int corrValAdj   = std::abs(correctionValue) / 229958;
                 int doubleMargin = -4 + 198 * PvNode - 212 * !ttCapture - corrValAdj
                                  - 921 * ttMoveHistory / 127649 - (ss->ply > rootDepth) * 45;
-                int tripleMargin = 76 + 308 * PvNode - 250 * !ttCapture + 92 * ss->ttPv - corrValAdj
+                int tripleMargin = 76 + 308 * PvNode - 250 * !ttCapture + v7 * ss->ttPv - corrValAdj
                                  - (ss->ply * 2 > rootDepth * 3) * 52;
 
                 extension =
@@ -1169,8 +1208,8 @@ moves_loop:  // When in check, search starts here
 
         // Decrease reduction for PvNodes (*Scaler)
         if (ss->ttPv)
-            r -= 2618 + PvNode * 991 + (ttData.value > alpha) * 903
-               + (ttData.depth >= depth) * (978 + cutNode * 1051);
+            r -= v8 + PvNode * v9 + (ttData.value > alpha) * v10
+               + (ttData.depth >= depth) * (v11 + cutNode * v12);
 
         // These reduction adjustments have no proven non-linear scaling
 
@@ -1433,7 +1472,7 @@ moves_loop:  // When in check, search starts here
 
     // If no good move is found and the previous position was ttPv, then the previous
     // opponent move is probably good and the new position is added to the search tree.
-    if (bestValue <= alpha)
+    if (!excludedMove && bestValue <= alpha)
         ss->ttPv = ss->ttPv || (ss - 1)->ttPv;
 
     // Write gathered information in transposition table. Note that the
