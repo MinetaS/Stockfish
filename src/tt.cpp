@@ -50,18 +50,42 @@ struct TTEntry {
 
     // Convert internal bitfields to external types
     TTData read() const {
-        return TTData{Move(move16),           Value(value16),
-                      Value(eval16),          Depth(depth8 + DEPTH_ENTRY_OFFSET),
-                      Bound(genBound8 & 0x3), bool(genBound8 & 0x4)};
+        return TTData{Move(move16),         Value(value16),
+                      Value(eval16),        Depth(depth8 + DEPTH_ENTRY_OFFSET),
+                      int(moveCount5()),    Bound(genBound8 & 0x3),
+                      bool(genBound8 & 0x4)};
     }
 
     bool is_occupied() const;
-    void save(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
+    void
+    save(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, int mc, uint8_t generation8);
     // The returned age is a multiple of TranspositionTable::GENERATION_DELTA
     uint8_t relative_age(const uint8_t generation8) const;
 
    private:
     friend class TranspositionTable;
+
+    struct ExtraEntryAccessor {
+        constexpr ExtraEntryAccessor(Cluster* c, int i) :
+            cluster_(c),
+            index_(i) {}
+
+        operator int() const;
+
+        void operator=(int val) const;
+
+       private:
+        Cluster* cluster_;
+        int      index_;
+    };
+
+    inline ExtraEntryAccessor moveCount5() const {
+        Cluster* const cluster =
+          reinterpret_cast<Cluster*>(reinterpret_cast<std::uintptr_t>(this) & ~0x1F);
+        const int entry_index = (reinterpret_cast<std::uintptr_t>(this) & 0x1F) >> 3;
+        assert(entry_index < EntriesInCluster);
+        return ExtraEntryAccessor(cluster, entry_index);
+    }
 
     uint16_t key16;
     uint8_t  depth8;
@@ -91,7 +115,7 @@ bool TTEntry::is_occupied() const { return bool(depth8); }
 // Populates the TTEntry with a new node's data, possibly
 // overwriting an old position. The update is not atomic and can be racy.
 void TTEntry::save(
-  Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) {
+  Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, int mc, uint8_t generation8) {
 
     // Preserve the old ttmove if we don't have a new one
     if (m || uint16_t(k) != key16)
@@ -104,11 +128,12 @@ void TTEntry::save(
         assert(d > DEPTH_ENTRY_OFFSET);
         assert(d < 256 + DEPTH_ENTRY_OFFSET);
 
-        key16     = uint16_t(k);
-        depth8    = uint8_t(d - DEPTH_ENTRY_OFFSET);
-        genBound8 = uint8_t(generation8 | uint8_t(pv) << 2 | b);
-        value16   = int16_t(v);
-        eval16    = int16_t(ev);
+        key16        = uint16_t(k);
+        depth8       = uint8_t(d - DEPTH_ENTRY_OFFSET);
+        genBound8    = uint8_t(generation8 | uint8_t(pv) << 2 | b);
+        value16      = int16_t(v);
+        eval16       = int16_t(ev);
+        moveCount5() = mc;
     }
     else if (depth8 + DEPTH_ENTRY_OFFSET >= 5 && Bound(genBound8 & 0x3) != BOUND_EXACT)
         depth8--;
@@ -130,8 +155,8 @@ TTWriter::TTWriter(TTEntry* tte) :
     entry(tte) {}
 
 void TTWriter::write(
-  Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) {
-    entry->save(k, v, pv, b, d, m, ev, generation8);
+  Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, int mc, uint8_t generation8) {
+    entry->save(k, v, pv, b, d, m, ev, mc, generation8);
 }
 
 
@@ -139,15 +164,23 @@ void TTWriter::write(
 // of TTEntry. Each non-empty TTEntry contains information on exactly one position. The size of a Cluster should
 // divide the size of a cache line for best performance, as the cacheline is prefetched when possible.
 
-static constexpr int ClusterSize = 3;
+static constexpr int         EntriesInCluster = 3;
+static constexpr std::size_t ClusterSize      = 0x20;
 
 struct Cluster {
-    TTEntry entry[ClusterSize];
-    char    padding[2];  // Pad to 32 bytes
+    TTEntry       entry[EntriesInCluster];
+    std::uint16_t extra;
 };
 
-static_assert(sizeof(Cluster) == 32, "Suboptimal Cluster size");
+static_assert(sizeof(Cluster) == ClusterSize, "Wrong Cluster size");
 
+TTEntry::ExtraEntryAccessor::operator int() const { return cluster_->extra >> (index_ * 5) & 0x1F; }
+
+void TTEntry::ExtraEntryAccessor::operator=(int val) const {
+    using extra_type      = decltype(Cluster::extra);
+    const extra_type mask = 0x1F << (index_ * 5);
+    cluster_->extra = (cluster_->extra & ~mask) | (static_cast<extra_type>(val) << (index_ * 5));
+}
 
 // Sets the size of the transposition table,
 // measured in megabytes. Transposition table consists
@@ -199,11 +232,11 @@ int TranspositionTable::hashfull(int maxAge) const {
     int maxAgeInternal = maxAge << GENERATION_BITS;
     int cnt            = 0;
     for (int i = 0; i < 1000; ++i)
-        for (int j = 0; j < ClusterSize; ++j)
+        for (int j = 0; j < int(EntriesInCluster); ++j)
             cnt += table[i].entry[j].is_occupied()
                 && table[i].entry[j].relative_age(generation8) <= maxAgeInternal;
 
-    return cnt / ClusterSize;
+    return cnt / EntriesInCluster;
 }
 
 
@@ -227,7 +260,7 @@ std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key) cons
     TTEntry* const tte   = first_entry(key);
     const uint16_t key16 = uint16_t(key);  // Use the low 16 bits as key inside the cluster
 
-    for (int i = 0; i < ClusterSize; ++i)
+    for (int i = 0; i < int(EntriesInCluster); ++i)
         if (tte[i].key16 == key16)
             // This gap is the main place for read races.
             // After `read()` completes that copy is final, but may be self-inconsistent.
@@ -235,13 +268,13 @@ std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key) cons
 
     // Find an entry to be replaced according to the replacement strategy
     TTEntry* replace = tte;
-    for (int i = 1; i < ClusterSize; ++i)
+    for (int i = 1; i < int(EntriesInCluster); ++i)
         if (replace->depth8 - replace->relative_age(generation8)
             > tte[i].depth8 - tte[i].relative_age(generation8))
             replace = &tte[i];
 
     return {false,
-            TTData{Move::none(), VALUE_NONE, VALUE_NONE, DEPTH_ENTRY_OFFSET, BOUND_NONE, false},
+            TTData{Move::none(), VALUE_NONE, VALUE_NONE, 0, DEPTH_ENTRY_OFFSET, BOUND_NONE, false},
             TTWriter(replace)};
 }
 

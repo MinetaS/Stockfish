@@ -762,7 +762,7 @@ Value Search::Worker::search(
                 if (b == BOUND_EXACT || (b == BOUND_LOWER ? value >= beta : value <= alpha))
                 {
                     ttWriter.write(posKey, value_to_tt(value, ss->ply), ss->ttPv, b,
-                                   std::min(MAX_PLY - 1, depth + 6), Move::none(), VALUE_NONE,
+                                   std::min(MAX_PLY - 1, depth + 6), Move::none(), VALUE_NONE, 0,
                                    tt.generation());
 
                     return value;
@@ -812,7 +812,7 @@ Value Search::Worker::search(
 
         // Static evaluation is saved as it was before adjustment by correction history
         ttWriter.write(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE, DEPTH_UNSEARCHED, Move::none(),
-                       unadjustedStaticEval, tt.generation());
+                       unadjustedStaticEval, 0, tt.generation());
     }
 
     // Use static evaluation difference to improve quiet move ordering
@@ -948,9 +948,10 @@ Value Search::Worker::search(
 
             if (value >= probCutBeta)
             {
-                // Save ProbCut data into transposition table
+                // Save ProbCut data into transposition table. moveCount in
+                // the ProbCut move loop should not be stored into TT.
                 ttWriter.write(posKey, value_to_tt(value, ss->ply), ss->ttPv, BOUND_LOWER,
-                               probCutDepth + 1, move, unadjustedStaticEval, tt.generation());
+                               probCutDepth + 1, move, unadjustedStaticEval, 0, tt.generation());
 
                 if (!is_decisive(value))
                     return value - (probCutBeta - beta);
@@ -1030,7 +1031,7 @@ moves_loop:  // When in check, search starts here
         if (!rootNode && pos.non_pawn_material(us) && !is_loss(bestValue))
         {
             // Skip quiet moves if movecount exceeds our FutilityMoveCount threshold
-            if (moveCount >= (3 + depth * depth) / (2 - improving))
+            if (moveCount >= (3 + depth * depth) / (2 - improving) + (ttData.moveCount <= 3))
                 mp.skip_quiet_moves();
 
             // Reduced depth of the next LMR search
@@ -1439,12 +1440,15 @@ moves_loop:  // When in check, search starts here
     // Write gathered information in transposition table. Note that the
     // static evaluation is saved as it was before correction history.
     if (!excludedMove && !(rootNode && pvIdx))
+    {
+        const int ttMoveCount = std::min(moveCount, 31);
         ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv,
                        bestValue >= beta    ? BOUND_LOWER
                        : PvNode && bestMove ? BOUND_EXACT
                                             : BOUND_UPPER,
                        moveCount != 0 ? depth : std::min(MAX_PLY - 1, depth + 6), bestMove,
-                       unadjustedStaticEval, tt.generation());
+                       unadjustedStaticEval, ttMoveCount, tt.generation());
+    }
 
     // Adjust correction history
     if (!ss->inCheck && !(bestMove && pos.capture(bestMove))
@@ -1569,7 +1573,7 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
                 bestValue = (bestValue + beta) / 2;
             if (!ss->ttHit)
                 ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), false, BOUND_LOWER,
-                               DEPTH_UNSEARCHED, Move::none(), unadjustedStaticEval,
+                               DEPTH_UNSEARCHED, Move::none(), unadjustedStaticEval, 0,
                                tt.generation());
             return bestValue;
         }
@@ -1701,9 +1705,10 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
 
     // Save gathered info in transposition table. The static evaluation
     // is saved as it was before adjustment by correction history.
+    // moveCount in qsearch is also not stored into TT.
     ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), pvHit,
                    bestValue >= beta ? BOUND_LOWER : BOUND_UPPER, DEPTH_QS, bestMove,
-                   unadjustedStaticEval, tt.generation());
+                   unadjustedStaticEval, 0, tt.generation());
 
     assert(bestValue > -VALUE_INFINITE && bestValue < VALUE_INFINITE);
 
