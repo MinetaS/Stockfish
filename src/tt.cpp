@@ -121,7 +121,7 @@ uint8_t TTEntry::relative_age(const uint8_t generation8) const {
     // is needed to keep the unrelated lowest n bits from affecting
     // the result) to calculate the entry age correctly even after
     // generation8 overflows into the next cycle.
-    return (GENERATION_CYCLE + generation8 - genBound8) & GENERATION_MASK;
+    return ((GENERATION_CYCLE + generation8 - genBound8) & GENERATION_MASK) >> 1;
 }
 
 
