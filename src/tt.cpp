@@ -80,8 +80,6 @@ static constexpr unsigned GENERATION_BITS = 3;
 static constexpr int GENERATION_DELTA = (1 << GENERATION_BITS);
 // cycle length
 static constexpr int GENERATION_CYCLE = 255 + GENERATION_DELTA;
-// mask to pull out generation number
-static constexpr int GENERATION_MASK = (0xFF << GENERATION_BITS) & 0xFF;
 
 // DEPTH_ENTRY_OFFSET exists because 1) we use `bool(depth8)` as the occupancy check, but
 // 2) we need to store negative depths for QS. (`depth8` is the only field with "spare bits":
@@ -121,7 +119,7 @@ uint8_t TTEntry::relative_age(const uint8_t generation8) const {
     // is needed to keep the unrelated lowest n bits from affecting
     // the result) to calculate the entry age correctly even after
     // generation8 overflows into the next cycle.
-    return ((GENERATION_CYCLE + generation8 - genBound8) & GENERATION_MASK) >> 2;
+    return (GENERATION_CYCLE + generation8 - genBound8) >> GENERATION_BITS;
 }
 
 
