@@ -948,8 +948,7 @@ Value Search::Worker::search(
 
             if (value >= probCutBeta)
             {
-                // Save ProbCut data into transposition table. moveCount in
-                // the ProbCut move loop should not be stored into TT.
+                // Save ProbCut data into transposition table.
                 ttWriter.write(posKey, value_to_tt(value, ss->ply), ss->ttPv, BOUND_LOWER,
                                probCutDepth + 1, move, unadjustedStaticEval, cutNode,
                                tt.generation());
@@ -1113,7 +1112,7 @@ moves_loop:  // When in check, search starts here
             && ttData.depth >= depth - 3)
         {
             Value singularBeta  = ttData.value - (56 + 81 * (ss->ttPv && !PvNode)) * depth / 60;
-            Depth singularDepth = newDepth / 2;
+            Depth singularDepth = newDepth / 2 + !ttData.cutNode;
 
             ss->excludedMove = move;
             value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, singularDepth, cutNode);
@@ -1182,7 +1181,7 @@ moves_loop:  // When in check, search starts here
 
         // Increase reduction for cut nodes
         if (cutNode)
-            r += 3094 + (1 + ttData.cutNode) * 1056 * !ttData.move;
+            r += 3094 + 1056 * !ttData.move;
 
         // Increase reduction if ttMove is a capture
         if (ttCapture)
@@ -1703,7 +1702,6 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
 
     // Save gathered info in transposition table. The static evaluation
     // is saved as it was before adjustment by correction history.
-    // moveCount in qsearch is also not stored into TT.
     ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), pvHit,
                    bestValue >= beta ? BOUND_LOWER : BOUND_UPPER, DEPTH_QS, bestMove,
                    unadjustedStaticEval, false, tt.generation());
