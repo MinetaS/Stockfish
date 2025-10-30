@@ -49,21 +49,21 @@ struct TTData {
     Move  move;
     Value value, eval;
     Depth depth;
-    int   moveCount;
     Bound bound;
     bool  is_pv;
+    bool  cutNode;
 
     TTData() = delete;
 
     // clang-format off
-    TTData(Move m, Value v, Value ev, Depth d, int mc, Bound b, bool pv) :
+    TTData(Move m, Value v, Value ev, Depth d, Bound b, bool pv, bool cut) :
         move(m),
         value(v),
         eval(ev),
         depth(d),
-        moveCount(mc),
         bound(b),
-        is_pv(pv) {};
+        is_pv(pv),
+        cutNode(cut) {};
     // clang-format on
 };
 
@@ -71,8 +71,8 @@ struct TTData {
 // This is used to make racy writes to the global TT.
 struct TTWriter {
    public:
-    void
-    write(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, int mc, uint8_t generation8);
+    void write(
+      Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, bool cut, uint8_t generation8);
 
    private:
     friend class TranspositionTable;

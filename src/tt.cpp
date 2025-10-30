@@ -50,15 +50,18 @@ struct TTEntry {
 
     // Convert internal bitfields to external types
     TTData read() const {
-        return TTData{Move(move16),         Value(value16),
-                      Value(eval16),        Depth(depth8 + DEPTH_ENTRY_OFFSET),
-                      int(moveCount5()),    Bound(genBound8 & 0x3),
-                      bool(genBound8 & 0x4)};
+        return TTData{Move(move16),           Value(value16),
+                      Value(eval16),          Depth(depth8 + DEPTH_ENTRY_OFFSET),
+                      Bound(genBound8 & 0x3), bool(genBound8 & 0x4),
+                      bool(cutNode1())};
     }
 
+    static constexpr int      kExtraEntrySize = 1;
+    static constexpr unsigned kExtraEntryMask = (1u << kExtraEntrySize) - 1;
+
     bool is_occupied() const;
-    void
-    save(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, int mc, uint8_t generation8);
+    void save(
+      Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, bool cut, uint8_t generation8);
     // The returned age is a multiple of TranspositionTable::GENERATION_DELTA
     uint8_t relative_age(const uint8_t generation8) const;
 
@@ -79,7 +82,7 @@ struct TTEntry {
         int      index_;
     };
 
-    inline ExtraEntryAccessor moveCount5() const {
+    inline ExtraEntryAccessor cutNode1() const {
         Cluster* const cluster =
           reinterpret_cast<Cluster*>(reinterpret_cast<std::uintptr_t>(this) & ~0x1F);
         const int entry_index = (reinterpret_cast<std::uintptr_t>(this) & 0x1F) >> 3;
@@ -115,7 +118,7 @@ bool TTEntry::is_occupied() const { return bool(depth8); }
 // Populates the TTEntry with a new node's data, possibly
 // overwriting an old position. The update is not atomic and can be racy.
 void TTEntry::save(
-  Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, int mc, uint8_t generation8) {
+  Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, bool cut, uint8_t generation8) {
 
     // Preserve the old ttmove if we don't have a new one
     if (m || uint16_t(k) != key16)
@@ -128,12 +131,12 @@ void TTEntry::save(
         assert(d > DEPTH_ENTRY_OFFSET);
         assert(d < 256 + DEPTH_ENTRY_OFFSET);
 
-        key16        = uint16_t(k);
-        depth8       = uint8_t(d - DEPTH_ENTRY_OFFSET);
-        genBound8    = uint8_t(generation8 | uint8_t(pv) << 2 | b);
-        value16      = int16_t(v);
-        eval16       = int16_t(ev);
-        moveCount5() = mc;
+        key16      = uint16_t(k);
+        depth8     = uint8_t(d - DEPTH_ENTRY_OFFSET);
+        genBound8  = uint8_t(generation8 | uint8_t(pv) << 2 | b);
+        value16    = int16_t(v);
+        eval16     = int16_t(ev);
+        cutNode1() = cut;
     }
     else if (depth8 + DEPTH_ENTRY_OFFSET >= 5 && Bound(genBound8 & 0x3) != BOUND_EXACT)
         depth8--;
@@ -155,8 +158,8 @@ TTWriter::TTWriter(TTEntry* tte) :
     entry(tte) {}
 
 void TTWriter::write(
-  Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, int mc, uint8_t generation8) {
-    entry->save(k, v, pv, b, d, m, ev, mc, generation8);
+  Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, bool cut, uint8_t generation8) {
+    entry->save(k, v, pv, b, d, m, ev, cut, generation8);
 }
 
 
@@ -173,13 +176,20 @@ struct Cluster {
 };
 
 static_assert(sizeof(Cluster) == ClusterSize, "Wrong Cluster size");
+static_assert(TTEntry::kExtraEntrySize > 0
+              && TTEntry::kExtraEntrySize * EntriesInCluster
+                   <= (sizeof(Cluster) - sizeof(Cluster::entry)) << 3);
 
-TTEntry::ExtraEntryAccessor::operator int() const { return cluster_->extra >> (index_ * 5) & 0x1F; }
+TTEntry::ExtraEntryAccessor::operator int() const {
+    return cluster_->extra >> (index_ * kExtraEntrySize) & kExtraEntryMask;
+}
 
 void TTEntry::ExtraEntryAccessor::operator=(int val) const {
-    using extra_type      = decltype(Cluster::extra);
-    const extra_type mask = 0x1F << (index_ * 5);
-    cluster_->extra = (cluster_->extra & ~mask) | (static_cast<extra_type>(val) << (index_ * 5));
+    using extra_type = decltype(Cluster::extra);
+
+    const int        shift = index_ * kExtraEntrySize;
+    const extra_type mask  = kExtraEntryMask << shift;
+    cluster_->extra        = (cluster_->extra & ~mask) | (static_cast<extra_type>(val) << shift);
 }
 
 // Sets the size of the transposition table,
@@ -273,9 +283,10 @@ std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key) cons
             > tte[i].depth8 - tte[i].relative_age(generation8))
             replace = &tte[i];
 
-    return {false,
-            TTData{Move::none(), VALUE_NONE, VALUE_NONE, 0, DEPTH_ENTRY_OFFSET, BOUND_NONE, false},
-            TTWriter(replace)};
+    return {
+      false,
+      TTData{Move::none(), VALUE_NONE, VALUE_NONE, DEPTH_ENTRY_OFFSET, BOUND_NONE, false, false},
+      TTWriter(replace)};
 }
 
 
