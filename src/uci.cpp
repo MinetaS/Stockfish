@@ -366,17 +366,17 @@ void UCIEngine::benchmark(std::istream& args) {
     cnt   = 1;
     nodes = 0;
 
-    int           numHashfullReadings = 0;
-    constexpr int hashfullAges[]      = {0, 999};  // Only normal hashfull and touched hash.
-    int           totalHashfull[std::size(hashfullAges)] = {0};
-    int           maxHashfull[std::size(hashfullAges)]   = {0};
+    int            numHashfullReadings = 0;
+    constexpr bool hashfullOptions[]   = {true, false};  // Only normal hashfull and touched hash.
+    int            totalHashfull[std::size(hashfullOptions)] = {0};
+    int            maxHashfull[std::size(hashfullOptions)]   = {0};
 
     auto updateHashfullReadings = [&]() {
         numHashfullReadings += 1;
 
-        for (int i = 0; i < static_cast<int>(std::size(hashfullAges)); ++i)
+        for (int i = 0; i < static_cast<int>(std::size(hashfullOptions)); ++i)
         {
-            const int hashfull = engine.get_hashfull(hashfullAges[i]);
+            const int hashfull = engine.get_hashfull(hashfullOptions[i]);
             maxHashfull[i]     = std::max(maxHashfull[i], hashfull);
             totalHashfull[i] += hashfull;
         }
@@ -422,10 +422,6 @@ void UCIEngine::benchmark(std::istream& args) {
     dbg_print();
 
     std::cerr << "\n";
-
-    static_assert(
-      std::size(hashfullAges) == 2 && hashfullAges[0] == 0 && hashfullAges[1] == 999,
-      "Hardcoded for display. Would complicate the code needlessly in the current state.");
 
     std::string threadBinding = engine.thread_binding_information_as_string();
     if (threadBinding.empty())

@@ -96,7 +96,7 @@ class Engine {
     const OptionsMap& get_options() const;
     OptionsMap&       get_options();
 
-    int get_hashfull(int maxAge = 0) const;
+    int get_hashfull(bool currentSearchOnly = true) const;
 
     std::string                            fen() const;
     void                                   flip();

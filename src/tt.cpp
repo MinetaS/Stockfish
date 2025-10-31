@@ -71,17 +71,7 @@ struct TTEntry {
     int16_t  eval16;
 };
 
-// `genBound8` is where most of the details are. We use the following constants to manipulate 5 leading generation bits
-// and 3 trailing miscellaneous bits.
-
-// These bits are reserved for other things.
-static constexpr unsigned GENERATION_BITS = 4;
-// increment for generation field
-static constexpr int GENERATION_DELTA = (1 << GENERATION_BITS);
-// cycle length
-static constexpr int GENERATION_CYCLE = 255 + GENERATION_DELTA;
-// mask to pull out generation number
-static constexpr int GENERATION_MASK = (0xFF << GENERATION_BITS) & 0xFF;
+constexpr int kGenerationBit = 3;
 
 // DEPTH_ENTRY_OFFSET exists because 1) we use `bool(depth8)` as the occupancy check, but
 // 2) we need to store negative depths for QS. (`depth8` is the only field with "spare bits":
@@ -116,12 +106,8 @@ void TTEntry::save(
 
 
 uint8_t TTEntry::relative_age(const uint8_t generation8) const {
-    // Due to our packed storage format for generation and its cyclic
-    // nature we add GENERATION_CYCLE (256 is the modulus, plus what
-    // is needed to keep the unrelated lowest n bits from affecting
-    // the result) to calculate the entry age correctly even after
-    // generation8 overflows into the next cycle.
-    return ((GENERATION_CYCLE + generation8 - genBound8) & GENERATION_MASK) >> 1;
+    // One generation advance is equivalent to depth decrease of 8 plies.
+    return (genBound8 ^ generation8) & (1u << kGenerationBit);
 }
 
 
@@ -195,22 +181,18 @@ void TranspositionTable::clear(ThreadPool& threads) {
 // Returns an approximation of the hashtable
 // occupation during a search. The hash is x permill full, as per UCI protocol.
 // Only counts entries which match the current generation.
-int TranspositionTable::hashfull(int maxAge) const {
-    int maxAgeInternal = maxAge << GENERATION_BITS;
-    int cnt            = 0;
+int TranspositionTable::hashfull(bool currentSearchOnly) const {
+    int cnt = 0;
     for (int i = 0; i < 1000; ++i)
         for (int j = 0; j < ClusterSize; ++j)
             cnt += table[i].entry[j].is_occupied()
-                && table[i].entry[j].relative_age(generation8) <= maxAgeInternal;
+                && (table[i].entry[j].relative_age(generation8) == 0 || !currentSearchOnly);
 
     return cnt / ClusterSize;
 }
 
 
-void TranspositionTable::new_search() {
-    // increment by delta to keep lower bits as is
-    generation8 += GENERATION_DELTA;
-}
+void TranspositionTable::new_search() { generation8 ^= 1u << kGenerationBit; }
 
 
 uint8_t TranspositionTable::generation() const { return generation8; }
