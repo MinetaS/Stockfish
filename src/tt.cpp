@@ -31,31 +31,22 @@
 
 namespace Stockfish {
 
+template<std::size_t EntrySize, unsigned int LocalOffset>
+struct TTExtraEntry {
+    static constexpr std::size_t  kEntrySize   = EntrySize;  // in bits
+    static constexpr unsigned int kLocalOffset = LocalOffset;
 
-// TTEntry struct is the 10 bytes transposition table entry, defined as below:
-//
-// key        16 bit
-// depth       8 bit
-// generation  5 bit
-// pv node     1 bit
-// bound type  2 bit
-// move       16 bit
-// value      16 bit
-// evaluation 16 bit
-//
-// These fields are in the same order as accessed by TT::probe(), since memory is fastest sequentially.
-// Equally, the store order in save() matches this order.
+    struct Accessor;
+    Accessor operator()() const;
+};
 
 struct TTEntry {
 
     // Convert internal bitfields to external types
-    TTData read() const {
-        return TTData{Move(move16),           Value(value16),
-                      Value(eval16),          Depth(depth8 + DEPTH_ENTRY_OFFSET),
-                      Bound(genBound8 & 0x3), bool(genBound8 & 0x4),
-                      bool(cutNode1())};
-    }
+    TTData read() const;
 
+    // An "extra" entry is a small data field up to 5 bits that is stored
+    // in the padding field of Cluster (which is 16 bits).
     static constexpr int      kExtraEntrySize = 1;
     static constexpr unsigned kExtraEntryMask = (1u << kExtraEntrySize) - 1;
 
@@ -82,21 +73,90 @@ struct TTEntry {
         int      index_;
     };
 
-    inline ExtraEntryAccessor cutNode1() const {
-        Cluster* const cluster =
-          reinterpret_cast<Cluster*>(reinterpret_cast<std::uintptr_t>(this) & ~0x1F);
-        const int entry_index = (reinterpret_cast<std::uintptr_t>(this) & 0x1F) >> 3;
-        assert(entry_index < EntriesInCluster);
-        return ExtraEntryAccessor(cluster, entry_index);
-    }
-
     uint16_t key16;
     uint8_t  depth8;
     uint8_t  genBound8;
     Move     move16;
     int16_t  value16;
     int16_t  eval16;
+
+    std::pair<Cluster*, int> locate_in_cluster() const;
+
+    // Below fields are "extra" entries, stored outside TTEntry and in the
+    // padding of Cluster.
+
+    // In C++20, all member function definitions can be removed by simply using
+    // [[no_unique_address]] instead.
+
+    TTExtraEntry<1, 0>::Accessor cutNode1() const;
 };
+
+// Cluster is a collection of TTEntry objects and designed to fit within
+// a cache line, which is typically 64 bytes. The size of Cluster is
+// explicitly defined outside the scope of the struct to ensure such
+// property.
+constexpr std::size_t kClusterSize = 0x20;
+
+struct Cluster {
+    static constexpr std::size_t kNumEntries = kClusterSize / sizeof(TTEntry);
+
+    TTEntry       entry[kNumEntries];
+    std::uint16_t extra;
+
+    static constexpr std::size_t kExtraBitsPerEntry = (sizeof(extra) * 8) / kNumEntries;
+} __attribute__((packed));
+
+static_assert(sizeof(Cluster) == kClusterSize, "Wrong Cluster size");
+
+// Because there are three entries per Cluster, it is possible to use ptr >> 3
+// as an index even though the size of TTEntry is 10 bytes.
+std::pair<Cluster*, int> TTEntry::locate_in_cluster() const {
+    static_assert(Cluster::kNumEntries <= 4,
+                  "Shift optimization is not valid for more than 4 entries.");
+
+    Cluster* const cluster =
+      reinterpret_cast<Cluster*>(reinterpret_cast<std::uintptr_t>(this) & ~(kClusterSize - 1));
+    const int index = (reinterpret_cast<std::uintptr_t>(this) & (kClusterSize - 1)) >> 3;
+
+    return {cluster, index};
+}
+
+template<std::size_t EntrySize, unsigned int LocalOffset>
+struct TTExtraEntry<EntrySize, LocalOffset>::Accessor {
+    static_assert(EntrySize > 0);
+    static_assert(EntrySize * Cluster::kNumEntries <= sizeof(Cluster::extra) * 8);
+    static_assert(EntrySize + LocalOffset < (sizeof(Cluster::extra) * 8) / Cluster::kNumEntries);
+
+    constexpr Accessor(Cluster* c, int i) :
+        cluster_(c),
+        index_(i) {}
+
+    constexpr operator int() const { return cluster_->extra >> offset() & mask(); }
+
+    constexpr void operator=(int val) const {
+        cluster_->extra = cluster_->extra & ~(mask() << offset())
+                        | (static_cast<decltype(Cluster::extra)>(val) << offset());
+    }
+
+   private:
+    constexpr int      offset() const { return LocalOffset + index_ * Cluster::kExtraBitsPerEntry; }
+    constexpr unsigned mask() const { return (1u << kEntrySize) - 1; }
+
+    Cluster* cluster_;
+    int      index_;
+};
+
+TTExtraEntry<1, 0>::Accessor TTEntry::cutNode1() const {
+    auto [cluster, index] = locate_in_cluster();
+    return TTExtraEntry<1, 0>::Accessor(cluster, index);
+}
+
+TTData TTEntry::read() const {
+    return TTData{Move(move16),           Value(value16),
+                  Value(eval16),          Depth(depth8 + DEPTH_ENTRY_OFFSET),
+                  Bound(genBound8 & 0x3), bool(genBound8 & 0x4),
+                  bool(cutNode1())};
+}
 
 // `genBound8` is where most of the details are. We use the following constants to manipulate 5 leading generation bits
 // and 3 trailing miscellaneous bits.
@@ -163,35 +223,6 @@ void TTWriter::write(
 }
 
 
-// A TranspositionTable is an array of Cluster, of size clusterCount. Each cluster consists of ClusterSize number
-// of TTEntry. Each non-empty TTEntry contains information on exactly one position. The size of a Cluster should
-// divide the size of a cache line for best performance, as the cacheline is prefetched when possible.
-
-static constexpr int         EntriesInCluster = 3;
-static constexpr std::size_t ClusterSize      = 0x20;
-
-struct Cluster {
-    TTEntry       entry[EntriesInCluster];
-    std::uint16_t extra;
-};
-
-static_assert(sizeof(Cluster) == ClusterSize, "Wrong Cluster size");
-static_assert(TTEntry::kExtraEntrySize > 0
-              && TTEntry::kExtraEntrySize * EntriesInCluster
-                   <= (sizeof(Cluster) - sizeof(Cluster::entry)) << 3);
-
-TTEntry::ExtraEntryAccessor::operator int() const {
-    return cluster_->extra >> (index_ * kExtraEntrySize) & kExtraEntryMask;
-}
-
-void TTEntry::ExtraEntryAccessor::operator=(int val) const {
-    using extra_type = decltype(Cluster::extra);
-
-    const int        shift = index_ * kExtraEntrySize;
-    const extra_type mask  = kExtraEntryMask << shift;
-    cluster_->extra        = (cluster_->extra & ~mask) | (static_cast<extra_type>(val) << shift);
-}
-
 // Sets the size of the transposition table,
 // measured in megabytes. Transposition table consists
 // of clusters and each cluster consists of ClusterSize number of TTEntry.
@@ -242,11 +273,11 @@ int TranspositionTable::hashfull(int maxAge) const {
     int maxAgeInternal = maxAge << GENERATION_BITS;
     int cnt            = 0;
     for (int i = 0; i < 1000; ++i)
-        for (int j = 0; j < int(EntriesInCluster); ++j)
+        for (int j = 0; j < int(Cluster::kNumEntries); ++j)
             cnt += table[i].entry[j].is_occupied()
                 && table[i].entry[j].relative_age(generation8) <= maxAgeInternal;
 
-    return cnt / EntriesInCluster;
+    return cnt / Cluster::kNumEntries;
 }
 
 
@@ -270,7 +301,7 @@ std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key) cons
     TTEntry* const tte   = first_entry(key);
     const uint16_t key16 = uint16_t(key);  // Use the low 16 bits as key inside the cluster
 
-    for (int i = 0; i < int(EntriesInCluster); ++i)
+    for (int i = 0; i < int(Cluster::kNumEntries); ++i)
         if (tte[i].key16 == key16)
             // This gap is the main place for read races.
             // After `read()` completes that copy is final, but may be self-inconsistent.
@@ -278,7 +309,7 @@ std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key) cons
 
     // Find an entry to be replaced according to the replacement strategy
     TTEntry* replace = tte;
-    for (int i = 1; i < int(EntriesInCluster); ++i)
+    for (int i = 1; i < int(Cluster::kNumEntries); ++i)
         if (replace->depth8 - replace->relative_age(generation8)
             > tte[i].depth8 - tte[i].relative_age(generation8))
             replace = &tte[i];
