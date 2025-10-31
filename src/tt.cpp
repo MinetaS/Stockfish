@@ -75,7 +75,7 @@ struct TTEntry {
 // and 3 trailing miscellaneous bits.
 
 // These bits are reserved for other things.
-static constexpr unsigned GENERATION_BITS = 3;
+static constexpr unsigned GENERATION_BITS = 4;
 // increment for generation field
 static constexpr int GENERATION_DELTA = (1 << GENERATION_BITS);
 // cycle length
@@ -121,7 +121,7 @@ uint8_t TTEntry::relative_age(const uint8_t generation8) const {
     // is needed to keep the unrelated lowest n bits from affecting
     // the result) to calculate the entry age correctly even after
     // generation8 overflows into the next cycle.
-    return (GENERATION_CYCLE + generation8 - genBound8) & GENERATION_MASK;
+    return ((GENERATION_CYCLE + generation8 - genBound8) & GENERATION_MASK) >> 1;
 }
 
 
