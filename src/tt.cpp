@@ -52,11 +52,13 @@ struct TTEntry {
     TTData read() const {
         return TTData{Move(move16),           Value(value16),
                       Value(eval16),          Depth(depth8 + DEPTH_ENTRY_OFFSET),
-                      Bound(genBound8 & 0x3), bool(genBound8 & 0x4)};
+                      Bound(genBound8 & 0x3), bool(genBound8 & 0x4),
+                      bool(genBound8 & 0x8)};
     }
 
     bool is_occupied() const;
-    void save(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
+    void save(
+      Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, bool cut, uint8_t generation8);
     // The returned age is a multiple of TranspositionTable::GENERATION_DELTA
     uint8_t relative_age(const uint8_t generation8) const;
 
@@ -75,7 +77,7 @@ struct TTEntry {
 // and 3 trailing miscellaneous bits.
 
 // These bits are reserved for other things.
-static constexpr unsigned GENERATION_BITS = 3;
+static constexpr unsigned GENERATION_BITS = 4;
 // increment for generation field
 static constexpr int GENERATION_DELTA = (1 << GENERATION_BITS);
 // cycle length
@@ -91,7 +93,7 @@ bool TTEntry::is_occupied() const { return bool(depth8); }
 // Populates the TTEntry with a new node's data, possibly
 // overwriting an old position. The update is not atomic and can be racy.
 void TTEntry::save(
-  Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) {
+  Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, bool cut, uint8_t generation8) {
 
     // Preserve the old ttmove if we don't have a new one
     if (m || uint16_t(k) != key16)
@@ -106,7 +108,7 @@ void TTEntry::save(
 
         key16     = uint16_t(k);
         depth8    = uint8_t(d - DEPTH_ENTRY_OFFSET);
-        genBound8 = uint8_t(generation8 | uint8_t(pv) << 2 | b);
+        genBound8 = uint8_t(generation8 | uint8_t(cut) << 3 | uint8_t(pv) << 2 | b);
         value16   = int16_t(v);
         eval16    = int16_t(ev);
     }
@@ -121,7 +123,7 @@ uint8_t TTEntry::relative_age(const uint8_t generation8) const {
     // is needed to keep the unrelated lowest n bits from affecting
     // the result) to calculate the entry age correctly even after
     // generation8 overflows into the next cycle.
-    return (GENERATION_CYCLE + generation8 - genBound8) & GENERATION_MASK;
+    return ((GENERATION_CYCLE + generation8 - genBound8) & GENERATION_MASK) >> 1;
 }
 
 
@@ -130,8 +132,8 @@ TTWriter::TTWriter(TTEntry* tte) :
     entry(tte) {}
 
 void TTWriter::write(
-  Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) {
-    entry->save(k, v, pv, b, d, m, ev, generation8);
+  Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, bool cut, uint8_t generation8) {
+    entry->save(k, v, pv, b, d, m, ev, cut, generation8);
 }
 
 
@@ -240,9 +242,10 @@ std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key) cons
             > tte[i].depth8 - tte[i].relative_age(generation8))
             replace = &tte[i];
 
-    return {false,
-            TTData{Move::none(), VALUE_NONE, VALUE_NONE, DEPTH_ENTRY_OFFSET, BOUND_NONE, false},
-            TTWriter(replace)};
+    return {
+      false,
+      TTData{Move::none(), VALUE_NONE, VALUE_NONE, DEPTH_ENTRY_OFFSET, BOUND_NONE, false, false},
+      TTWriter(replace)};
 }
 
 
