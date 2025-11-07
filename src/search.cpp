@@ -1104,7 +1104,8 @@ moves_loop:  // When in check, search starts here
             && is_valid(ttData.value) && !is_decisive(ttData.value) && (ttData.bound & BOUND_LOWER)
             && ttData.depth >= depth - 3)
         {
-            Value singularBeta  = ttData.value - (56 + 81 * (ss->ttPv && !PvNode)) * depth / 60;
+            const int margin = (56 + - 25 * ttData.cutNode + 81 * (ss->ttPv && !PvNode)) * depth / 60;
+            Value singularBeta  = ttData.value - margin;
             Depth singularDepth = newDepth / 2;
 
             ss->excludedMove = move;
@@ -1150,7 +1151,7 @@ moves_loop:  // When in check, search starts here
 
             // If we are on a cutNode but the ttMove is not assumed to fail high
             // over current beta
-            else if (cutNode && ttData.cutNode)
+            else if (cutNode)
                 extension = -2;
         }
 
