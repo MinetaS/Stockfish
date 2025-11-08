@@ -1104,7 +1104,7 @@ moves_loop:  // When in check, search starts here
             && is_valid(ttData.value) && !is_decisive(ttData.value) && (ttData.bound & BOUND_LOWER)
             && ttData.depth >= depth - 3)
         {
-            const int margin = (56 + - 25 * ttData.cutNode + 81 * (ss->ttPv && !PvNode)) * depth / 60;
+            const int margin = (56 + 25 * !ttData.cutNode + 81 * (ss->ttPv && !PvNode)) * depth / 60;
             Value singularBeta  = ttData.value - margin;
             Depth singularDepth = newDepth / 2;
 
