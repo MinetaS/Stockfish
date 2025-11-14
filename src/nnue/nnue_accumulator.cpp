@@ -141,17 +141,10 @@ template<IndexType Dimensions>
 void AccumulatorStack::evaluate(const Position&                       pos,
                                 const FeatureTransformer<Dimensions>& featureTransformer,
                                 AccumulatorCaches::Cache<Dimensions>& cache) noexcept {
-    constexpr bool UseThreats = (Dimensions == TransformedFeatureDimensionsBig);
-
     evaluate_side<WHITE, PSQFeatureSet>(pos, featureTransformer, cache);
-
-    if (UseThreats)
-        evaluate_side<WHITE, ThreatFeatureSet>(pos, featureTransformer, cache);
-
+    evaluate_side<WHITE, ThreatFeatureSet>(pos, featureTransformer, cache);
     evaluate_side<BLACK, PSQFeatureSet>(pos, featureTransformer, cache);
-
-    if (UseThreats)
-        evaluate_side<BLACK, ThreatFeatureSet>(pos, featureTransformer, cache);
+    evaluate_side<BLACK, ThreatFeatureSet>(pos, featureTransformer, cache);
 }
 
 template<Color Perspective, typename FeatureSet, IndexType Dimensions>
