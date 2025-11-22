@@ -64,6 +64,16 @@ using namespace Search;
 
 namespace {
 
+int v1 = 56;
+int v2 = 81;
+int v3 = 5480;
+int v4 = 0;
+int v5 = 0;
+int v6 = 160000;
+
+TUNE(v1, v2, v3, v6);
+TUNE(SetRange(-100, 100), v4, v5);
+
 constexpr int SEARCHEDLIST_CAPACITY = 32;
 using SearchedList                  = ValueList<Move, SEARCHEDLIST_CAPACITY>;
 
@@ -1112,7 +1122,9 @@ moves_loop:  // When in check, search starts here
             && is_valid(ttData.value) && !is_decisive(ttData.value) && (ttData.bound & BOUND_LOWER)
             && ttData.depth >= depth - 3)
         {
-            Value singularBeta  = ttData.value - (56 + 81 * (ss->ttPv && !PvNode)) * depth / 60;
+            const int margin = std::min((v1 + v2 * (ss->ttPv && !PvNode)) * depth, v3) / 60 +
+                               std::min((v4 + v5 * (ss->ttPv && !PvNode)) * depth * depth, v6) / 2048;
+            Value singularBeta  = ttData.value - margin;
             Depth singularDepth = newDepth / 2;
 
             ss->excludedMove = move;
