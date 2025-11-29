@@ -795,7 +795,7 @@ Value Search::Worker::search(
     const auto correctionValue      = correction_value(*this, pos, ss);
     if (ss->inCheck)
     {
-        if (depth >= 9 && ttData.move && -(ss - 1)->staticEval >= beta - 20 && !is_decisive(beta)
+        if (depth >= 3 && ttData.move && -(ss - 1)->staticEval >= beta - 20 && !is_decisive(beta)
             && pos.pseudo_legal(ttData.move) && pos.legal(ttData.move))
         {
             do_move(pos, ttData.move, st, ss);
@@ -807,8 +807,9 @@ Value Search::Worker::search(
         else
             improving = false;
 
-        // Skip early pruning when in check
         ss->staticEval = eval = (ss - 2)->staticEval;
+
+        // Skip early pruning when in check
         goto moves_loop;
     }
     else if (excludedMove)
