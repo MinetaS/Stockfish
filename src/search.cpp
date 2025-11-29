@@ -795,9 +795,19 @@ Value Search::Worker::search(
     const auto correctionValue      = correction_value(*this, pos, ss);
     if (ss->inCheck)
     {
+        if (depth >= 9 && ttData.move && -(ss - 1)->staticEval >= beta - 20 && !is_decisive(beta))
+        {
+            do_move(pos, ttData.move, st, ss);
+            value = -search<NonPV>(pos, ss + 1, -beta, -beta + 1, 1, !cutNode);
+            undo_move(pos, ttData.move);
+
+            improving = value >= beta && value >= -(ss - 1)->staticEval;
+        }
+        else
+            improving = false;
+
         // Skip early pruning when in check
         ss->staticEval = eval = (ss - 2)->staticEval;
-        improving             = false;
         goto moves_loop;
     }
     else if (excludedMove)
