@@ -795,11 +795,11 @@ Value Search::Worker::search(
     const auto correctionValue      = correction_value(*this, pos, ss);
     if (ss->inCheck)
     {
-        if (depth >= 3 && ttData.move && -(ss - 1)->staticEval >= beta - 20 && !is_decisive(beta)
+        if (depth >= 9 && ttData.move && -(ss - 1)->staticEval >= beta - 20 && !is_decisive(beta)
             && pos.pseudo_legal(ttData.move) && pos.legal(ttData.move))
         {
             do_move(pos, ttData.move, st, ss);
-            value = -search<NonPV>(pos, ss + 1, -beta, -beta + 1, 1, !cutNode);
+            value = -search<NonPV>(pos, ss + 1, -beta, -beta + 1, depth / 8, !cutNode);
             undo_move(pos, ttData.move);
 
             improving = value >= beta && value >= -(ss - 1)->staticEval;
