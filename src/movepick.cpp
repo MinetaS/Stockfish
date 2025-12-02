@@ -41,7 +41,6 @@ enum Stages {
     BAD_QUIET,
 
     // generate evasion moves
-    EVASION_TT,
     EVASION_INIT,
     EVASION,
 
@@ -100,8 +99,7 @@ MovePicker::MovePicker(const Position&              p,
     ply(pl) {
 
     if (pos.checkers())
-        stage = EVASION_TT + !(ttm && pos.pseudo_legal(ttm) && pos.legal(ttm));
-
+        stage = EVASION_INIT;
     else
         stage = (depth > 0 ? MAIN_TT : QSEARCH_TT) + !(ttm && pos.pseudo_legal(ttm));
 }
@@ -184,7 +182,9 @@ ExtMove* MovePicker::score(MoveList<ListType>& ml) {
 
         else  // Type == EVASIONS
         {
-            if (pos.capture_stage(m))
+            if (m == ttMove)
+                m.value = std::numeric_limits<int>::max();
+            else if (pos.capture_stage(m))
                 m.value = PieceValue[capturedPiece] + (1 << 28);
             else
             {
@@ -199,11 +199,11 @@ ExtMove* MovePicker::score(MoveList<ListType>& ml) {
 
 // Returns the next move satisfying a predicate function.
 // This never returns the TT move, as it was emitted before.
-template<typename Pred>
+template<bool AllowTTMove, typename Pred>
 Move MovePicker::select(Pred filter) {
 
     for (; cur < endCur; ++cur)
-        if (*cur != ttMove && filter())
+        if ((AllowTTMove || *cur != ttMove) && filter())
             return *cur++;
 
     return Move::none();
@@ -220,7 +220,6 @@ top:
     {
 
     case MAIN_TT :
-    case EVASION_TT :
     case QSEARCH_TT :
     case PROBCUT_TT :
         ++stage;
@@ -305,6 +304,8 @@ top:
     }
 
     case EVASION :
+        return select<true>([]() { return true; });
+
     case QCAPTURE :
         return select([]() { return true; });
 

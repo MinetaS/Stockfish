@@ -54,7 +54,7 @@ class MovePicker {
     std::size_t total_moves = 0;
 
    private:
-    template<typename Pred>
+    template<bool AllowTTMove = false, typename Pred>
     Move select(Pred);
     template<GenType T, GenType U>
     ExtMove* score(MoveList<U>&);

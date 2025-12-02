@@ -1130,9 +1130,9 @@ moves_loop:  // When in check, search starts here
             && is_valid(ttData.value) && !is_decisive(ttData.value) && (ttData.bound & BOUND_LOWER)
             && ttData.depth >= depth - 3 && !isShuffling(move, ss, pos))
         {
-            const int margin = 53                           //
-                             + 75 * (ss->ttPv && !PvNode)   //
-                             + 30 * (mp.total_moves <= 3);  //
+            const int margin = 53                                                 //
+                             + 75 * (ss->ttPv && !PvNode)                         //
+                             + 30 * (mp.total_moves > 0 && mp.total_moves <= 3);  //
             Value singularBeta  = ttData.value - margin * depth / 60;
             Depth singularDepth = newDepth / 2;
 
