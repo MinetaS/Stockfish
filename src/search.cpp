@@ -1007,8 +1007,11 @@ moves_loop:  // When in check, search starts here
             continue;
 
         // Check for legality
-        if (!pos.legal(move))
+        if (!ss->inCheck && !pos.legal(move))
             continue;
+
+        assert(!ss->inCheck || pos.legal(move));
+        assert(!ss->inCheck || mp.total_moves > 0);
 
         // At root obey the "searchmoves" option and skip moves not listed in Root
         // Move List. In MultiPV mode we also skip PV moves that have been already
@@ -1127,7 +1130,10 @@ moves_loop:  // When in check, search starts here
             && is_valid(ttData.value) && !is_decisive(ttData.value) && (ttData.bound & BOUND_LOWER)
             && ttData.depth >= depth - 3 && !isShuffling(move, ss, pos))
         {
-            Value singularBeta  = ttData.value - (53 + 75 * (ss->ttPv && !PvNode)) * depth / 60;
+            const int margin = 53                                                 //
+                             + 75 * (ss->ttPv && !PvNode)                         //
+                             + 30 * (mp.total_moves > 0 && mp.total_moves <= 3);  //
+            Value singularBeta  = ttData.value - margin * depth / 60;
             Depth singularDepth = newDepth / 2;
 
             ss->excludedMove = move;
@@ -1613,8 +1619,12 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
     {
         assert(move.is_ok());
 
-        if (!pos.legal(move))
+        // Check for legality
+        if (!ss->inCheck && !pos.legal(move))
             continue;
+
+        assert(!ss->inCheck || pos.legal(move));
+        assert(!ss->inCheck || mp.total_moves > 0);
 
         givesCheck = pos.gives_check(move);
         capture    = pos.capture_stage(move);

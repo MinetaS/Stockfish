@@ -41,7 +41,6 @@ enum Stages {
     BAD_QUIET,
 
     // generate evasion moves
-    EVASION_TT,
     EVASION_INIT,
     EVASION,
 
@@ -100,8 +99,7 @@ MovePicker::MovePicker(const Position&              p,
     ply(pl) {
 
     if (pos.checkers())
-        stage = EVASION_TT + !(ttm && pos.pseudo_legal(ttm));
-
+        stage = EVASION_INIT;
     else
         stage = (depth > 0 ? MAIN_TT : QSEARCH_TT) + !(ttm && pos.pseudo_legal(ttm));
 }
@@ -121,10 +119,13 @@ MovePicker::MovePicker(const Position& p, Move ttm, int th, const CapturePieceTo
 // Assigns a numerical value to each move in a list, used for sorting.
 // Captures are ordered by Most Valuable Victim (MVV), preferring captures
 // with a good history. Quiets moves are ordered using the history tables.
-template<GenType Type>
-ExtMove* MovePicker::score(MoveList<Type>& ml) {
+template<GenType Type, GenType ListType>
+ExtMove* MovePicker::score(MoveList<ListType>& ml) {
 
-    static_assert(Type == CAPTURES || Type == QUIETS || Type == EVASIONS, "Wrong type");
+    static_assert((Type == CAPTURES && ListType == CAPTURES)
+                    || (Type == QUIETS && ListType == QUIETS)
+                    || (Type == EVASIONS && ListType == LEGAL),
+                  "Wrong type");
 
     Color us = pos.side_to_move();
 
@@ -181,7 +182,9 @@ ExtMove* MovePicker::score(MoveList<Type>& ml) {
 
         else  // Type == EVASIONS
         {
-            if (pos.capture_stage(m))
+            if (m == ttMove)
+                m.value = std::numeric_limits<int>::max();
+            else if (pos.capture_stage(m))
                 m.value = PieceValue[capturedPiece] + (1 << 28);
             else
             {
@@ -196,11 +199,11 @@ ExtMove* MovePicker::score(MoveList<Type>& ml) {
 
 // Returns the next move satisfying a predicate function.
 // This never returns the TT move, as it was emitted before.
-template<typename Pred>
+template<bool AllowTTMove, typename Pred>
 Move MovePicker::select(Pred filter) {
 
     for (; cur < endCur; ++cur)
-        if (*cur != ttMove && filter())
+        if ((AllowTTMove || *cur != ttMove) && filter())
             return *cur++;
 
     return Move::none();
@@ -217,7 +220,6 @@ top:
     {
 
     case MAIN_TT :
-    case EVASION_TT :
     case QSEARCH_TT :
     case PROBCUT_TT :
         ++stage;
@@ -290,7 +292,8 @@ top:
         return Move::none();
 
     case EVASION_INIT : {
-        MoveList<EVASIONS> ml(pos);
+        MoveList<LEGAL> ml(pos);
+        total_moves = ml.size();
 
         cur    = moves;
         endCur = endGenerated = score<EVASIONS>(ml);
@@ -301,6 +304,8 @@ top:
     }
 
     case EVASION :
+        return select<true>([]() { return true; });
+
     case QCAPTURE :
         return select([]() { return true; });
 

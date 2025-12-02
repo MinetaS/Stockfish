@@ -51,11 +51,13 @@ class MovePicker {
     Move next_move();
     void skip_quiet_moves();
 
+    std::size_t total_moves = 0;
+
    private:
-    template<typename Pred>
+    template<bool AllowTTMove = false, typename Pred>
     Move select(Pred);
-    template<GenType T>
-    ExtMove* score(MoveList<T>&);
+    template<GenType T, GenType U>
+    ExtMove* score(MoveList<U>&);
     ExtMove* begin() { return cur; }
     ExtMove* end() { return endCur; }
 
