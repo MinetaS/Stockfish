@@ -100,7 +100,7 @@ MovePicker::MovePicker(const Position&              p,
     ply(pl) {
 
     if (pos.checkers())
-        stage = EVASION_TT + !(ttm && pos.pseudo_legal(ttm));
+        stage = EVASION_TT + !(ttm && pos.pseudo_legal(ttm) && pos.legal(ttm));
 
     else
         stage = (depth > 0 ? MAIN_TT : QSEARCH_TT) + !(ttm && pos.pseudo_legal(ttm));
@@ -121,10 +121,13 @@ MovePicker::MovePicker(const Position& p, Move ttm, int th, const CapturePieceTo
 // Assigns a numerical value to each move in a list, used for sorting.
 // Captures are ordered by Most Valuable Victim (MVV), preferring captures
 // with a good history. Quiets moves are ordered using the history tables.
-template<GenType Type>
-ExtMove* MovePicker::score(MoveList<Type>& ml) {
+template<GenType Type, GenType ListType>
+ExtMove* MovePicker::score(MoveList<ListType>& ml) {
 
-    static_assert(Type == CAPTURES || Type == QUIETS || Type == EVASIONS, "Wrong type");
+    static_assert((Type == CAPTURES && ListType == CAPTURES)
+                    || (Type == QUIETS && ListType == QUIETS)
+                    || (Type == EVASIONS && ListType == LEGAL),
+                  "Wrong type");
 
     Color us = pos.side_to_move();
 
@@ -290,7 +293,7 @@ top:
         return Move::none();
 
     case EVASION_INIT : {
-        MoveList<EVASIONS> ml(pos);
+        MoveList<LEGAL> ml(pos);
 
         cur    = moves;
         endCur = endGenerated = score<EVASIONS>(ml);

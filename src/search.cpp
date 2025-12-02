@@ -1007,8 +1007,10 @@ moves_loop:  // When in check, search starts here
             continue;
 
         // Check for legality
-        if (!pos.legal(move))
+        if (!ss->inCheck && !pos.legal(move))
             continue;
+
+        assert(!ss->inCheck || pos.legal(move));
 
         // At root obey the "searchmoves" option and skip moves not listed in Root
         // Move List. In MultiPV mode we also skip PV moves that have been already
@@ -1613,7 +1615,8 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
     {
         assert(move.is_ok());
 
-        if (!pos.legal(move))
+        // Check for legality
+        if (!ss->inCheck && !pos.legal(move))
             continue;
 
         givesCheck = pos.gives_check(move);
