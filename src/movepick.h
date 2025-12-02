@@ -51,6 +51,8 @@ class MovePicker {
     Move next_move();
     void skip_quiet_moves();
 
+    std::size_t total_moves = 0;
+
    private:
     template<typename Pred>
     Move select(Pred);

@@ -294,6 +294,7 @@ top:
 
     case EVASION_INIT : {
         MoveList<LEGAL> ml(pos);
+        total_moves = ml.size();
 
         cur    = moves;
         endCur = endGenerated = score<EVASIONS>(ml);
