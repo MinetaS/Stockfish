@@ -649,6 +649,7 @@ Value Search::Worker::search(
     priorCapture  = pos.captured_piece();
     Color us      = pos.side_to_move();
     ss->moveCount = 0;
+    ss->obvious   = false;
     bestValue     = -VALUE_INFINITE;
     maxValue      = VALUE_INFINITE;
 
@@ -1156,6 +1157,7 @@ moves_loop:  // When in check, search starts here
             // subtree by returning a softbound.
             else if (value >= beta && !is_decisive(value))
             {
+                ss->obvious = true;
                 ttMoveHistory << std::max(-400 - 100 * depth, -4000);
                 return value;
             }
@@ -1271,6 +1273,12 @@ moves_loop:  // When in check, search starts here
         {
             (ss + 1)->pv    = pv;
             (ss + 1)->pv[0] = Move::none();
+
+            if ((ss + 1)->obvious)
+            {
+                newDepth--;
+                depth++;
+            }
 
             // Extend move from transposition table if we are about to dive into qsearch.
             // decisive score handling improves mate finding and retrograde analysis.
