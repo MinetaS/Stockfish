@@ -649,7 +649,7 @@ Value Search::Worker::search(
     priorCapture  = pos.captured_piece();
     Color us      = pos.side_to_move();
     ss->moveCount = 0;
-    ss->obvious   = false;
+    ss->returnType= ReturnType::Normal;
     bestValue     = -VALUE_INFINITE;
     maxValue      = VALUE_INFINITE;
 
@@ -1157,9 +1157,8 @@ moves_loop:  // When in check, search starts here
             // subtree by returning a softbound.
             else if (value >= beta && !is_decisive(value))
             {
-                ss->obvious = true;
                 ttMoveHistory << std::max(-400 - 100 * depth, -4000);
-                return value;
+                return ss->returnType = ReturnType::MultipleCutoffs, value;
             }
 
             // Negative extensions
@@ -1274,7 +1273,7 @@ moves_loop:  // When in check, search starts here
             (ss + 1)->pv    = pv;
             (ss + 1)->pv[0] = Move::none();
 
-            if ((ss + 1)->obvious)
+            if ((ss + 1)->returnType == ReturnType::MultipleCutoffs)
             {
                 newDepth--;
                 depth++;

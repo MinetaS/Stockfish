@@ -56,6 +56,11 @@ class ThreadPool;
 class OptionsMap;
 
 namespace Search {
+    
+enum class ReturnType {
+    Normal = 0,
+    MultipleCutoffs
+};
 
 // Stack struct keeps track of the information we need to remember from nodes
 // shallower and deeper in the tree during the search. Each search thread has
@@ -73,9 +78,9 @@ struct Stack {
     bool                        inCheck;
     bool                        ttPv;
     bool                        ttHit;
-    bool                        obvious;
     int                         cutoffCnt;
     int                         reduction;
+    ReturnType                  returnType;
 };
 
 
