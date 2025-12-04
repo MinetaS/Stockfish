@@ -64,6 +64,15 @@ using namespace Search;
 
 namespace {
 
+int vg1 = 0, vn1 = 0;
+int vg2 = 0, vn2 = 0;
+int vg3 = 0, vn3 = 0;
+int vg4 = 0, vn4 = 0;
+int vg5 = 0, vn5 = 0;
+int vg6 = 0, vn6 = 0;
+
+TUNE(SetRange(-3000, 3000), vg1, vn1, vg2, vn2, vg3, vn3, vg4, vn4, vg5, vn5, vg6, vn6);
+
 constexpr int SEARCHEDLIST_CAPACITY = 32;
 using SearchedList                  = ValueList<Move, SEARCHEDLIST_CAPACITY>;
 
@@ -995,7 +1004,9 @@ moves_loop:  // When in check, search starts here
 
     value = bestValue;
 
-    int moveCount = 0;
+    int moveCount       = 0;
+    int globalReduction = 0;  // applied to all later moves
+    int nextReduction   = 0;  // applied to the next move only
 
     // Step 13. Loop through all pseudo-legal moves until no moves remain
     // or a beta cutoff occurs.
@@ -1036,7 +1047,8 @@ moves_loop:  // When in check, search starts here
 
         int delta = beta - alpha;
 
-        Depth r = reduction(improving, depth, moveCount, delta);
+        int r = reduction(improving, depth, moveCount, delta) + globalReduction + nextReduction;
+        nextReduction = 0;
 
         // Increase reduction for ttPv nodes (*Scaler)
         // Larger values scale well
@@ -1066,7 +1078,11 @@ moves_loop:  // When in check, search starts here
                                         + PieceValue[capturedPiece] + 131 * captHist / 1024;
 
                     if (futilityValue <= alpha)
+                    {
+                        globalReduction += vg1;
+                        nextReduction += vn1;
                         continue;
+                    }
                 }
 
                 // SEE based pruning for captures and checks
@@ -1074,7 +1090,11 @@ moves_loop:  // When in check, search starts here
                 int margin = std::max(166 * depth + captHist / 29, 0);
                 if ((alpha >= VALUE_DRAW || pos.non_pawn_material(us) != PieceValue[movedPiece])
                     && !pos.see_ge(move, -margin))
+                {
+                    globalReduction += vg2;
+                    nextReduction += vn2;
                     continue;
+                }
             }
             else
             {
@@ -1084,7 +1104,11 @@ moves_loop:  // When in check, search starts here
 
                 // Continuation history based pruning
                 if (history < -4083 * depth)
+                {
+                    globalReduction += vg3;
+                    nextReduction += vn3;
                     continue;
+                }
 
                 history += 69 * mainHistory[us][move.raw()] / 32;
 
@@ -1102,6 +1126,9 @@ moves_loop:  // When in check, search starts here
                     if (bestValue <= futilityValue && !is_decisive(bestValue)
                         && !is_win(futilityValue))
                         bestValue = futilityValue;
+
+                    globalReduction += vg4;
+                    nextReduction += vn4;
                     continue;
                 }
 
@@ -1109,7 +1136,11 @@ moves_loop:  // When in check, search starts here
 
                 // Prune moves with negative SEE
                 if (!pos.see_ge(move, -25 * lmrDepth * lmrDepth))
+                {
+                    globalReduction += vg5;
+                    nextReduction += vn5;
                     continue;
+                }
             }
         }
 
@@ -1375,6 +1406,9 @@ moves_loop:  // When in check, search starts here
 
                 assert(depth > 0);
                 alpha = value;  // Update alpha! Always alpha < beta
+
+                globalReduction += vg6;
+                nextReduction += vn6;
             }
         }
 
