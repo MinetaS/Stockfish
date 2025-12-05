@@ -1139,19 +1139,19 @@ moves_loop:  // When in check, search starts here
 
             if (value < singularBeta)
             {
-                if (mp.total_moves > 0 && mp.total_moves <= 3)
-                    extension = 1;
-                else
-                {
-                    int corrValAdj   = std::abs(correctionValue) / 230673;
-                    int doubleMargin = -4 + 199 * PvNode - 201 * !ttCapture - corrValAdj
-                                     - 897 * ttMoveHistory / 127649 - (ss->ply > rootDepth) * 42;
-                    int tripleMargin = 73 + 302 * PvNode - 248 * !ttCapture + 90 * ss->ttPv
-                                     - corrValAdj - (ss->ply * 2 > rootDepth * 3) * 50;
+                const int scale = mp.total_moves > 0 && mp.total_moves <= 3 ? 3 : 2;
 
-                    extension = 1 + (value < singularBeta - doubleMargin)
-                              + (value < singularBeta - tripleMargin);
-                }
+                const int corrValAdj = std::abs(correctionValue) / 230673;
+                const int doubleMargin =
+                  (-4 + 199 * PvNode - 201 * !ttCapture - corrValAdj - 897 * ttMoveHistory / 127649
+                   - (ss->ply > rootDepth) * 42)
+                  * scale / 2;
+                const int tripleMargin = (73 + 302 * PvNode - 248 * !ttCapture + 90 * ss->ttPv
+                                          - corrValAdj - (ss->ply * 2 > rootDepth * 3) * 50)
+                                       * scale / 2;
+
+                extension =
+                  1 + (value < singularBeta - doubleMargin) + (value < singularBeta - tripleMargin);
 
                 depth++;
             }
