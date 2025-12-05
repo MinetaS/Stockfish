@@ -1139,14 +1139,19 @@ moves_loop:  // When in check, search starts here
 
             if (value < singularBeta)
             {
-                int corrValAdj   = std::abs(correctionValue) / 230673;
-                int doubleMargin = -4 + 199 * PvNode - 201 * !ttCapture - corrValAdj
-                                 - 897 * ttMoveHistory / 127649 - (ss->ply > rootDepth) * 42;
-                int tripleMargin = 73 + 302 * PvNode - 248 * !ttCapture + 90 * ss->ttPv - corrValAdj
-                                 - (ss->ply * 2 > rootDepth * 3) * 50;
+                if (mp.total_moves > 0 && mp.total_moves <= 3)
+                    extension = 1;
+                else
+                {
+                    int corrValAdj   = std::abs(correctionValue) / 230673;
+                    int doubleMargin = -4 + 199 * PvNode - 201 * !ttCapture - corrValAdj
+                                     - 897 * ttMoveHistory / 127649 - (ss->ply > rootDepth) * 42;
+                    int tripleMargin = 73 + 302 * PvNode - 248 * !ttCapture + 90 * ss->ttPv
+                                     - corrValAdj - (ss->ply * 2 > rootDepth * 3) * 50;
 
-                extension =
-                  1 + (value < singularBeta - doubleMargin) + (value < singularBeta - tripleMargin);
+                    extension = 1 + (value < singularBeta - doubleMargin)
+                              + (value < singularBeta - tripleMargin);
+                }
 
                 depth++;
             }
@@ -1195,9 +1200,6 @@ moves_loop:  // When in check, search starts here
         r += 714;  // Base reduction offset to compensate for other tweaks
         r -= moveCount * 73;
         r -= std::abs(correctionValue) / 30370;
-
-        if (mp.total_moves > 0 && mp.total_moves <= 3 && moveCount > 1)
-            r += 1024;
 
         // Increase reduction for cut nodes
         if (cutNode)
