@@ -1139,7 +1139,7 @@ moves_loop:  // When in check, search starts here
 
             if (value < singularBeta)
             {
-                const int scale = mp.total_moves > 0 && mp.total_moves <= 3 ? 3 : 2;
+                const int scale = mp.total_moves > 0 && mp.total_moves <= 3 ? 1 : 2;
 
                 const int corrValAdj = std::abs(correctionValue) / 230673;
                 const int doubleMargin =
