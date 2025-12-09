@@ -64,15 +64,6 @@ using namespace Search;
 
 namespace {
 
-int vg1 = 0, vn1 = 0;
-int vg2 = 0, vn2 = 0;
-int vg3 = 0, vn3 = 0;
-int vg4 = 0, vn4 = 0;
-int vg5 = 0, vn5 = 0;
-int vg6 = 0, vn6 = 0;
-
-TUNE(SetRange(-3000, 3000), vg1, vn1, vg2, vn2, vg3, vn3, vg4, vn4, vg5, vn5, vg6, vn6);
-
 constexpr int SEARCHEDLIST_CAPACITY = 32;
 using SearchedList                  = ValueList<Move, SEARCHEDLIST_CAPACITY>;
 
@@ -1079,8 +1070,8 @@ moves_loop:  // When in check, search starts here
 
                     if (futilityValue <= alpha)
                     {
-                        globalReduction += vg1;
-                        nextReduction += vn1;
+                        globalReduction += -178;
+                        nextReduction += -53;
                         continue;
                     }
                 }
@@ -1091,8 +1082,8 @@ moves_loop:  // When in check, search starts here
                 if ((alpha >= VALUE_DRAW || pos.non_pawn_material(us) != PieceValue[movedPiece])
                     && !pos.see_ge(move, -margin))
                 {
-                    globalReduction += vg2;
-                    nextReduction += vn2;
+                    globalReduction += 47;
+                    nextReduction += -17;
                     continue;
                 }
             }
@@ -1105,8 +1096,8 @@ moves_loop:  // When in check, search starts here
                 // Continuation history based pruning
                 if (history < -4083 * depth)
                 {
-                    globalReduction += vg3;
-                    nextReduction += vn3;
+                    globalReduction += 209;
+                    nextReduction += 369;
                     continue;
                 }
 
@@ -1127,8 +1118,8 @@ moves_loop:  // When in check, search starts here
                         && !is_win(futilityValue))
                         bestValue = futilityValue;
 
-                    globalReduction += vg4;
-                    nextReduction += vn4;
+                    globalReduction += 98;
+                    nextReduction += 180;
                     continue;
                 }
 
@@ -1137,8 +1128,8 @@ moves_loop:  // When in check, search starts here
                 // Prune moves with negative SEE
                 if (!pos.see_ge(move, -25 * lmrDepth * lmrDepth))
                 {
-                    globalReduction += vg5;
-                    nextReduction += vn5;
+                    globalReduction += 17;
+                    nextReduction += 139;
                     continue;
                 }
             }
@@ -1407,8 +1398,8 @@ moves_loop:  // When in check, search starts here
                 assert(depth > 0);
                 alpha = value;  // Update alpha! Always alpha < beta
 
-                globalReduction += vg6;
-                nextReduction += vn6;
+                globalReduction += 203;
+                nextReduction += -345;
             }
         }
 
