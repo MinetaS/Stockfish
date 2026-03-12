@@ -94,8 +94,9 @@ int correction_value(const Worker& w, const Position& pos, const Stack* const ss
 
 // Add correctionHistory value to raw staticEval and guarantee evaluation
 // does not hit the tablebase range.
-Value to_corrected_static_eval(const Value v, const int cv) {
-    return std::clamp(v + cv / 131072, VALUE_TB_LOSS_IN_MAX_PLY + 1, VALUE_TB_WIN_IN_MAX_PLY - 1);
+Value to_corrected_static_eval(const Value v, const int cv, bool w) {
+    return std::clamp(v + cv / (w ? 262144 : 131072), VALUE_TB_LOSS_IN_MAX_PLY + 1,
+                      VALUE_TB_WIN_IN_MAX_PLY - 1);
 }
 
 void update_correction_history(const Position& pos,
@@ -164,6 +165,7 @@ Search::Worker::Worker(SharedState&                    sharedState,
     numaThreadIdx(numaThreadId),
     numaTotal(numaTotalThreads),
     numaAccessToken(token),
+    weakCorrectionHistory(threadIdx % 8 == 7),
     manager(std::move(sm)),
     options(sharedState.options),
     threads(sharedState.threads),
@@ -724,7 +726,8 @@ Value Search::Worker::search(
         if (!is_valid(unadjustedStaticEval))
             unadjustedStaticEval = evaluate(pos);
 
-        ss->staticEval = eval = to_corrected_static_eval(unadjustedStaticEval, correctionValue);
+        ss->staticEval = eval =
+          to_corrected_static_eval(unadjustedStaticEval, correctionValue, weakCorrectionHistory);
 
         // ttValue can be used as a better position evaluation
         if (is_valid(ttData.value)
@@ -734,7 +737,8 @@ Value Search::Worker::search(
     else
     {
         unadjustedStaticEval = evaluate(pos);
-        ss->staticEval = eval = to_corrected_static_eval(unadjustedStaticEval, correctionValue);
+        ss->staticEval       = eval =
+          to_corrected_static_eval(unadjustedStaticEval, correctionValue, weakCorrectionHistory);
 
         // Static evaluation is saved as it was before adjustment by correction history
         ttWriter.write(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE, DEPTH_UNSEARCHED, Move::none(),
@@ -1570,8 +1574,8 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
             if (!is_valid(unadjustedStaticEval))
                 unadjustedStaticEval = evaluate(pos);
 
-            ss->staticEval = bestValue =
-              to_corrected_static_eval(unadjustedStaticEval, correctionValue);
+            ss->staticEval = bestValue = to_corrected_static_eval(
+              unadjustedStaticEval, correctionValue, weakCorrectionHistory);
 
             // ttValue can be used as a better position evaluation
             if (is_valid(ttData.value) && !is_decisive(ttData.value)
@@ -1581,8 +1585,8 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
         else
         {
             unadjustedStaticEval = evaluate(pos);
-            ss->staticEval       = bestValue =
-              to_corrected_static_eval(unadjustedStaticEval, correctionValue);
+            ss->staticEval = bestValue = to_corrected_static_eval(
+              unadjustedStaticEval, correctionValue, weakCorrectionHistory);
         }
 
         // Stand pat. Return immediately if static value is at least beta
