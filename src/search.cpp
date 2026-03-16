@@ -101,12 +101,15 @@ Value to_corrected_static_eval(const Value v, const int cv) {
 void update_correction_history(const Position& pos,
                                Stack* const    ss,
                                Search::Worker& workerThread,
-                               const int       bonus) {
+                               int             bonus) {
     const Move  m  = (ss - 1)->currentMove;
     const Color us = pos.side_to_move();
 
     constexpr int nonPawnWeight = 181;
     auto&         shared        = workerThread.sharedHistory;
+
+    if (workerThread.aggressiveCorrectionBonus)
+        bonus *= 2;
 
     shared.pawn_correction_entry(pos).at(us).pawn << bonus;
     shared.minor_piece_correction_entry(pos).at(us).minor << bonus * 155 / 128;
@@ -363,6 +366,9 @@ void Search::Worker::iterative_deepening() {
             // high/low, re-search with a bigger window until we don't fail
             // high/low anymore.
             int failedHighCnt = 0;
+
+            aggressiveCorrectionBonus = false;
+
             while (true)
             {
                 // Adjust the effective depth searched, but ensure at least one
@@ -397,6 +403,8 @@ void Search::Worker::iterative_deepening() {
                 // otherwise exit the loop.
                 if (bestValue <= alpha)
                 {
+                    aggressiveCorrectionBonus = bestValue <= alpha - 230 && !is_loss(bestValue);
+
                     beta  = alpha;
                     alpha = std::max(bestValue - delta, -VALUE_INFINITE);
 
@@ -406,6 +414,8 @@ void Search::Worker::iterative_deepening() {
                 }
                 else if (bestValue >= beta)
                 {
+                    aggressiveCorrectionBonus = bestValue >= beta + 180 && !is_win(bestValue);
+
                     alpha = std::max(beta - delta, alpha);
                     beta  = std::min(bestValue + delta, VALUE_INFINITE);
                     ++failedHighCnt;

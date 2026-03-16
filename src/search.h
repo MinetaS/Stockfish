@@ -293,6 +293,7 @@ class Worker {
     CapturePieceToHistory           captureHistory;
     ContinuationHistory             continuationHistory[2][2];
     CorrectionHistory<Continuation> continuationCorrectionHistory;
+    bool                            aggressiveCorrectionBonus;
 
     TTMoveHistory    ttMoveHistory;
     SharedHistories& sharedHistory;
