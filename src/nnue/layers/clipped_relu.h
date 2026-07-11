@@ -69,8 +69,20 @@ class ClippedReLU {
     // Forward propagation
     void propagate(const InputType* input, OutputType* output) const {
 
+#if defined(USE_AVX512)
+        static_assert(InputDimensions == 32);
+        constexpr IndexType Start = 32;
 
-#if defined(USE_SSE2)
+        const __m256i offsets = _mm256_set_epi32(7, 5, 3, 1, 6, 4, 2, 0);
+
+        const __m512i* in = reinterpret_cast<const __m512i*>(input);
+
+        _mm256_store_si256(reinterpret_cast<__m256i*>(output),
+                           _mm256_permutexvar_epi32(
+                             offsets, _mm512_cvtsepi16_epi8(_mm512_srli_epi16(
+                                        _mm512_packus_epi32(in[0], in[1]), WeightScaleBitsLocal))));
+
+#elif defined(USE_SSE2)
         constexpr IndexType NumChunks = InputDimensions / 16;
 
     #ifndef USE_SSE41
