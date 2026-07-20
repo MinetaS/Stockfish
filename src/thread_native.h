@@ -22,11 +22,19 @@
 #ifdef _MSC_VER
     #include <thread>
 #else
-    #include <pthread.h>
+    #include <cstdlib>
+    #include <cstring>
     #include <functional>
+    #include <iostream>
+    #include <pthread.h>
     #include <utility>
 
     #include "misc.h"
+    #include "process.h"
+
+    #ifdef __linux__
+        #include <sys/mman.h>
+    #endif
 #endif
 
 namespace Stockfish {
@@ -47,19 +55,31 @@ using NativeThread = std::thread;
 // equal to the Linux 8MB default, on platforms that support it.
 
 class NativeThread {
-    pthread_t thread;
-
-    static constexpr usize TH_STACK_SIZE = 8 * 1024 * 1024;
-
    public:
     template<class Function, class... Args>
     explicit NativeThread(Function&& fun, Args&&... args) {
         auto func = new std::function<void()>(
           std::bind(std::forward<Function>(fun), std::forward<Args>(args)...));
 
-        pthread_attr_t attr_storage, *attr = &attr_storage;
-        pthread_attr_init(attr);
-        pthread_attr_setstacksize(attr, TH_STACK_SIZE);
+        pthread_attr_t attr;
+        pthread_attr_init(&attr);
+
+        // Caller-owned stack mappings ensure that a recreated thread cannot
+        // inherit resident stack pages from glibc's process-wide pthread stack
+        // cache. Guard pages are mapped explicitly because
+        // pthread_attr_setguardsize() is ignored when pthread_attr_setstack()
+        // supplies the stack storage.
+        map_stack();
+
+        if (is_stack_mapped())
+        {
+            pthread_attr_setguardsize(&attr, 0);
+            pthread_attr_setstack(&attr, stack(), kStackSize);
+        }
+        else
+        {
+            pthread_attr_setstacksize(&attr, kStackSize);
+        }
 
         auto start_routine = [](void* ptr) -> void* {
             auto f = reinterpret_cast<std::function<void()>*>(ptr);
@@ -69,10 +89,68 @@ class NativeThread {
             return nullptr;
         };
 
-        pthread_create(&thread, attr, start_routine, func);
+        const int error = pthread_create(&thread_, &attr, start_routine, func);
+        if (error != 0)
+        {
+            delete func;
+            unmap_stack();
+
+            std::cerr << "Failed to create thread: " << std::strerror(error) << " (" << error << ")"
+                      << std::endl;
+            std::exit(EXIT_FAILURE);
+        }
     }
 
-    void join() { pthread_join(thread, nullptr); }
+    void join() {
+        pthread_join(thread_, nullptr);
+        unmap_stack();
+    }
+
+   private:
+    static constexpr usize kStackSize = 8 * 1024 * 1024;
+
+    void map_stack() {
+    #ifdef __linux__
+        const usize memSize = kStackSize + 2 * Process::gPageSize;
+
+        // Assume Linux >= 2.6.27
+        void* const m =
+          mmap(nullptr, memSize, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+        if (m == MAP_FAILED)
+            return;
+
+        stack_memory_ = m;
+        stack_size_   = memSize;
+
+        if (mprotect(stack(), kStackSize, PROT_READ | PROT_WRITE) != 0)
+        {
+            unmap_stack();
+            return;
+        }
+    #endif
+    }
+
+    void unmap_stack() {
+        if (stack_memory_ == nullptr)
+            return;
+
+    #ifdef __linux__
+        munmap(stack_memory_, stack_size_);
+    #endif
+
+        stack_memory_ = nullptr;
+    }
+
+    inline constexpr bool is_stack_mapped() const { return stack_memory_ != nullptr; }
+
+    inline void* stack() const {
+        assert(stack_memory_ != nullptr);
+        return static_cast<char*>(stack_memory_) + Process::gPageSize;
+    }
+
+    pthread_t thread_;
+    void*     stack_memory_ = nullptr;
+    usize     stack_size_   = 0;
 };
 
 #endif  // _MSC_VER

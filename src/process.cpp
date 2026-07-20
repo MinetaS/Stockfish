@@ -16,49 +16,33 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <iostream>
-#include <memory>
-#include <utility>
+#include <algorithm>
 
-#include "attacks.h"
-#include "misc.h"
 #include "process.h"
-#include "position.h"
-#include "tune.h"
-#include "uci.h"
 
-using namespace Stockfish;
-
-#ifdef UNIVERSAL_BINARY
-namespace Stockfish {
-
-int main(int argc, char* argv[]);  // silence 'no previous declaration'
-
-__attribute__((used)) // keep main alive
+#if defined(__linux__)
+    #include <unistd.h>
+#elif defined(_WIN32)
+    #include <windows.h>
 #endif
 
-int main(int argc, char* argv[]) {
-    Process::init();
+namespace Stockfish {
+namespace Process {
 
-    std::cout << engine_info() << std::endl;
+usize gPageSize = 0;
 
-    Attacks::init();
-    Position::init();
+void init() {
+#if defined(__linux__)
+    gPageSize = std::max(sysconf(_SC_PAGESIZE), 0L);
+#elif defined(_WIN32)
+    SYSTEM_INFO sysInfo;
+    GetSystemInfo(&sysInfo);
+    gPageSize = sysInfo.dwPageSize;
+#endif
 
-    auto cli = CommandLine(argc, argv);
-    auto uci = std::make_unique<UCIEngine>(std::move(cli));
-
-    Tune::init(uci->engine_options());
-
-    uci->loop();
-
-    return 0;
+    if (gPageSize == 0)
+        gPageSize = 0x1000;
 }
 
-#ifdef UNIVERSAL_BINARY
+}  // namespace Process
 }  // namespace Stockfish
-
-    #ifdef UNIVERSAL_NEEDS_MAIN_SHIM
-int main(int argc, char* argv[]) { return Stockfish::main(argc, argv); }
-    #endif
-#endif

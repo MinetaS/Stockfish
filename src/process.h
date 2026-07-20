@@ -16,49 +16,19 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <iostream>
-#include <memory>
-#include <utility>
+#ifndef PROCESS_H_
+#define PROCESS_H_
 
-#include "attacks.h"
 #include "misc.h"
-#include "process.h"
-#include "position.h"
-#include "tune.h"
-#include "uci.h"
 
-using namespace Stockfish;
-
-#ifdef UNIVERSAL_BINARY
 namespace Stockfish {
+namespace Process {
 
-int main(int argc, char* argv[]);  // silence 'no previous declaration'
+void init();
 
-__attribute__((used)) // keep main alive
-#endif
+extern usize gPageSize;
 
-int main(int argc, char* argv[]) {
-    Process::init();
-
-    std::cout << engine_info() << std::endl;
-
-    Attacks::init();
-    Position::init();
-
-    auto cli = CommandLine(argc, argv);
-    auto uci = std::make_unique<UCIEngine>(std::move(cli));
-
-    Tune::init(uci->engine_options());
-
-    uci->loop();
-
-    return 0;
-}
-
-#ifdef UNIVERSAL_BINARY
+}  // namespace Process
 }  // namespace Stockfish
 
-    #ifdef UNIVERSAL_NEEDS_MAIN_SHIM
-int main(int argc, char* argv[]) { return Stockfish::main(argc, argv); }
-    #endif
-#endif
+#endif  // PROCESS_H_
