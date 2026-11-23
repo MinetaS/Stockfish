@@ -1417,7 +1417,7 @@ endif
 
 ifeq ($(UNIVERSAL_BUILD),false)
   ifneq ($(UNIVERSAL_SLICE),true)
-    network_file = $(if $(filter -DNNUE_EMBEDDING_OFF -DNNUE_EMBEDDING_OFF=%,$(CPPFLAGS) $(CXXFLAGS)),,$(shell sed -n 's/^#define EvalFileDefaultName "\(nn-[0-9a-f]*\.nnue\)".*/\1/p' evaluate.h))
+    network_file = $(if $(filter -DNNUE_EMBEDDING_OFF -DNNUE_EMBEDDING_OFF=%,$(CPPFLAGS) $(CXXFLAGS)),,$(shell sed -n 's/^$(pound)define EvalFileDefaultName "\(nn-[0-9a-f]*\.nnue\)".*/\1/p' evaluate.h))
 network.o nnue/network.o: $$(wildcard $$(network_file))
   endif
 endif
