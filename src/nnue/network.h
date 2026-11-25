@@ -80,10 +80,8 @@ class Network {
     void load_internal(EvalFile&);
 
    private:
-    void initialize();
-
-    bool                       save(std::ostream&, const std::string&) const;
-    std::optional<std::string> load(std::istream&);
+    bool save(std::ostream&, const std::string&) const;
+    void load(std::istream&, const std::filesystem::path&, EvalFile&);
 
     bool read_header(std::istream&, u32*, std::string*) const;
     bool write_header(std::ostream&, u32, const std::string&) const;

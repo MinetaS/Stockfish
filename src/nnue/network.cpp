@@ -32,6 +32,7 @@
 
 #include "../bitboard.h"
 #include "../evaluate.h"
+#include "../gzip/gzip.h"
 #include "../misc.h"
 #include "../position.h"
 #include "../types.h"
@@ -117,10 +118,9 @@ bool Network::save(const EvalFile& evalFile, const std::optional<fs::path>& file
         return false;
     }
 
-    if (!filename.has_value() && evalFile.current != evalFile.defaultName)
+    if (!filename.has_value() && (evalFile.compressed || evalFile.current != evalFile.defaultName))
     {
-        sync_cout << "Failed to export a net. A non-embedded net can only be "
-                     "saved if the filename is specified"
+        sync_cout << "Failed to export a net. Specify a filename to save the uncompressed network."
                   << sync_endl;
         return false;
     }
@@ -250,13 +250,8 @@ NnueEvalTrace Network::trace_evaluate(const Position&    pos,
 
 void Network::load_external(const fs::path& dir, const fs::path& evalfilePath, EvalFile& evalFile) {
     std::ifstream stream(dir / evalfilePath, std::ios::binary);
-    auto          description = load(stream);
-
-    if (description.has_value())
-    {
-        evalFile.current        = evalfilePath;
-        evalFile.netDescription = description.value();
-    }
+    if (stream)
+        load(stream, evalfilePath, evalFile);
 }
 
 
@@ -279,17 +274,8 @@ void Network::load_internal(EvalFile& evalFile) {
                         usize(gEmbeddedNNUESize));
 
     std::istream stream(&buffer);
-    auto         description = load(stream);
-
-    if (description.has_value())
-    {
-        evalFile.current        = evalFile.defaultName;
-        evalFile.netDescription = description.value();
-    }
+    load(stream, evalFile.defaultName, evalFile);
 }
-
-
-void Network::initialize() { initialized = true; }
 
 
 bool Network::save(std::ostream& stream, const std::string& netDescription) const {
@@ -297,11 +283,15 @@ bool Network::save(std::ostream& stream, const std::string& netDescription) cons
 }
 
 
-std::optional<std::string> Network::load(std::istream& stream) {
-    initialize();
-    std::string description;
-
-    return read_parameters(stream, description) ? std::make_optional(description) : std::nullopt;
+void Network::load(std::istream& stream, const fs::path& filename, EvalFile& evalFile) {
+    evalFile            = {};
+    evalFile.compressed = Gzip::is_compressed(stream);
+    auto read           = [&](std::istream& input) {
+        return read_parameters(input, evalFile.netDescription);
+    };
+    initialized = evalFile.compressed ? Gzip::decompress(stream, read) : read(stream);
+    if (initialized)
+        evalFile.current = filename;
 }
 
 

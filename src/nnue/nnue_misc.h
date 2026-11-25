@@ -45,6 +45,7 @@ struct EvalFile {
     std::optional<std::filesystem::path> current;
     // Net description extracted from the net file
     std::string netDescription;
+    bool        compressed = false;
 };
 
 struct NnueEvalTrace {

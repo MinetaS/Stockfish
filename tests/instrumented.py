@@ -1,7 +1,7 @@
 import argparse
 import re
 import sys
-import subprocess
+import gzip
 import pathlib
 import os
 import fnmatch
@@ -201,9 +201,12 @@ class TestCLI(metaclass=OrderedClassMembers):
             )
             assert False
 
-        diff = subprocess.run(["diff", network, f"verify.nnue"])
-
-        assert diff.returncode == 0
+        with open(network, "rb") as source:
+            open_network = gzip.open if source.read(2) == b"\x1f\x8b" else open
+        with open_network(network, "rb") as expected, open("verify.nnue", "rb") as exported:
+            while chunk := expected.read(1024 * 1024):
+                assert chunk == exported.read(len(chunk))
+            assert exported.read(1) == b""
 
 
 class TestInteractive(metaclass=OrderedClassMembers):
