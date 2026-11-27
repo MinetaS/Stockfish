@@ -1248,9 +1248,11 @@ void write_multiple_dirties(const Position& p,
                             DirtyThreats*   dts) {
     static_assert(sizeof(DirtyThreat) == 4);
 
+    constexpr bool Outgoing = SqShift == DirtyThreat::ThreatenedSqOffset;
+
     const __m512i board    = _mm512_loadu_si512(p.piece_array().data());
     const int     dt_count = popcount(mask);
-    assert(dt_count <= 16);
+    assert(dt_count <= (Outgoing ? 8 : 16));
 
     const __m512i template_v = _mm512_set1_epi32(dt_template.raw());
     auto*         write      = dts->list.make_space(dt_count);
@@ -1269,7 +1271,11 @@ void write_multiple_dirties(const Position& p,
 
     const __m512i dirties =
       _mm512_ternarylogic_epi32(template_v, threat_squares, threat_pieces, 254 /* A | B | C */);
-    _mm512_storeu_si512(write, dirties);
+
+    if constexpr (Outgoing)
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(write), _mm512_castsi512_si256(dirties));
+    else
+        _mm512_storeu_si512(write, dirties);
 }
 #endif
 
