@@ -22,6 +22,7 @@
 #include <cassert>
 #include <array>
 #include <initializer_list>
+#include <limits>
 #include <utility>
 
 #include "misc.h"
@@ -137,6 +138,14 @@ struct alignas(32) DualMagic {
 
 extern const std::array<DualMagic, SQUARE_NB> DualMagics;
 inline const DualMagic&                       dual_magic(Square s) { return DualMagics[s]; }
+
+#ifdef USE_AVX512ICL
+struct alignas(64) RayMasks {
+    std::array<Bitboard, 4> higher, lower; // diagonal, file, antidiagonal, rank
+};
+
+extern const std::array<RayMasks, SQUARE_NB> SliderRays;
+#endif
 
 using SquareBB     = std::array<Bitboard, SQUARE_NB>;
 using SquarePairBB = std::array<SquareBB, SQUARE_NB>;
@@ -280,7 +289,27 @@ sf_always_inline Bitboard attacks_bb(PieceType pt, Square s, Bitboard occupied) 
 }
 
 inline std::pair<Bitboard, Bitboard> both_attacks_bb(Square s, Bitboard occupied) {
+#ifdef USE_AVX512ICL
+    const auto&   rays = SliderRays[s];
+    const __m256i high = _mm256_load_si256(reinterpret_cast<const __m256i*>(rays.higher.data()));
+    const __m256i low  = _mm256_load_si256(reinterpret_cast<const __m256i*>(rays.lower.data()));
+    const __m256i occ  = _mm256_set1_epi64x(occupied);
+
+    const __m256i upper   = _mm256_and_si256(occ, high);
+    const __m256i fromLow = _mm256_xor_si256(upper, _mm256_sub_epi64(upper, _mm256_set1_epi64x(1)));
+    const __m256i leading = _mm256_lzcnt_epi64(_mm256_and_si256(occ, low));
+    const __m256i fromHigh =
+      _mm256_srav_epi64(_mm256_set1_epi64x(std::numeric_limits<i64>::min()), leading);
+
+    const __m256i attacks =
+      _mm256_or_si256(_mm256_and_si256(high, fromLow), _mm256_and_si256(low, fromHigh));
+    const __m128i both =
+      _mm_or_si128(_mm256_castsi256_si128(attacks), _mm256_extracti128_si256(attacks, 1));
+
+    return {Bitboard(_mm_cvtsi128_si64(both)), Bitboard(_mm_extract_epi64(both, 1))};
+#else
     return dual_magic(s).both_attacks_bb(occupied);
+#endif
 }
 
 }  // namespace Stockfish::Attacks

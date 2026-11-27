@@ -68,6 +68,27 @@ static constexpr auto make_dual_magics() {
 
 alignas(64) extern constexpr std::array<DualMagic, SQUARE_NB> DualMagics = make_dual_magics();
 
+#ifdef USE_AVX512ICL
+extern constexpr std::array<RayMasks, SQUARE_NB> SliderRays = []() {
+    std::array<RayMasks, SQUARE_NB> rays{};
+
+    for (Square s = SQ_A1; s <= SQ_H8; ++s)
+    {
+        const auto&                   m = DualMagics[s];
+        const std::array<Bitboard, 4> axes{m.maskDiag, m.maskFile, m.maskAntidiag, rank_bb(s) ^ s};
+        const Bitboard                below = square_bb(s) - 1;
+
+        for (usize i = 0; i < axes.size(); ++i)
+        {
+            rays[s].higher[i] = axes[i] & ~below;
+            rays[s].lower[i]  = axes[i] & below;
+        }
+    }
+
+    return rays;
+}();
+#endif
+
 alignas(64) extern constexpr SquarePairBB LineBB = []() {
     SquarePairBB t{};
     for (Square s1 = SQ_A1; s1 <= SQ_H8; ++s1)
