@@ -186,33 +186,12 @@ MovePicker::MovePicker(const Position& p, Move ttm, int th, const CapturePieceTo
 // with a good history. Quiet moves are ordered using the history tables.
 template<GenType Type>
 ExtMove* MovePicker::generate_and_score() {
-
-    static_assert(Type == CAPTURES || Type == QUIETS || Type == EVASIONS, "Wrong type");
-
-    const Color us = pos.side_to_move();
-
-    [[maybe_unused]] Bitboard threatByLesser[KING + 1];
-    if constexpr (Type == QUIETS)
-    {
-        threatByLesser[PAWN]   = 0;
-        threatByLesser[KNIGHT] = threatByLesser[BISHOP] = pos.threats_by(PAWN);
-        threatByLesser[ROOK] =
-          pos.threats_by(KNIGHT) | pos.threats_by(BISHOP) | threatByLesser[KNIGHT];
-        threatByLesser[QUEEN] = pos.threats_by(ROOK) | threatByLesser[ROOK];
-        threatByLesser[KING]  = 0;
-    }
+    static_assert(Type == CAPTURES || Type == EVASIONS);
 
     MoveList<Type> ml(pos);  // move generation
 
-    const auto* mainHist = Type != CAPTURES ? &(*mainHistory)[us] : nullptr;
-    const auto* pawnHist = Type == QUIETS ? &sharedHistory->pawn_entry(pos) : nullptr;
-    const auto* ch0      = Type != CAPTURES ? continuationHistory[0] : nullptr;
-    const auto* ch1      = Type == QUIETS ? continuationHistory[1] : nullptr;
-    const auto* ch2      = Type == QUIETS ? continuationHistory[2] : nullptr;
-    const auto* ch3      = Type == QUIETS ? continuationHistory[3] : nullptr;
-    const auto* ch5      = Type == QUIETS ? continuationHistory[5] : nullptr;
-    const auto* lph =
-      Type == QUIETS && ply < LOW_PLY_HISTORY_SIZE ? &(*lowPlyHistory)[ply] : nullptr;
+    const auto* mainHist = Type == EVASIONS ? &(*mainHistory)[pos.side_to_move()] : nullptr;
+    const auto* ch0      = Type == EVASIONS ? continuationHistory[0] : nullptr;
 
     ExtMove* it = cur;
     for (auto move : ml)
@@ -220,50 +199,90 @@ ExtMove* MovePicker::generate_and_score() {
         ExtMove& m = *it++;
         m          = move;
 
-        const Square    from          = m.from_sq();
-        const Square    to            = m.to_sq();
-        const Piece     pc            = pos.moved_piece(m);
-        const PieceType pt            = type_of(pc);
-        const Piece     capturedPiece = pos.piece_on(to);
+        const Square to            = m.to_sq();
+        const Piece  pc            = pos.moved_piece(m);
+        const Piece  capturedPiece = pos.piece_on(to);
 
         if constexpr (Type == CAPTURES)
             m.value =
               (*captureHistory)[pc][to][type_of(capturedPiece)] + 7 * PieceValue[capturedPiece];
+        else if (pos.capture_stage(m))
+            m.value = PieceValue[capturedPiece] + (1 << 28);
+        else
+            m.value = (*mainHist)[m.raw()] + (*ch0)[pc][to];
+    }
+    return it;
+}
 
-        else if constexpr (Type == QUIETS)
+template<>
+ExtMove* MovePicker::generate_and_score<QUIETS>() {
+    const Color us = pos.side_to_move();
+
+    Bitboard threatByLesser[KING + 1];
+    threatByLesser[PAWN] = threatByLesser[KING] = 0;
+    threatByLesser[KNIGHT] = threatByLesser[BISHOP] = pos.threats_by(PAWN);
+    threatByLesser[ROOK] = pos.threats_by(KNIGHT) | pos.threats_by(BISHOP) | threatByLesser[KNIGHT];
+    threatByLesser[QUEEN] = pos.threats_by(ROOK) | threatByLesser[ROOK];
+
+    Move  list[MAX_MOVES];
+    Move* ends[KING];
+    generate_quiets_by_piece(pos, list, ends);
+
+    const auto& mh  = (*mainHistory)[us];
+    const auto& ph  = sharedHistory->pawn_entry(pos);
+    const auto* lph = ply < LOW_PLY_HISTORY_SIZE ? &(*lowPlyHistory)[ply] : nullptr;
+
+    static constexpr int lowPlyNumerator[] = {120, 60, 40, 30, 24};
+    static_assert(LOW_PLY_HISTORY_SIZE == 5);
+
+    const int lowPlyWeight = lph ? lowPlyNumerator[ply] : 0;
+
+    ExtMove* it = cur;
+    Move*    p  = list;
+    for (PieceType pt = PAWN; pt <= KING; ++pt)
+    {
+        const Piece    pc       = make_piece(us, pt);
+        const auto&    pawn     = ph[pc];
+        const auto&    ch0      = (*continuationHistory[0])[pc];
+        const auto&    ch1      = (*continuationHistory[1])[pc];
+        const auto&    ch2      = (*continuationHistory[2])[pc];
+        const auto&    ch3      = (*continuationHistory[3])[pc];
+        const auto&    ch5      = (*continuationHistory[5])[pc];
+        const Bitboard threats  = threatByLesser[pt];
+        const Bitboard checks   = pos.check_squares(pt);
+        const int      escBonus = 20 * PieceValue[pt];
+
+#if defined(__clang__)
+    #pragma clang loop unroll(disable)
+#endif
+        for (; p != ends[pt - 1]; ++p)
         {
-            // Use a local accumulator to eliminate redundant stores to m.value
+            const Move   m  = *p;
+            const Square to = m.to_sq();
 
             // histories
-            int value = 2 * (*mainHist)[m.raw()];
-            value += 2 * (*pawnHist)[pc][to];
-            value += (*ch0)[pc][to];
-            value += (*ch1)[pc][to];
-            value += (*ch2)[pc][to];
-            value += (*ch3)[pc][to];
-            value += (*ch5)[pc][to];
+            int value = 2 * mh[m.raw()] + 2 * pawn[to];
+            value += ch0[to];
+            value += ch1[to];
+            value += ch2[to];
+            value += ch3[to];
+            value += ch5[to];
 
             // penalty for moving to a square threatened by a lesser piece
             // or bonus for escaping an attack by a lesser piece.
-            int v = 20 * (bool(threatByLesser[pt] & from) - bool(threatByLesser[pt] & to));
-            value += PieceValue[pt] * v;
+            value += escBonus * (bool(threats & m.from_sq()) - bool(threats & to));
 
             if (lph)
-                value += 8 * (*lph)[m.raw()] / (1 + ply);
+                value += lowPlyWeight * (*lph)[m.raw()] / 15;
 
             // bonus for checks
-            if ((pos.check_squares(pt) & to) && pos.see_ge(m, -75))
+            // This path is duplicated if the loop is unrolled in Clang.
+            if ((checks & to) && pos.see_ge(m, -75))
                 value += 16384;
 
-            m.value = value;
-        }
-
-        else  // Type == EVASIONS
-        {
-            if (pos.capture_stage(m))
-                m.value = PieceValue[capturedPiece] + (1 << 28);
-            else
-                m.value = (*mainHist)[m.raw()] + (*ch0)[pc][to];
+            ExtMove& scored = *it++;
+            scored          = m;
+            scored.value    = value;
         }
     }
     return it;

@@ -224,16 +224,13 @@ Move* generate_moves(const Position& pos, Move* moveList, Bitboard target, Color
     return moveList;
 }
 
-}  // namespace
-
-
 // <CAPTURES>     Generates all legal captures plus queen promotions
 // <QUIETS>       Generates all legal non-captures and underpromotions
 // <EVASIONS>     Generates all legal check evasions
 //
 // Returns a pointer to the end of the move list.
-template<GenType Type>
-Move* generate(const Position& pos, Move* moveList) {
+template<GenType Type, typename FinishPiece>
+Move* generate_impl(const Position& pos, Move* moveList, FinishPiece finishPiece) {
 
     static_assert(Type != ALL, "Unsupported type in generate()");
     assert((Type == EVASIONS) == bool(pos.checkers()));
@@ -251,10 +248,15 @@ Move* generate(const Position& pos, Move* moveList) {
 
         moveList = us == WHITE ? generate_pawn_moves<WHITE, Type>(pos, moveList, target)
                                : generate_pawn_moves<BLACK, Type>(pos, moveList, target);
+        finishPiece(moveList);
         moveList = generate_moves<KNIGHT>(pos, moveList, target, us);
+        finishPiece(moveList);
         moveList = generate_moves<BISHOP>(pos, moveList, target, us);
+        finishPiece(moveList);
         moveList = generate_moves<ROOK>(pos, moveList, target, us);
+        finishPiece(moveList);
         moveList = generate_moves<QUEEN>(pos, moveList, target, us);
+        finishPiece(moveList);
     }
 
     if constexpr (Type == EVASIONS)
@@ -280,7 +282,21 @@ Move* generate(const Position& pos, Move* moveList) {
         }
     }
 
+    finishPiece(moveList);
+
     return moveList;
+}
+
+}  // namespace
+
+template<GenType Type>
+Move* generate(const Position& pos, Move* moveList) {
+    return generate_impl<Type>(pos, moveList, [](Move*) {});
+}
+
+void generate_quiets_by_piece(const Position& pos, Move* moveList, Move* (&ends)[KING]) {
+    Move** next = ends;
+    generate_impl<QUIETS>(pos, moveList, [&](Move* end) { *next++ = end; });
 }
 
 // Explicit template instantiations

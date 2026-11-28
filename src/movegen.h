@@ -50,6 +50,8 @@ inline bool operator<(const ExtMove& f, const ExtMove& s) { return f.value < s.v
 template<GenType>
 Move* generate(const Position& pos, Move* moveList);
 
+void generate_quiets_by_piece(const Position& pos, Move* moveList, Move* (&ends)[KING]);
+
 // The MoveList struct wraps the generate() function and returns a convenient
 // list of moves. Using MoveList is sometimes preferable to directly calling
 // the lower level generate() function.
